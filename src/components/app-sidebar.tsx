@@ -1,11 +1,11 @@
 import {
     LayoutDashboard,
     PlusCircle,
-    FileText,
     Archive,
     Settings,
     LogOut,
     Bike,
+    CreditCard,
 } from "lucide-react"
 import {
     Sidebar,
@@ -53,14 +53,14 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
             href: "/dashboard",
         },
         {
-            title: "Leasing-Abrechnung",
-            icon: FileText,
-            href: "/leasing",
+            title: "Leasing Abrechnung",
+            icon: CreditCard,
+            href: "/dashboard/leasing-billing",
         },
         {
             title: "Archiv",
             icon: Archive,
-            href: "/archive",
+            href: "/dashboard/archive",
         },
         {
             title: "Einstellungen",

@@ -12,7 +12,9 @@ import { supabase } from '@/lib/supabase'
 import { WorkshopIdCard } from '@/components/WorkshopIdCard'
 import { EmployeeManagement } from '@/components/EmployeeManagement'
 import { ChecklistTemplateManager } from '@/components/ChecklistTemplateManager'
-import { User, Building2, Users, ListChecks } from 'lucide-react'
+import { LeasingSettings } from '@/components/LeasingSettings'
+import { AcceptanceSettings } from '@/components/AcceptanceSettings'
+import { User, Building2, Users, ListChecks, CreditCard, ClipboardList } from 'lucide-react'
 import type { Database } from '@/types/supabase'
 
 type Workshop = Database['public']['Tables']['workshops']['Row']
@@ -133,6 +135,14 @@ export default function SettingsPage() {
                         <TabsTrigger value="checklists" className="gap-2">
                             <ListChecks className="h-4 w-4" />
                             <span className="hidden sm:inline">Checklisten</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="intake" className="gap-2">
+                            <ClipboardList className="h-4 w-4" />
+                            <span className="hidden sm:inline">Annahme</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="leasing" className="gap-2">
+                            <CreditCard className="h-4 w-4" />
+                            <span className="hidden sm:inline">Leasing</span>
                         </TabsTrigger>
                     </TabsList>
 
@@ -276,6 +286,16 @@ export default function SettingsPage() {
                     {/* Checklists Tab */}
                     <TabsContent value="checklists">
                         <ChecklistTemplateManager />
+                    </TabsContent>
+
+                    {/* Intake Tab */}
+                    <TabsContent value="intake">
+                        <AcceptanceSettings />
+                    </TabsContent>
+
+                    {/* Leasing Tab */}
+                    <TabsContent value="leasing">
+                        <LeasingSettings />
                     </TabsContent>
                 </Tabs>
             </DashboardLayout>

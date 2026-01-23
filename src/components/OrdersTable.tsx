@@ -1,6 +1,7 @@
 import useSWR from "swr"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { STATUS_COLORS } from "@/lib/constants"
 import {
     Table,
     TableBody,
@@ -31,27 +32,50 @@ interface Order {
 }
 
 
-export function OrdersTable() {
+type TableMode = 'active' | 'archived' | 'leasing_billing'
+
+interface OrdersTableProps {
+    mode?: TableMode
+    // Backward compatibility prop (optional)
+    showArchived?: boolean
+}
+
+export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps) {
     const { workshopId } = useAuth()
     const navigate = useNavigate()
     const [searchTerm, setSearchTerm] = useState("")
     const [filterStatus, setFilterStatus] = useState("all")
 
+    // Resolve effective mode
+    const effectiveMode: TableMode = showArchived ? 'archived' : mode
+
     const fetchOrders = async () => {
         if (!workshopId) return []
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('orders')
             .select('*')
             .eq('workshop_id', workshopId)
             .order('created_at', { ascending: false })
+
+        if (effectiveMode === 'archived') {
+            query = query.eq('status', 'abgeschlossen')
+        } else if (effectiveMode === 'leasing_billing') {
+            // Leasing billing: is_leasing = true AND status = 'abgeholt'
+            query = query.eq('is_leasing', true).eq('status', 'abgeholt')
+        } else {
+            // Active: Exclude 'abgeschlossen' and 'abgeholt'
+            query = query.neq('status', 'abgeschlossen').neq('status', 'abgeholt')
+        }
+
+        const { data, error } = await query
 
         if (error) throw error
         return data as Order[]
     }
 
     const { data: orders = [], isLoading } = useSWR(
-        workshopId ? ['orders', workshopId] : null,
+        workshopId ? ['orders', workshopId, effectiveMode] : null,
         fetchOrders,
         {
             refreshInterval: 30000,
@@ -67,15 +91,19 @@ export function OrdersTable() {
             order.order_number.toLowerCase().includes(searchTerm.toLowerCase())
 
         const matchesStatus =
-            filterStatus === 'all' ? true :
-                filterStatus === 'leasing' ? order.is_leasing :
-                    filterStatus === 'repair' ? !order.is_leasing : true
+            effectiveMode === 'active'
+                ? (filterStatus === 'all' ? true : order.status === filterStatus)
+                : true
 
         return matchesSearch && matchesStatus
     })
 
     const handleViewOrder = (orderId: string) => {
-        navigate(`/dashboard/orders/${orderId}`)
+        let returnPath = '/dashboard'
+        if (effectiveMode === 'archived') returnPath = '/dashboard/archive'
+        if (effectiveMode === 'leasing_billing') returnPath = '/dashboard/leasing-billing'
+
+        navigate(`/dashboard/orders/${orderId}`, { state: { from: returnPath } })
     }
 
     const renderTable = (ordersToRender: Order[]) => (
@@ -137,9 +165,9 @@ export function OrdersTable() {
                                 <TableCell className="py-4">
                                     <Badge
                                         variant="secondary"
-                                        className="capitalize bg-muted text-foreground border border-border/60 font-normal hover:bg-muted/80"
+                                        className={`capitalize font-normal border ${STATUS_COLORS[order.status] || "bg-muted text-foreground border-border/60"}`}
                                     >
-                                        {order.status.replace('_', ' ')}
+                                        {order.status.replace(/_/g, ' ')}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="hidden lg:table-cell py-4 text-xs text-muted-foreground font-mono">
@@ -166,12 +194,22 @@ export function OrdersTable() {
         </div>
     )
 
+    const getTitle = () => {
+        switch (effectiveMode) {
+            case 'archived': return "Archivierte Aufträge"
+            case 'leasing_billing': return "Leasing Abrechnung (Abgeholt)"
+            default: return "Aktive Aufträge"
+        }
+    }
+
     return (
         <Card className="border-none shadow-sm bg-card/50">
             <CardHeader className="pb-4">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="space-y-1 text-center sm:text-left">
-                        <CardTitle className="text-xl font-bold tracking-tight">Aktive Aufträge</CardTitle>
+                        <CardTitle className="text-xl font-bold tracking-tight">
+                            {getTitle()}
+                        </CardTitle>
                     </div>
                     <Button
                         variant="outline"
@@ -186,34 +224,57 @@ export function OrdersTable() {
                 </div>
             </CardHeader>
             <CardContent>
-                <Tabs defaultValue="all" className="space-y-6" onValueChange={setFilterStatus}>
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-2 flex-1 relative max-w-sm">
+                {effectiveMode === 'active' ? (
+                    <Tabs defaultValue="all" className="space-y-6" onValueChange={setFilterStatus}>
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div className="flex items-center gap-2 w-full md:w-auto md:flex-1 relative max-w-sm">
+                                <Search className="h-4 w-4 absolute left-3 text-muted-foreground" />
+                                <Input
+                                    placeholder="Suche nach Kunde, Auftragsnummer oder Modell..."
+                                    className="pl-9 bg-background"
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                />
+                            </div>
+                            <TabsList variant="line" className="w-full md:w-auto h-auto flex-wrap justify-start">
+                                <TabsTrigger value="all">Alle</TabsTrigger>
+                                <TabsTrigger value="eingegangen">Eingegangen</TabsTrigger>
+                                <TabsTrigger value="warten_auf_teile">Warten auf Teile</TabsTrigger>
+                                <TabsTrigger value="in_bearbeitung">In Bearbeitung</TabsTrigger>
+                                <TabsTrigger value="abholbereit">Abholbereit</TabsTrigger>
+                            </TabsList>
+                        </div>
+
+                        <TabsContent value="all" className="mt-0">
+                            {renderTable(filteredOrders)}
+                        </TabsContent>
+                        <TabsContent value="eingegangen" className="mt-0">
+                            {renderTable(filteredOrders)}
+                        </TabsContent>
+                        <TabsContent value="warten_auf_teile" className="mt-0">
+                            {renderTable(filteredOrders)}
+                        </TabsContent>
+                        <TabsContent value="in_bearbeitung" className="mt-0">
+                            {renderTable(filteredOrders)}
+                        </TabsContent>
+                        <TabsContent value="abholbereit" className="mt-0">
+                            {renderTable(filteredOrders)}
+                        </TabsContent>
+                    </Tabs>
+                ) : (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 max-w-sm relative">
                             <Search className="h-4 w-4 absolute left-3 text-muted-foreground" />
                             <Input
-                                placeholder="Suche nach Kunde, Auftragsnummer oder Modell..."
+                                placeholder={effectiveMode === 'archived' ? "Suche im Archiv..." : "Suche in Abrechnung..."}
                                 className="pl-9 bg-background"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
                         </div>
-                        <TabsList variant="line">
-                            <TabsTrigger value="all">Alle</TabsTrigger>
-                            <TabsTrigger value="leasing">Leasing</TabsTrigger>
-                            <TabsTrigger value="repair">Reparatur</TabsTrigger>
-                        </TabsList>
+                        {renderTable(filteredOrders)}
                     </div>
-
-                    <TabsContent value="all" className="mt-0">
-                        {renderTable(filteredOrders)}
-                    </TabsContent>
-                    <TabsContent value="leasing" className="mt-0">
-                        {renderTable(filteredOrders)}
-                    </TabsContent>
-                    <TabsContent value="repair" className="mt-0">
-                        {renderTable(filteredOrders)}
-                    </TabsContent>
-                </Tabs>
+                )}
             </CardContent>
         </Card>
     )

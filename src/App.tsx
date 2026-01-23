@@ -4,6 +4,8 @@ import SignupPage from "@/pages/SignupPage";
 import DashboardPage from "@/pages/DashboardPage";
 import OrderDetailPage from "@/pages/OrderDetailPage";
 import SettingsPage from "@/pages/SettingsPage";
+import ArchivePage from "@/pages/ArchivePage";
+import LeasingBillingPage from "@/pages/LeasingBillingPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -61,6 +63,22 @@ function AppRoutes() {
                 element={
                     <ProtectedRoute>
                         {workshopId ? <OrderDetailPage /> : <Navigate to="/onboarding" replace />}
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/dashboard/archive"
+                element={
+                    <ProtectedRoute>
+                        {workshopId ? <ArchivePage /> : <Navigate to="/onboarding" replace />}
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/dashboard/leasing-billing"
+                element={
+                    <ProtectedRoute>
+                        {workshopId ? <LeasingBillingPage /> : <Navigate to="/onboarding" replace />}
                     </ProtectedRoute>
                 }
             />

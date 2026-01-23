@@ -34,11 +34,25 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const { user, workshopId } = useAuth()
     const [templates, setTemplates] = useState<any[]>([])
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+    const [availableProviders, setAvailableProviders] = useState<string[]>([])
+    const [acceptanceChecklistItems, setAcceptanceChecklistItems] = useState<string[]>([
+        "Sichtprüfung auf Beschädigungen dokumentiert",
+        "Zubehör/Ausstattung erfasst (Licht, Schloss, Gepäckträger etc.)",
+        "Akkustand/Akku vorhanden geprüft (bei E-Bike)",
+        "Kundenwunsch / Reparaturauftrag notiert",
+        "Kostenvoranschlag/Preisrahmen kommuniziert",
+        "Voraussichtliches Abholtermin besprochen"
+    ])
 
     const [step, setStep] = useState(1)
     const [orderType, setOrderType] = useState<"standard" | "leasing" | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [checklistState, setChecklistState] = useState<boolean[]>(new Array(6).fill(false))
+    const [checklistState, setChecklistState] = useState<boolean[]>([])
+
+    // Update checklistState when items change
+    useEffect(() => {
+        setChecklistState(new Array(acceptanceChecklistItems.length).fill(false))
+    }, [acceptanceChecklistItems])
 
     // Form States
     const [customerName, setCustomerName] = useState("")
@@ -50,9 +64,10 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const [leasingProvider, setLeasingProvider] = useState("")
     const [notes, setNotes] = useState("")
 
-    // Fetch templates when modal opens
+    // Fetch templates and providers when modal opens
     useEffect(() => {
         if (workshopId && open) {
+            // Fetch Templates
             supabase
                 .from('checklist_templates')
                 .select('*')
@@ -60,6 +75,24 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 .order('name')
                 .then(({ data }) => {
                     if (data) setTemplates(data)
+                })
+
+            // Fetch Leasing Providers & Acceptance Checklist
+            supabase
+                .from('workshops')
+                .select('leasing_providers, acceptance_checklist')
+                .eq('id', workshopId)
+                .single()
+                .then(({ data }) => {
+                    if (data?.leasing_providers && Array.isArray(data.leasing_providers)) {
+                        setAvailableProviders(data.leasing_providers)
+                    } else {
+                        setAvailableProviders([])
+                    }
+
+                    if (data?.acceptance_checklist && Array.isArray(data.acceptance_checklist) && data.acceptance_checklist.length > 0) {
+                        setAcceptanceChecklistItems(data.acceptance_checklist)
+                    }
                 })
         }
     }, [workshopId, open])
@@ -69,7 +102,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         if (!newOpen) {
             setStep(1)
             setOrderType(null)
-            setChecklistState(new Array(6).fill(false))
+            setChecklistState(new Array(acceptanceChecklistItems.length).fill(false))
             // Reset form
             setCustomerName("")
             setCustomerEmail("")
@@ -83,6 +116,32 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         }
         onOpenChange?.(newOpen)
     }
+
+    // STEPS:
+    // ...
+
+    // Step 4 Render
+    // ...
+    <div className="space-y-3">
+        {acceptanceChecklistItems.map((item, i) => (
+            <div key={i} className="flex items-center space-x-3 border border-border/50 rounded-lg p-3 bg-muted/20 hover:bg-muted/40 transition-colors">
+                <Checkbox
+                    id={`check-${i}`}
+                    checked={checklistState[i] || false}
+                    onCheckedChange={(checked) => {
+                        const newState = [...checklistState]
+                        newState[i] = checked === true
+                        setChecklistState(newState)
+                    }}
+                />
+                <label htmlFor={`check-${i}`} className="text-sm font-medium w-full cursor-pointer">
+                    {item}
+                </label>
+            </div>
+        ))}
+    </div>
+
+
 
     // STEPS:
     // 1: Type
@@ -118,14 +177,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         setIsSubmitting(true)
         try {
             // 1. Acceptance Items (Completed during onboarding)
-            const acceptanceItems = [
-                "Sichtprüfung auf Beschädigungen dokumentiert",
-                "Zubehör/Ausstattung erfasst (Licht, Schloss, Gepäckträger etc.)",
-                "Akkustand/Akku vorhanden geprüft (bei E-Bike)",
-                "Kundenwunsch / Reparaturauftrag notiert",
-                "Kostenvoranschlag/Preisrahmen kommuniziert",
-                "Voraussichtliches Abholtermin besprochen"
-            ].filter((_, i) => checklistState[i])
+            // 1. Acceptance Items (Completed during onboarding)
+            const acceptanceItems = acceptanceChecklistItems.filter((_, i) => checklistState[i])
                 .map(text => ({ text, completed: true, type: 'acceptance' }))
 
             // 2. Service Items (To be done by mechanic)
@@ -157,7 +210,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     bike_model: bikeModel || null,
                     bike_type: bikeType || null,
                     is_leasing: orderType === 'leasing',
-                    status: 'received',
+                    status: 'eingegangen',
                     leasing_provider: orderType === 'leasing' ? leasingProvider : null,
                     estimated_price: parseFloat(estimatedPrice) || 0,
                     checklist: finalChecklist,
@@ -287,17 +340,24 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                             <h3 className="text-lg font-medium">Leasing-Informationen</h3>
                             <div className="space-y-2">
                                 <Label htmlFor="provider">Leasing-Anbieter *</Label>
-                                <Select value={leasingProvider} onValueChange={setLeasingProvider}>
-                                    <SelectTrigger id="provider" className="bg-muted/50">
-                                        <SelectValue placeholder="Anbieter auswählen" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="JobRad">JobRad</SelectItem>
-                                        <SelectItem value="BusinessBike">BusinessBike</SelectItem>
-                                        <SelectItem value="Bikeleasing-Service">Bikeleasing-Service</SelectItem>
-                                        <SelectItem value="Eurorad">Eurorad</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                {availableProviders.length > 0 ? (
+                                    <Select value={leasingProvider} onValueChange={setLeasingProvider}>
+                                        <SelectTrigger id="provider" className="bg-muted/50">
+                                            <SelectValue placeholder="Anbieter auswählen" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {availableProviders.map(provider => (
+                                                <SelectItem key={provider} value={provider}>
+                                                    {provider}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                ) : (
+                                    <div className="text-sm text-yellow-600 dark:text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-md border border-yellow-200 dark:border-yellow-900">
+                                        Keine Leasing-Anbieter konfiguriert. Bitte fügen Sie diese in den Einstellungen hinzu.
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -400,18 +460,11 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                             </div>
 
                             <div className="space-y-3">
-                                {[
-                                    "Sichtprüfung auf Beschädigungen dokumentiert",
-                                    "Zubehör/Ausstattung erfasst (Licht, Schloss, Gepäckträger etc.)",
-                                    "Akkustand/Akku vorhanden geprüft (bei E-Bike)",
-                                    "Kundenwunsch / Reparaturauftrag notiert",
-                                    "Kostenvoranschlag/Preisrahmen kommuniziert",
-                                    "Voraussichtliches Abholtermin besprochen"
-                                ].map((item, i) => (
+                                {acceptanceChecklistItems.map((item, i) => (
                                     <div key={i} className="flex items-center space-x-3 border border-border/50 rounded-lg p-3 bg-muted/20 hover:bg-muted/40 transition-colors">
                                         <Checkbox
                                             id={`check-${i}`}
-                                            checked={checklistState[i]}
+                                            checked={checklistState[i] || false}
                                             onCheckedChange={(checked) => {
                                                 const newState = [...checklistState]
                                                 newState[i] = checked === true

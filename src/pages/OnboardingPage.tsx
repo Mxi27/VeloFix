@@ -84,41 +84,7 @@ export default function OnboardingPage() {
         }
     }
 
-    const handleJoinWorkshop = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!user) return
-        setIsLoading(true)
 
-        try {
-            // 1. Check if workshop exists (optional validation)
-            const { data: workshop, error: wsError } = await supabase
-                .from('workshops')
-                .select('id')
-                .eq('id', joinId)
-                .single()
-
-            if (wsError || !workshop) throw new Error("Werkstatt nicht gefunden. Bitte ID prüfen.")
-
-            // 2. Update Employee
-            const { error: empError } = await supabase
-                .from('employees')
-                .update({
-                    workshop_id: workshop.id,
-                    role: 'read' // Default role for joiners, admin can upgrade later
-                })
-                .eq('user_id', user.id)
-
-            if (empError) throw empError
-
-            await refreshSession()
-            navigate("/dashboard")
-
-        } catch (error: any) {
-            console.error(error)
-            alert(error.message)
-            setIsLoading(false)
-        }
-    }
 
     return (
         <PageTransition>
@@ -178,7 +144,12 @@ export default function OnboardingPage() {
                             </TabsContent>
 
                             <TabsContent value="join" className="space-y-4">
-                                <form onSubmit={handleJoinWorkshop} className="space-y-4">
+                                <form onSubmit={(e) => e.preventDefault()} className="space-y-4 opacity-50 pointer-events-none select-none relative">
+                                    <div className="absolute inset-0 z-10 flex items-center justify-center">
+                                        <div className="bg-background/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-primary/20 shadow-lg transform -rotate-2">
+                                            <span className="font-bold text-primary">Coming Soon 🚀</span>
+                                        </div>
+                                    </div>
                                     <div className="bg-muted p-4 rounded-lg text-sm text-muted-foreground mb-4 border border-border">
                                         Fragen Sie Ihren Administrator nach dem <strong>Invite Code</strong>.
                                     </div>
@@ -190,10 +161,11 @@ export default function OnboardingPage() {
                                             value={joinId}
                                             onChange={e => setJoinId(e.target.value)}
                                             required
+                                            disabled
                                         />
                                     </div>
-                                    <Button type="submit" variant="outline" className="w-full" disabled={isLoading}>
-                                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+                                    <Button type="submit" variant="outline" className="w-full" disabled>
+                                        <Users className="mr-2 h-4 w-4" />
                                         Beitreten
                                     </Button>
                                 </form>

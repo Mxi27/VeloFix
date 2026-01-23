@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
@@ -41,10 +41,22 @@ import {
     Check,
     Save,
     AlertCircle,
-    Loader2
+    Loader2,
+    Archive
 } from "lucide-react"
 import { LoadingScreen } from "@/components/LoadingScreen"
 import { PageTransition } from "@/components/PageTransition"
+import { STATUS_COLORS } from "@/lib/constants"
+
+const STATUS_FLOW = [
+    { value: 'eingegangen', label: 'Eingegangen', icon: Clock, color: STATUS_COLORS.eingegangen },
+    { value: 'warten_auf_teile', label: 'Warten auf Teile', icon: Pause, color: STATUS_COLORS.warten_auf_teile },
+    { value: 'in_bearbeitung', label: 'In Bearbeitung', icon: Play, color: STATUS_COLORS.in_bearbeitung },
+    { value: 'abholbereit', label: 'Abholbereit', icon: PackageCheck, color: STATUS_COLORS.abholbereit },
+]
+
+const LEASING_STATUS = { value: 'abgeholt', label: 'Abgeholt', icon: Check, color: STATUS_COLORS.abgeholt }
+const COMPLETED_STATUS = { value: 'abgeschlossen', label: 'Abgeschlossen', icon: Archive, color: STATUS_COLORS.abgeschlossen }
 
 interface ChecklistItem {
     text: string
@@ -68,17 +80,8 @@ interface Order {
     final_price: number | null
     checklist: ChecklistItem[] | null
     notes: string[] | null
+    leasing_code: string | null
 }
-
-// ... existing code ...
-
-
-const STATUS_OPTIONS = [
-    { value: 'eingegangen', label: 'Eingegangen', icon: Clock },
-    { value: 'in_bearbeitung', label: 'In Bearbeitung', icon: Play },
-    { value: 'warten_auf_teile', label: 'Warten auf Teile', icon: Pause },
-    { value: 'abholbereit', label: 'Abholbereit', icon: PackageCheck },
-]
 
 const BIKE_TYPE_LABELS: Record<string, string> = {
     road: 'Rennrad',
@@ -101,6 +104,10 @@ export default function OrderDetailPage() {
     // Editable fields
     const [notes, setNotes] = useState("")
     const [finalPrice, setFinalPrice] = useState("")
+
+    // Leasing dialog state
+    const [isLeasingDialogOpen, setIsLeasingDialogOpen] = useState(false)
+    const [leasingCodeInput, setLeasingCodeInput] = useState("")
 
     useEffect(() => {
         const fetchOrder = async () => {
@@ -127,8 +134,6 @@ export default function OrderDetailPage() {
                 console.error("Error fetching order:", orderResult.error)
             } else {
                 setOrder(orderResult.data)
-                // Accessing index 0 if it's an array, or joining if multiple lines? 
-                // Best approach for textarea: join with newlines
                 const notesData = orderResult.data.notes
                 const notesString = Array.isArray(notesData)
                     ? notesData.join('\n')
@@ -136,6 +141,8 @@ export default function OrderDetailPage() {
 
                 setNotes(notesString)
                 setFinalPrice(orderResult.data.final_price?.toString() || "")
+                // Initialize leasing code input properly to allow editing
+                setLeasingCodeInput(orderResult.data.leasing_code || "")
             }
 
             if (templatesResult.data) {
@@ -151,6 +158,12 @@ export default function OrderDetailPage() {
     const handleStatusChange = async (newStatus: string) => {
         if (!order) return
 
+        // Intercept leasing pickup
+        if (newStatus === LEASING_STATUS.value && order.is_leasing && !order.leasing_code) {
+            setIsLeasingDialogOpen(true)
+            return
+        }
+
         setSaving(true)
         const { error } = await supabase
             .from('orders')
@@ -159,9 +172,43 @@ export default function OrderDetailPage() {
 
         if (error) {
             console.error("Error updating status:", error)
-            alert("Fehler beim Aktualisieren des Status")
+            alert(`Fehler beim Aktualisieren des Status: ${error.message}`)
         } else {
             setOrder({ ...order, status: newStatus })
+        }
+        setSaving(false)
+    }
+
+    const handleSaveLeasingCode = async () => {
+        if (!order || !workshopId) return
+
+        // NOTE: We allow saving empty leasing code now as requested (nullable)
+
+        setSaving(true)
+
+        const updates: any = {
+            leasing_code: leasingCodeInput
+        }
+
+        // Only update status if we are in the dialog flow
+        if (isLeasingDialogOpen) {
+            updates.status = LEASING_STATUS.value
+        }
+
+        const { error } = await supabase
+            .from('orders')
+            .update(updates)
+            .eq('id', order.id)
+
+        if (error) {
+            console.error("Error saving leasing code:", error)
+            alert(`Fehler beim Speichern das Leasing-Codes: ${error.message}`)
+        } else {
+            setOrder({
+                ...order,
+                ...updates
+            })
+            setIsLeasingDialogOpen(false)
         }
         setSaving(false)
     }
@@ -170,9 +217,6 @@ export default function OrderDetailPage() {
         if (!order || !workshopId) return
 
         setSaving(true)
-        // Convert string back to array for DB
-        // Using [notes] to store as single block, or split('\n') for lines?
-        // split('\n') is more "array-like"
         const notesArray = notes.split('\n')
 
         const { error } = await supabase
@@ -228,7 +272,7 @@ export default function OrderDetailPage() {
 
         setSaving(true)
 
-        // Strict overwrite as requested: "entire checklist content deleted and overwritten"
+        // Strict overwrite as requested
         let newChecklist: ChecklistItem[] = []
         if (template.items && Array.isArray(template.items)) {
             newChecklist = template.items.map((item: any) => ({
@@ -238,7 +282,6 @@ export default function OrderDetailPage() {
             }))
         }
 
-        // Save
         const { error } = await supabase
             .from('orders')
             .update({ checklist: newChecklist as any })
@@ -258,25 +301,25 @@ export default function OrderDetailPage() {
     const handleToggleChecklist = async (index: number, checked: boolean) => {
         if (!order || !order.checklist) return
 
-        // Optimistic update
         const newChecklist = [...order.checklist]
         newChecklist[index] = { ...newChecklist[index], completed: checked }
 
         setOrder({ ...order, checklist: newChecklist })
 
-        // Save to backend
         const { error } = await supabase
             .from('orders')
-            .update({ checklist: newChecklist as any }) // cast for supabase compatibility if needed
+            .update({ checklist: newChecklist as any })
             .eq('id', order.id)
 
         if (error) {
             console.error("Error updating checklist:", error)
-            // Revert on error
             setOrder({ ...order, checklist: order.checklist })
             alert("Fehler beim Speichern der Checkliste")
         }
     }
+
+    const location = useLocation()
+    const returnPath = location.state?.from || '/dashboard'
 
     if (loading) {
         return <LoadingScreen />
@@ -287,9 +330,9 @@ export default function OrderDetailPage() {
             <DashboardLayout>
                 <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                     <h2 className="text-2xl font-bold">Auftrag nicht gefunden</h2>
-                    <Button onClick={() => navigate('/dashboard')}>
+                    <Button onClick={() => navigate(returnPath)}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        Zurück zum Dashboard
+                        Zurück zur Übersicht
                     </Button>
                 </div>
             </DashboardLayout>
@@ -306,7 +349,7 @@ export default function OrderDetailPage() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => navigate('/dashboard')}
+                                onClick={() => navigate(returnPath)}
                             >
                                 <ArrowLeft className="mr-2 h-4 w-4" />
                                 Zurück
@@ -401,6 +444,46 @@ export default function OrderDetailPage() {
                                 </CardContent>
                             </Card>
 
+                            {/* Leasing Information */}
+                            {order.is_leasing && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="flex items-center gap-2 text-base">
+                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                <CreditCard className="h-4 w-4 text-primary" />
+                                            </div>
+                                            Leasing
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-3">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Anbieter</p>
+                                            <p className="font-medium">{order.leasing_provider || 'Nicht angegeben'}</p>
+                                        </div>
+                                        <div className="pt-2 border-t border-border/50" />
+                                        <div>
+                                            <p className="text-xs text-muted-foreground mb-2">Leasing-Code</p>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    value={leasingCodeInput}
+                                                    onChange={(e) => setLeasingCodeInput(e.target.value)}
+                                                    placeholder="Code eingeben..."
+                                                    className="h-8"
+                                                />
+                                                <Button
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0"
+                                                    disabled={saving || (leasingCodeInput === (order.leasing_code || ""))}
+                                                    onClick={handleSaveLeasingCode}
+                                                >
+                                                    <Save className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
                             {/* Price Overview */}
                             <Card>
                                 <CardHeader>
@@ -466,25 +549,7 @@ export default function OrderDetailPage() {
                                 </CardContent>
                             </Card>
 
-                            {/* Leasing Information */}
-                            {order.is_leasing && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-base">
-                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                <CreditCard className="h-4 w-4 text-primary" />
-                                            </div>
-                                            Leasing
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Anbieter</p>
-                                            <p className="font-medium">{order.leasing_provider || 'Nicht angegeben'}</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )}
+
                         </div>
 
                         {/* Middle Column - Checklist */}
@@ -655,15 +720,15 @@ export default function OrderDetailPage() {
                                         </div>
                                     )}
 
-                                    {STATUS_OPTIONS.map((statusOption) => {
+                                    {STATUS_FLOW.map((statusOption) => {
                                         const Icon = statusOption.icon
                                         const isActive = order.status === statusOption.value
 
                                         return (
                                             <Button
                                                 key={statusOption.value}
-                                                variant={isActive ? "default" : "outline"}
-                                                className={`w-full justify-start ${isActive ? '' : 'text-foreground'}`}
+                                                variant={isActive ? "outline" : "outline"}
+                                                className={`w-full justify-start ${isActive ? `${statusOption.color} border-current` : 'text-muted-foreground'}`}
                                                 onClick={() => handleStatusChange(statusOption.value)}
                                                 disabled={saving || isActive}
                                             >
@@ -672,12 +737,78 @@ export default function OrderDetailPage() {
                                             </Button>
                                         )
                                     })}
+
+                                    {order.is_leasing && (
+                                        <Button
+                                            variant={order.status === LEASING_STATUS.value ? "outline" : "outline"}
+                                            className={`w-full justify-start ${order.status === LEASING_STATUS.value ? `${LEASING_STATUS.color} border-current` : 'text-muted-foreground'}`}
+                                            onClick={() => handleStatusChange(LEASING_STATUS.value)}
+                                            disabled={saving || order.status === LEASING_STATUS.value}
+                                        >
+                                            <Check className="mr-2 h-4 w-4" />
+                                            {LEASING_STATUS.label}
+                                        </Button>
+                                    )}
+
+                                    <div className="my-2 border-t border-border/50" />
+
+                                    <Button
+                                        variant={order.status === COMPLETED_STATUS.value ? "outline" : "ghost"}
+                                        className={`w-full justify-start text-muted-foreground hover:text-foreground ${order.status === COMPLETED_STATUS.value ? `${COMPLETED_STATUS.color} border-current` : ''}`}
+                                        onClick={() => handleStatusChange(COMPLETED_STATUS.value)}
+                                        disabled={saving || order.status === COMPLETED_STATUS.value}
+                                    >
+                                        <Archive className="mr-2 h-4 w-4" />
+                                        {COMPLETED_STATUS.label} (Archivieren)
+                                    </Button>
                                 </CardContent>
                             </Card>
                         </div>
                     </div>
                 </div>
+
             </DashboardLayout>
-        </PageTransition>
+
+            {/* Dialog for Leasing Code */}
+            <Dialog open={isLeasingDialogOpen} onOpenChange={setIsLeasingDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Leasing-Code eingeben</DialogTitle>
+                        <DialogDescription>
+                            Bitte geben Sie den Abholcode/Leasing-Code für dieses Rad ein, um den Auftrag abzuschließen.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="leasing-code" className="mb-2 block">Leasing Code</Label>
+                        <Input
+                            id="leasing-code"
+                            value={leasingCodeInput}
+                            onChange={(e) => setLeasingCodeInput(e.target.value)}
+                            placeholder="z.B. 123456"
+                            autoFocus
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsLeasingDialogOpen(false)}>
+                            Abbrechen
+                        </Button>
+                        <Button
+                            onClick={handleSaveLeasingCode}
+                            disabled={!leasingCodeInput.trim() || saving}
+                        >
+                            {saving ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Speichern
+                                </>
+                            ) : (
+                                'Bestätigen & Abholen'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+        </PageTransition >
     )
 }
