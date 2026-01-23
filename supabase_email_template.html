@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bestätigen Sie Ihre E-Mail</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f5;
+            color: #09090b;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            border: 1px solid #e4e4e7;
+        }
+
+        .header {
+            background-color: #18181b;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .content h2 {
+            margin-top: 0;
+            color: #18181b;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .content p {
+            color: #71717a;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .button {
+            display: inline-block;
+            background-color: #2563eb;
+            /* Primary Blue matching app */
+            color: #ffffff;
+            text-decoration: none;
+            padding: 12px 32px;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+
+        .button:hover {
+            background-color: #1d4ed8;
+        }
+
+        .footer {
+            background-color: #fafafa;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #e4e4e7;
+        }
+
+        .footer p {
+            color: #a1a1aa;
+            font-size: 12px;
+            margin: 0;
+        }
+
+        .link-text {
+            display: block;
+            margin-top: 24px;
+            font-size: 12px;
+            color: #a1a1aa;
+            word-break: break-all;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>VeloFix</h1>
+        </div>
+        <div class="content">
+            <h2>Willkommen an Bord!</h2>
+            <p>Schön, dass du dabei bist. Um deinen Account freizuschalten und deine Werkstatt zu verwalten, bestätige
+                bitte kurz deine E-Mail-Adresse.</p>
+
+            <a href="{{ .ConfirmationURL }}" class="button">E-Mail bestätigen</a>
+
+            <div class="link-text">
+                <p>Oder kopiere diesen Link in deinen Browser:</p>
+                <a href="{{ .ConfirmationURL }}" style="color: #2563eb;">{{ .ConfirmationURL }}</a>
+            </div>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 VeloFix. Alle Rechte vorbehalten.</p>
+        </div>
+    </div>
+</body>
+
+</html>
