@@ -107,7 +107,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     }
 
     const renderTable = (ordersToRender: Order[]) => (
-        <div className="rounded-xl border border-border/60 bg-background overflow-hidden shadow-sm">
+        <div className="rounded-xl border border-border/60 bg-background overflow-x-auto shadow-sm">
             <Table>
                 <TableHeader>
                     <TableRow className="hover:bg-transparent bg-muted/40">
@@ -236,12 +236,12 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     onChange={e => setSearchTerm(e.target.value)}
                                 />
                             </div>
-                            <TabsList variant="line" className="w-full md:w-auto h-auto flex-wrap justify-start">
-                                <TabsTrigger value="all">Alle</TabsTrigger>
-                                <TabsTrigger value="eingegangen">Eingegangen</TabsTrigger>
-                                <TabsTrigger value="warten_auf_teile">Warten auf Teile</TabsTrigger>
-                                <TabsTrigger value="in_bearbeitung">In Bearbeitung</TabsTrigger>
-                                <TabsTrigger value="abholbereit">Abholbereit</TabsTrigger>
+                            <TabsList variant="line" className="w-full md:w-auto overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1">
+                                <TabsTrigger value="all" className="whitespace-nowrap">Alle</TabsTrigger>
+                                <TabsTrigger value="eingegangen" className="whitespace-nowrap">Eingegangen</TabsTrigger>
+                                <TabsTrigger value="warten_auf_teile" className="whitespace-nowrap">Warten auf Teile</TabsTrigger>
+                                <TabsTrigger value="in_bearbeitung" className="whitespace-nowrap">In Bearbeitung</TabsTrigger>
+                                <TabsTrigger value="abholbereit" className="whitespace-nowrap">Abholbereit</TabsTrigger>
                             </TabsList>
                         </div>
 

@@ -295,7 +295,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     {step === 1 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             <h3 className="text-lg font-medium">Auftragstyp wählen</h3>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <button
                                     onClick={() => setOrderType("standard")}
                                     className={cn(

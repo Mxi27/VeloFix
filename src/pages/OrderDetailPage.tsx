@@ -344,7 +344,7 @@ export default function OrderDetailPage() {
             <DashboardLayout>
                 <div className="space-y-6">
                     {/* Header */}
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex items-center gap-4">
                             <Button
                                 variant="ghost"
@@ -355,7 +355,7 @@ export default function OrderDetailPage() {
                                 Zurück
                             </Button>
                             <div>
-                                <h1 className="text-3xl font-bold tracking-tight">
+                                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
                                     {order.order_number}
                                 </h1>
                                 <p className="text-sm text-muted-foreground">
@@ -367,7 +367,7 @@ export default function OrderDetailPage() {
                                 </p>
                             </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 self-start sm:self-center ml-12 sm:ml-0">
                             <Badge
                                 variant="outline"
                                 className={order.is_leasing

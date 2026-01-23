@@ -119,28 +119,28 @@ export default function SettingsPage() {
                 </div>
 
                 <Tabs defaultValue="profile" className="space-y-6">
-                    <TabsList variant="line" className="w-full justify-start border-b mb-6">
-                        <TabsTrigger value="profile" className="gap-2">
+                    <TabsList variant="line" className="w-full justify-start border-b mb-6 overflow-x-auto flex-nowrap no-scrollbar pb-1">
+                        <TabsTrigger value="profile" className="gap-2 whitespace-nowrap">
                             <User className="h-4 w-4" />
                             <span className="hidden sm:inline">Profil</span>
                         </TabsTrigger>
-                        <TabsTrigger value="workshop" className="gap-2">
+                        <TabsTrigger value="workshop" className="gap-2 whitespace-nowrap">
                             <Building2 className="h-4 w-4" />
                             <span className="hidden sm:inline">Werkstatt</span>
                         </TabsTrigger>
-                        <TabsTrigger value="employees" className="gap-2">
+                        <TabsTrigger value="employees" className="gap-2 whitespace-nowrap">
                             <Users className="h-4 w-4" />
                             <span className="hidden sm:inline">Mitarbeiter</span>
                         </TabsTrigger>
-                        <TabsTrigger value="checklists" className="gap-2">
+                        <TabsTrigger value="checklists" className="gap-2 whitespace-nowrap">
                             <ListChecks className="h-4 w-4" />
                             <span className="hidden sm:inline">Checklisten</span>
                         </TabsTrigger>
-                        <TabsTrigger value="intake" className="gap-2">
+                        <TabsTrigger value="intake" className="gap-2 whitespace-nowrap">
                             <ClipboardList className="h-4 w-4" />
                             <span className="hidden sm:inline">Annahme</span>
                         </TabsTrigger>
-                        <TabsTrigger value="leasing" className="gap-2">
+                        <TabsTrigger value="leasing" className="gap-2 whitespace-nowrap">
                             <CreditCard className="h-4 w-4" />
                             <span className="hidden sm:inline">Leasing</span>
                         </TabsTrigger>
