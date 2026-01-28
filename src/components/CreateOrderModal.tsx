@@ -177,9 +177,9 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         setIsSubmitting(true)
         try {
             // 1. Acceptance Items (Completed during onboarding)
-            // 1. Acceptance Items (Completed during onboarding)
-            const acceptanceItems = acceptanceChecklistItems.filter((_, i) => checklistState[i])
-                .map(text => ({ text, completed: true, type: 'acceptance' }))
+            // 1. Acceptance Items (Completed during onboarding) - USED ONLY FOR GATE CHECK, NOT SAVED
+            // const acceptanceItems = acceptanceChecklistItems.filter((_, i) => checklistState[i])
+            //    .map(text => ({ text, completed: true, type: 'acceptance' }))
 
             // 2. Service Items (To be done by mechanic)
             let serviceItems: any[] = []
@@ -195,7 +195,9 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             }
 
             // Combine both
-            const finalChecklist = [...acceptanceItems, ...serviceItems]
+            // User requested to NOT include acceptance items in the persisted checklist
+            // They act only as a gateway check in the wizard
+            const finalChecklist = [...serviceItems]
 
             const orderNumber = `AV-${Math.floor(Math.random() * 10000)}`
 

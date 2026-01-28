@@ -1,0 +1,482 @@
+import { useState, useEffect } from "react"
+import { useParams, useNavigate } from "react-router-dom"
+import { motion, AnimatePresence } from "framer-motion"
+import {
+    Check,
+    X,
+    SkipForward,
+    CheckCircle2,
+    ArrowLeft,
+    Plus
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
+import { supabase } from "@/lib/supabase"
+import { toast } from "@/lib/toast"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+
+interface ChecklistItem {
+    text: string
+    completed: boolean
+    notes?: string
+    skipped?: boolean
+}
+
+export default function ServiceModePage() {
+    const { orderId } = useParams()
+    const navigate = useNavigate()
+
+    // State
+    const [loading, setLoading] = useState(true)
+    const [order, setOrder] = useState<any>(null)
+    const [items, setItems] = useState<ChecklistItem[]>([])
+    const [currentStepIndex, setCurrentStepIndex] = useState(0)
+    const [isSaving, setIsSaving] = useState(false)
+
+    // Add Step Dialog
+    const [isAddStepOpen, setIsAddStepOpen] = useState(false)
+    const [newStepText, setNewStepText] = useState("")
+
+    // Initial fetch
+    useEffect(() => {
+        if (!orderId) return
+
+        const fetchOrder = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('id', orderId)
+                    .single()
+
+                if (error) throw error
+
+                setOrder(data)
+
+                // Parse checklist
+                let parsedItems: ChecklistItem[] = []
+                if (Array.isArray(data.checklist)) {
+                    parsedItems = data.checklist.map((item: any) => ({
+                        text: typeof item === 'string' ? item : item.text,
+                        completed: typeof item === 'string' ? false : (item.completed || false),
+                        notes: typeof item === 'string' ? '' : (item.notes || ''),
+                        skipped: typeof item === 'string' ? false : (item.skipped || false),
+                    }))
+                }
+                setItems(parsedItems)
+
+                // Find first uncompleted step (that isn't skipped)
+                const firstTodo = parsedItems.findIndex(i => !i.completed && !i.skipped)
+                if (firstTodo >= 0) setCurrentStepIndex(firstTodo)
+
+            } catch (err: any) {
+                console.error("Error loading order:", err)
+                toast.error("Fehler", "Auftrag konnte nicht geladen werden.")
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchOrder()
+    }, [orderId])
+
+    // Save helper
+    const saveChecklist = async (updatedItems: ChecklistItem[]) => {
+        if (!orderId) return
+        setIsSaving(true)
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({
+                    checklist: updatedItems,
+                    updated_date: new Date().toISOString()
+                })
+                .eq('id', orderId)
+
+            if (error) throw error
+        } catch (err) {
+            console.error("Error saving checklist:", err)
+            toast.error("Speichern fehlgeschlagen", "Bitte versuchen Sie es erneut.")
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    // Actions
+    const handleCompleteStep = async () => {
+        if (isSaving) return
+        const newItems = [...items]
+        newItems[currentStepIndex] = {
+            ...newItems[currentStepIndex],
+            completed: true,
+            skipped: false
+        }
+        setItems(newItems)
+        await saveChecklist(newItems)
+
+        // Auto-advance
+        if (currentStepIndex < items.length - 1) {
+            setCurrentStepIndex(prev => prev + 1)
+        } else {
+            toast.success("Fertig!", "Alle Schritte abgeschlossen.")
+        }
+    }
+
+    const handleSkipStep = async () => {
+        if (isSaving) return
+        const newItems = [...items]
+        newItems[currentStepIndex] = {
+            ...newItems[currentStepIndex],
+            completed: false, // Skipped is effectively "done" for navigation but marked skipped
+            skipped: true
+        }
+        setItems(newItems)
+        await saveChecklist(newItems)
+
+        if (currentStepIndex < items.length - 1) {
+            setCurrentStepIndex(prev => prev + 1)
+        }
+    }
+
+    const handleNoteChange = (text: string) => {
+        const newItems = [...items]
+        newItems[currentStepIndex].notes = text
+        setItems(newItems)
+        // Note: Actual DB save happens on step completion/nav or external trigger if we wanted
+    }
+
+    const handleAddStep = async () => {
+        if (!newStepText.trim()) return
+
+        const newStep: ChecklistItem = {
+            text: newStepText,
+            completed: false,
+            notes: ''
+        }
+
+        const newItems = [...items, newStep]
+        setItems(newItems)
+        setNewStepText("")
+        setIsAddStepOpen(false)
+
+        await saveChecklist(newItems)
+        toast.success("Schritt hinzugefügt")
+
+        // Jump to new step?
+        setCurrentStepIndex(newItems.length - 1)
+    }
+
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+
+    // Trigger delete flow
+    const handleDeleteClick = () => {
+        if (items.length <= 1) {
+            toast.error("Nicht möglich", "Der letzte verbleibende Schritt kann nicht gelöscht werden.")
+            return
+        }
+        setDeleteModalOpen(true)
+    }
+
+    // Confirm delete
+    const confirmDeleteStep = async () => {
+        const newItems = items.filter((_, idx) => idx !== currentStepIndex)
+        setItems(newItems)
+
+        // Adjust index if needed
+        let newIndex = currentStepIndex
+        if (newIndex >= newItems.length) {
+            newIndex = newItems.length - 1
+        }
+        setCurrentStepIndex(newIndex)
+        setDeleteModalOpen(false)
+
+        await saveChecklist(newItems)
+        toast.success("Schritt gelöscht")
+    }
+
+    const handleRevertStep = async () => {
+        if (isSaving) return
+        const newItems = [...items]
+        newItems[currentStepIndex] = {
+            ...newItems[currentStepIndex],
+            completed: false,
+            skipped: false
+        }
+        setItems(newItems)
+        await saveChecklist(newItems)
+        toast.success("Status zurückgesetzt")
+    }
+
+    // Navigation
+    const jumpToStep = (index: number) => {
+        saveChecklist(items)
+        setCurrentStepIndex(index)
+    }
+
+    if (loading) return (
+        <div className="flex h-screen items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-4">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                <p className="text-muted-foreground">Lade Service-Modus...</p>
+            </div>
+        </div>
+    )
+
+    if (!order) return <div className="p-8 text-center">Auftrag nicht gefunden</div>
+
+    const currentItem = items[currentStepIndex]
+    const progressPercent = Math.round((items.filter(i => i.completed || i.skipped).length / items.length) * 100)
+
+    return (
+        <div className="flex flex-col h-screen bg-background overflow-hidden relative">
+            {/* Ambient Background */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5 -z-10" />
+
+            {/* Header */}
+            <header className="flex-none bg-glass-bg backdrop-blur-md border-b border-glass-border px-4 py-3 sm:px-6">
+                <div className="max-w-5xl mx-auto flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                            Service-Modus
+                        </Badge>
+                        <div>
+                            <h1 className="text-sm font-semibold sm:text-base">{order.order_number}</h1>
+                            <p className="text-xs text-muted-foreground truncate max-w-[150px] sm:max-w-xs">{order.bike_model}</p>
+                        </div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
+                        <X className="h-4 w-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Beenden</span>
+                    </Button>
+                </div>
+            </header>
+
+            {/* Progress Bar Area */}
+            <div className="flex-none px-4 py-6 sm:px-6 max-w-5xl mx-auto w-full space-y-6">
+                <Card className="p-4 sm:p-6 bg-card/60 backdrop-blur-sm border-border/50">
+                    <div className="flex justify-between items-end mb-2">
+                        <span className="text-sm font-medium text-muted-foreground">Fortschritt</span>
+                        <span className="text-sm font-bold">{currentStepIndex + 1} / {items.length} Schritte</span>
+                    </div>
+                    <div className="h-3 w-full bg-secondary/50 rounded-full overflow-hidden">
+                        <motion.div
+                            className="h-full bg-primary"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progressPercent}%` }}
+                            transition={{ duration: 0.3 }}
+                        />
+                    </div>
+                </Card>
+
+                {/* Step Navigation Bubbles */}
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start items-center">
+                    {items.map((item, idx) => {
+                        let statusColor = "bg-muted text-muted-foreground border-border"
+                        if (idx === currentStepIndex) statusColor = "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
+                        else if (item.completed) statusColor = "bg-green-500/20 text-green-600 border-green-500/30"
+                        else if (item.skipped) statusColor = "bg-yellow-500/20 text-yellow-600 border-yellow-500/30"
+
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => jumpToStep(idx)}
+                                className={cn(
+                                    "h-10 w-10 flex items-center justify-center rounded-lg border text-sm font-medium transition-all hover:scale-105 active:scale-95",
+                                    statusColor
+                                )}
+                            >
+                                {item.completed ? <Check className="h-5 w-5" /> : (
+                                    item.skipped ? <SkipForward className="h-4 w-4" /> : (idx + 1)
+                                )}
+                            </button>
+                        )
+                    })}
+
+                    {/* Add Step Button */}
+                    <button
+                        onClick={() => setIsAddStepOpen(true)}
+                        className="h-10 w-10 flex items-center justify-center rounded-lg border border-dashed border-primary/50 text-primary hover:bg-primary/5 transition-all"
+                        title="Schritt hinzufügen"
+                    >
+                        <Plus className="h-5 w-5" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Active Step Card */}
+            <main className="flex-1 px-4 pb-6 overflow-y-auto w-full max-w-5xl mx-auto">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={currentStepIndex}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.2 }}
+                        className="h-full flex flex-col"
+                    >
+                        <Card className="flex-1 flex flex-col overflow-hidden bg-gradient-to-b from-card to-card/95 border-border/60 shadow-elevated-lg">
+                            <div className="p-6 sm:p-8 flex-1 flex flex-col gap-8">
+
+                                {/* Header */}
+                                <div className="flex justify-between items-start">
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Badge variant="secondary">Schritt {currentStepIndex + 1} von {items.length}</Badge>
+                                            <button
+                                                onClick={handleDeleteClick}
+                                                className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                                                title="Schritt löschen"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        </div>
+                                        <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">
+                                            {currentItem?.text}
+                                        </h2>
+                                    </div>
+                                    {currentItem?.completed && (
+                                        <div className="bg-green-500/10 text-green-600 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5">
+                                            <CheckCircle2 className="h-4 w-4" />
+                                            Erledigt
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Notes Section ONLY - No Photos */}
+                                <div className="space-y-3">
+                                    <h3 className="text-sm font-medium text-muted-foreground">Notiz für diesen Schritt (optional)</h3>
+                                    <Textarea
+                                        value={currentItem?.notes}
+                                        onChange={(e) => handleNoteChange(e.target.value)}
+                                        placeholder="z.B. Bremsbeläge erneuert, Kette geölt..."
+                                        className="bg-muted/30 resize-none min-h-[150px] border-border/50 focus:bg-background transition-all text-base"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Footer Actions */}
+                            <div className="p-4 sm:p-6 bg-muted/10 border-t border-border/50 flex flex-col sm:flex-row gap-3 sm:justify-between items-center">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => jumpToStep(currentStepIndex - 1)}
+                                    disabled={currentStepIndex === 0}
+                                    className="w-full sm:w-auto text-muted-foreground"
+                                >
+                                    <ArrowLeft className="mr-2 h-4 w-4" />
+                                    Zurück
+                                </Button>
+
+                                <div className="flex gap-3 w-full sm:w-auto">
+                                    {currentItem?.completed && (
+                                        <Button
+                                            variant="ghost"
+                                            onClick={handleRevertStep}
+                                            disabled={isSaving}
+                                            className="flex-1 sm:flex-none text-muted-foreground hover:text-foreground"
+                                        >
+                                            Als unerledigt markieren
+                                        </Button>
+                                    )}
+
+                                    {!currentItem?.completed && (
+                                        <Button
+                                            variant="outline"
+                                            onClick={handleSkipStep}
+                                            disabled={isSaving}
+                                            className="flex-1 sm:flex-none border-border/50"
+                                        >
+                                            Überspringen
+                                        </Button>
+                                    )}
+
+                                    <Button
+                                        onClick={handleCompleteStep}
+                                        disabled={isSaving}
+                                        className={cn(
+                                            "flex-1 sm:flex-none min-w-[140px]",
+                                            currentItem?.completed ? "bg-green-600 hover:bg-green-700" : ""
+                                        )}
+                                    >
+                                        {isSaving ? "Speichere..." : (currentItem?.completed ? (
+                                            <>
+                                                <Check className="mr-2 h-4 w-4" />
+                                                Aktualisieren
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Check className="mr-2 h-4 w-4" />
+                                                Abschließen
+                                            </>
+                                        ))}
+                                    </Button>
+                                </div>
+                            </div>
+                        </Card>
+                    </motion.div>
+                </AnimatePresence>
+            </main>
+
+            {/* Add Step Dialog */}
+            <Dialog open={isAddStepOpen} onOpenChange={setIsAddStepOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Extra Schritt hinzufügen</DialogTitle>
+                        <DialogDescription>
+                            Fügen Sie einen neuen Arbeitsschritt am Ende der Liste hinzu.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="step-name" className="mb-2 block">Beschreibung</Label>
+                        <Input
+                            id="step-name"
+                            value={newStepText}
+                            onChange={(e) => setNewStepText(e.target.value)}
+                            placeholder="z.B. Probefahrt durchführen"
+                            autoFocus
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddStepOpen(false)}>
+                            Abbrechen
+                        </Button>
+                        <Button onClick={handleAddStep} disabled={!newStepText.trim() || isSaving}>
+                            Hinzufügen
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Schritt löschen</DialogTitle>
+                        <DialogDescription>
+                            Möchten Sie den Schritt "{currentItem?.text}" wirklich löschen? Dies kann nicht rückgängig gemacht werden.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
+                            Abbrechen
+                        </Button>
+                        <Button variant="destructive" onClick={confirmDeleteStep} disabled={isSaving}>
+                            Löschen
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div>
+    )
+}

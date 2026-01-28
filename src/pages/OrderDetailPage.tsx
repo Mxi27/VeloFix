@@ -42,7 +42,9 @@ import {
     Save,
     AlertCircle,
     Loader2,
-    Archive
+    Archive,
+    Wrench,
+    ShieldCheck
 } from "lucide-react"
 import { LoadingScreen } from "@/components/LoadingScreen"
 import { PageTransition } from "@/components/PageTransition"
@@ -367,7 +369,7 @@ export default function OrderDetailPage() {
                                 </p>
                             </div>
                         </div>
-                        <div className="flex gap-2 self-start sm:self-center ml-12 sm:ml-0">
+                        <div className="flex gap-2 self-start sm:self-center ml-12 sm:ml-0 items-center">
                             <Badge
                                 variant="outline"
                                 className={order.is_leasing
@@ -377,6 +379,26 @@ export default function OrderDetailPage() {
                             >
                                 {order.is_leasing ? "Leasing" : "Standard"}
                             </Badge>
+                            <Button
+                                size="sm"
+                                onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-md shadow-blue-500/20"
+                            >
+                                <Wrench className="mr-2 h-4 w-4" />
+                                {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
+                                    ? "Weiterarbeiten"
+                                    : "Arbeitsmodus starten"
+                                }
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
+                                className="bg-green-500/10 text-green-600 border-green-200 hover:bg-green-500/20"
+                            >
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Kontrolle
+                            </Button>
                         </div>
                     </div>
 
