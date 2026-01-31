@@ -11,6 +11,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import ServiceModePage from "@/pages/ServiceModePage";
 import ControlModePage from "@/pages/ControlModePage";
+import BikeBuildsPage from "@/pages/BikeBuildsPage";
+import BikeBuildDetailPage from "@/pages/BikeBuildDetailPage";
 
 import OnboardingPage from "@/pages/OnboardingPage";
 
@@ -57,6 +59,22 @@ function AppRoutes() {
                 element={
                     <ProtectedRoute>
                         {workshopId ? <DashboardPage /> : <Navigate to="/onboarding" replace />}
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/dashboard/bike-builds"
+                element={
+                    <ProtectedRoute>
+                        {workshopId ? <BikeBuildsPage /> : <Navigate to="/onboarding" replace />}
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/dashboard/bike-builds/:id"
+                element={
+                    <ProtectedRoute>
+                        {workshopId ? <BikeBuildDetailPage /> : <Navigate to="/onboarding" replace />}
                     </ProtectedRoute>
                 }
             />

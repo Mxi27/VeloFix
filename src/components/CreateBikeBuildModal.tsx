@@ -1,393 +1,181 @@
 import { useState } from "react"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-// import {
-//     Select,
-//     SelectContent,
-//     SelectItem,
-//     SelectTrigger,
-//     SelectValue,
-// } from "@/components/ui/select"
-import { Bike, ChevronRight, ChevronLeft, Check } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
+import { Loader2, Plus } from "lucide-react"
+import { toast } from "sonner"
+import { mutate } from "swr"
 
 interface CreateBikeBuildModalProps {
     children?: React.ReactNode
-    open?: boolean
-    onOpenChange?: (open: boolean) => void
-    onBuildCreated?: () => void
 }
 
-export function CreateBikeBuildModal({ children, open, onOpenChange, onBuildCreated }: CreateBikeBuildModalProps) {
-    const { user, workshopId } = useAuth()
-    const [step, setStep] = useState(1)
-    const [isSubmitting, setIsSubmitting] = useState(false)
+export function CreateBikeBuildModal({ children }: CreateBikeBuildModalProps) {
+    const { workshopId, user } = useAuth()
+    const [open, setOpen] = useState(false)
+    const [loading, setLoading] = useState(false)
 
-    // Form States
-    const [customerName, setCustomerName] = useState("")
-    const [customerEmail, setCustomerEmail] = useState("")
-    const [customerPhone, setCustomerPhone] = useState("")
-    const [buildType, setBuildType] = useState<"custom" | "production" | null>(null)
-    const [frameBrand, setFrameBrand] = useState("")
-    const [frameModel, setFrameModel] = useState("")
-    const [frameSize, setFrameSize] = useState("")
-    const [totalBudget, setTotalBudget] = useState("")
-    const [estimatedCompletion, setEstimatedCompletion] = useState("")
-    const [notes, setNotes] = useState("")
+    const [formData, setFormData] = useState({
+        brand: "",
+        model: "",
+        color: "",
+        frame_size: "",
+        internal_number: "",
+        battery_serial: "",
+        notes: "",
+    })
 
-    // Reset state when modal closes
-    const handleOpenChange = (newOpen: boolean) => {
-        if (!newOpen) {
-            setStep(1)
-            setBuildType(null)
-            setCustomerName("")
-            setCustomerEmail("")
-            setCustomerPhone("")
-            setFrameBrand("")
-            setFrameModel("")
-            setFrameSize("")
-            setTotalBudget("")
-            setEstimatedCompletion("")
-            setNotes("")
-        }
-        onOpenChange?.(newOpen)
-    }
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!workshopId) return
 
-    const handleNext = () => {
-        if (step < 4) {
-            setStep(step + 1)
-        }
-    }
-
-    const handleBack = () => {
-        if (step > 1) {
-            setStep(step - 1)
-        }
-    }
-
-    const handleSubmit = async () => {
-        if (!user || !workshopId) return
-
-        setIsSubmitting(true)
+        setLoading(true)
         try {
-            const buildNumber = `BB-${Math.floor(Math.random() * 10000)}`
-
-            const { error } = await supabase
-                .from('bike_builds')
-                .insert({
-                    workshop_id: workshopId,
-                    build_number: buildNumber,
-                    customer_name: customerName,
-                    customer_email: customerEmail || null,
-                    customer_phone: customerPhone || null,
-                    build_type: buildType,
-                    frame_brand: frameBrand || null,
-                    frame_model: frameModel || null,
-                    frame_size: frameSize || null,
-                    total_budget: parseFloat(totalBudget) || null,
-                    estimated_completion: estimatedCompletion || null,
-                    status: 'planning',
-                    notes: notes ? [notes] : [],
-                    parts: [],
-                    progress: {}
-                })
+            const { error } = await supabase.from("bike_builds").insert({
+                workshop_id: workshopId,
+                brand: formData.brand,
+                model: formData.model,
+                color: formData.color,
+                frame_size: formData.frame_size,
+                internal_number: formData.internal_number,
+                battery_serial: formData.battery_serial || null,
+                notes: formData.notes || null,
+                mechanic_name: user?.user_metadata?.full_name || "Unbekannt"
+            })
 
             if (error) throw error
 
-            handleOpenChange(false)
-            onBuildCreated?.()
-        } catch (error: any) {
-            console.error('Error creating bike build:', error)
-            alert(`Fehler: ${error.message}`)
+            toast.success("Neuradaufbau erfolgreich angelegt")
+            setOpen(false)
+            setFormData({
+                brand: "",
+                model: "",
+                color: "",
+                frame_size: "",
+                internal_number: "",
+                battery_serial: "",
+                notes: "",
+            })
+            // Trigger refresh of the table
+            mutate(['bike_builds', workshopId])
+        } catch (error) {
+            console.error(error)
+            toast.error("Fehler beim Anlegen")
         } finally {
-            setIsSubmitting(false)
-        }
-    }
-
-    const getStepTitle = () => {
-        switch (step) {
-            case 1: return "Neuer Bike Build"
-            case 2: return "Build-Typ wählen"
-            case 3: return "Kunden- & Rahmendaten"
-            case 4: return "Details & Abschluss"
-            default: return "Neuer Bike Build"
-        }
-    }
-
-    const isStepValid = () => {
-        switch (step) {
-            case 1:
-                return !!buildType
-            case 2:
-                return !!(
-                    customerName &&
-                    customerEmail &&
-                    customerPhone
-                )
-            case 3:
-                return !!(
-                    frameBrand &&
-                    frameModel
-                )
-            default:
-                return true
+            setLoading(false)
         }
     }
 
     return (
-        <Dialog open={open} onOpenChange={handleOpenChange}>
-            {children && <DialogTrigger asChild>{children}</DialogTrigger>}
-            <DialogContent className="sm:max-w-[650px] p-0 overflow-hidden glass gap-0">
-                <div className="p-6 pb-4 border-b border-glass-border">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-semibold">{getStepTitle()}</DialogTitle>
-                    </DialogHeader>
-
-                    {/* Progress Bar */}
-                    <div className="flex gap-2 mt-6">
-                        {[1, 2, 3, 4].map((s) => (
-                            <div
-                                key={s}
-                                className={cn(
-                                    "h-1 flex-1 rounded-full transition-all duration-300",
-                                    s <= step ? "bg-primary" : "bg-primary/20"
-                                )}
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                {children || (
+                    <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all duration-300 hover:shadow-[0_0_25px_rgba(6,182,212,0.6)]">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Neuer Eintrag
+                    </Button>
+                )}
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px] border-border/50 bg-background/95 backdrop-blur-xl">
+                <DialogHeader>
+                    <DialogTitle>Neuradaufbau erfassen</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="internal_number">Interne Nr. *</Label>
+                            <Input
+                                id="internal_number"
+                                value={formData.internal_number}
+                                onChange={(e) => setFormData({ ...formData, internal_number: e.target.value })}
+                                required
+                                placeholder="z.B. N-2024-001"
+                                className="bg-muted/50"
                             />
-                        ))}
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="brand">Marke *</Label>
+                            <Input
+                                id="brand"
+                                value={formData.brand}
+                                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                                required
+                                placeholder="z.B. Cube"
+                                className="bg-muted/50"
+                            />
+                        </div>
                     </div>
-                </div>
 
-                <div className="p-6 max-h-[70vh] overflow-y-auto">
-                    {/* Step 1: Build Type */}
-                    {step === 1 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <h3 className="text-lg font-medium">Build-Typ wählen</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <button
-                                    onClick={() => setBuildType("custom")}
-                                    className={cn(
-                                        "flex flex-col items-center justify-center p-8 rounded-xl border-2 transition-all gap-4 text-center hover:bg-accent/50",
-                                        buildType === "custom"
-                                            ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                            : "border-border bg-card"
-                                    )}
-                                >
-                                    <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-                                        <Bike className="h-6 w-6 text-muted-foreground" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <div className="font-semibold">Custom Build</div>
-                                        <div className="text-xs text-muted-foreground">Individueller Aufbau</div>
-                                    </div>
-                                </button>
+                    <div className="grid gap-2">
+                        <Label htmlFor="model">Modell *</Label>
+                        <Input
+                            id="model"
+                            value={formData.model}
+                            onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                            required
+                            placeholder="z.B. Kathmandu Hybrid"
+                            className="bg-muted/50"
+                        />
+                    </div>
 
-                                <button
-                                    onClick={() => setBuildType("production")}
-                                    className={cn(
-                                        "flex flex-col items-center justify-center p-8 rounded-xl border-2 transition-all gap-4 text-center hover:bg-accent/50",
-                                        buildType === "production"
-                                            ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                            : "border-border bg-card"
-                                    )}
-                                >
-                                    <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
-                                        <Bike className="h-6 w-6 text-muted-foreground" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <div className="font-semibold">Produktion</div>
-                                        <div className="text-xs text-muted-foreground">Serienmäßiger Aufbau</div>
-                                    </div>
-                                </button>
-                            </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="color">Farbe *</Label>
+                            <Input
+                                id="color"
+                                value={formData.color}
+                                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                                required
+                                placeholder="z.B. Black 'n' Blue"
+                                className="bg-muted/50"
+                            />
                         </div>
-                    )}
-
-                    {/* Step 2: Customer Data */}
-                    {step === 2 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <h3 className="text-lg font-medium">Kundendaten</h3>
-                            <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="name">Name *</Label>
-                                    <Input
-                                        id="name"
-                                        placeholder="Max Mustermann"
-                                        className="bg-muted/50"
-                                        value={customerName}
-                                        onChange={e => setCustomerName(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="email">E-Mail *</Label>
-                                        <Input
-                                            id="email"
-                                            type="email"
-                                            placeholder="max@beispiel.de"
-                                            className="bg-muted/50"
-                                            value={customerEmail}
-                                            onChange={e => setCustomerEmail(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="phone">Telefon *</Label>
-                                        <Input
-                                            id="phone"
-                                            placeholder="+49 123..."
-                                            className="bg-muted/50"
-                                            value={customerPhone}
-                                            onChange={e => setCustomerPhone(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="frame_size">Rahmenhöhe *</Label>
+                            <Input
+                                id="frame_size"
+                                value={formData.frame_size}
+                                onChange={(e) => setFormData({ ...formData, frame_size: e.target.value })}
+                                required
+                                placeholder="z.B. 54cm / L"
+                                className="bg-muted/50"
+                            />
                         </div>
-                    )}
+                    </div>
 
-                    {/* Step 3: Frame Data */}
-                    {step === 3 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <h3 className="text-lg font-medium">Rahmendaten</h3>
-                            <div className="grid gap-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="brand">Rahmenmarke *</Label>
-                                        <Input
-                                            id="brand"
-                                            placeholder="z.B. Specialized"
-                                            className="bg-muted/50"
-                                            value={frameBrand}
-                                            onChange={e => setFrameBrand(e.target.value)}
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="model">Modell *</Label>
-                                        <Input
-                                            id="model"
-                                            placeholder="z.B. S-Works Tarmac"
-                                            className="bg-muted/50"
-                                            value={frameModel}
-                                            onChange={e => setFrameModel(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="battery_serial">Akku Nummer</Label>
+                        <Input
+                            id="battery_serial"
+                            value={formData.battery_serial}
+                            onChange={(e) => setFormData({ ...formData, battery_serial: e.target.value })}
+                            placeholder="Optional"
+                            className="bg-muted/50"
+                        />
+                    </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="size">Rahmengröße (optional)</Label>
-                                    <Input
-                                        id="size"
-                                        placeholder="z.B. 56cm / Medium"
-                                        className="bg-muted/50"
-                                        value={frameSize}
-                                        onChange={e => setFrameSize(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    <div className="grid gap-2">
+                        <Label htmlFor="notes">Notizen</Label>
+                        <Textarea
+                            id="notes"
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            placeholder="Optionale Anmerkungen..."
+                            className="bg-muted/50 resize-none h-20"
+                        />
+                    </div>
 
-                    {/* Step 4: Details & Summary */}
-                    {step === 4 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <h3 className="text-lg font-medium">Details & Abschluss</h3>
-                            <div className="grid gap-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="budget">Gesamtbudget (optional)</Label>
-                                        <div className="relative">
-                                            <Input
-                                                id="budget"
-                                                placeholder="0.00"
-                                                type="number"
-                                                className="pl-3 pr-8 bg-muted/50"
-                                                value={totalBudget}
-                                                onChange={e => setTotalBudget(e.target.value)}
-                                            />
-                                            <span className="absolute right-3 top-2.5 text-muted-foreground">€</span>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="completion">Vorauss. Fertigstellung (optional)</Label>
-                                        <Input
-                                            id="completion"
-                                            type="date"
-                                            className="bg-muted/50"
-                                            value={estimatedCompletion}
-                                            onChange={e => setEstimatedCompletion(e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="border-t border-border/50 my-2" />
-
-                                <div className="space-y-2">
-                                    <Label className="text-sm font-medium">Anmerkungen (optional)</Label>
-                                    <Textarea
-                                        className="bg-muted/20 min-h-[80px]"
-                                        placeholder="Besondere Wünsche, Farbgebung, Komponenten..."
-                                        value={notes}
-                                        onChange={e => setNotes(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="bg-muted/30 p-4 rounded-lg space-y-3 mt-4">
-                                <h4 className="font-semibold mb-2">Zusammenfassung</h4>
-                                <ul className="space-y-1 text-sm text-muted-foreground">
-                                    <li><strong>Typ:</strong> {buildType === "custom" ? "Custom Build" : "Produktion"}</li>
-                                    <li><strong>Kunde:</strong> {customerName}</li>
-                                    <li><strong>Rahmen:</strong> {frameBrand} {frameModel}</li>
-                                    {frameSize && <li><strong>Größe:</strong> {frameSize}</li>}
-                                    {totalBudget && <li><strong>Budget:</strong> {totalBudget} €</li>}
-                                </ul>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer Actions */}
-                <div className="p-6 pt-2 border-t border-glass-border bg-background/20 flex justify-between items-center backdrop-blur-sm">
-                    {step > 1 ? (
-                        <Button variant="outline" onClick={handleBack} className="px-6 border-border/50">
-                            <ChevronLeft className="mr-2 h-4 w-4" />
-                            Zurück
+                    <div className="flex justify-end pt-4">
+                        <Button type="submit" disabled={loading} className="w-full">
+                            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                            Speichern
                         </Button>
-                    ) : (
-                        <div />
-                    )}
-
-                    {step < 4 ? (
-                        <Button
-                            onClick={handleNext}
-                            disabled={!isStepValid()}
-                            className="px-8"
-                        >
-                            Weiter
-                            <ChevronRight className="ml-2 h-4 w-4" />
-                        </Button>
-                    ) : (
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={isSubmitting}
-                            className="px-8"
-                        >
-                            {isSubmitting ? "Wird erstellt..." : "Build erstellen"}
-                            {!isSubmitting && <Check className="ml-2 h-4 w-4" />}
-                        </Button>
-                    )}
-                </div>
+                    </div>
+                </form>
             </DialogContent>
         </Dialog>
     )

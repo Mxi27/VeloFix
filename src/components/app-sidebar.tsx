@@ -53,6 +53,11 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
             href: "/dashboard",
         },
         {
+            title: "Neuradaufbau",
+            icon: Bike,
+            href: "/dashboard/bike-builds",
+        },
+        {
             title: "Leasing Abrechnung",
             icon: CreditCard,
             href: "/dashboard/leasing-billing",
