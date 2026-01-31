@@ -32,7 +32,7 @@ export function OrderCard({ order, onViewOrder }: OrderCardProps) {
             transition={{ duration: 0.2 }}
         >
             <Card
-                variant="glass"
+                
                 className="cursor-pointer hover:shadow-elevated-lg transition-all duration-300"
                 onClick={() => onViewOrder(order.id)}
             >

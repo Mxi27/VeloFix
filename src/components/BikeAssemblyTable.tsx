@@ -178,7 +178,7 @@ export function BikeAssemblyTable() {
     }
 
     return (
-        <Card variant="glass">
+        <Card >
             <CardHeader className="pb-4">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="space-y-1 text-center sm:text-left">

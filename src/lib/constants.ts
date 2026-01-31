@@ -6,3 +6,5 @@ export const STATUS_COLORS: Record<string, string> = {
     abgeholt: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
     abgeschlossen: "bg-slate-500/15 text-slate-700 dark:text-slate-400 border-slate-500/20",
 }
+
+export const BUILD_STATUS_COLORS = STATUS_COLORS;

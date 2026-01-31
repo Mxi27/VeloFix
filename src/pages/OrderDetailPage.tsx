@@ -155,6 +155,45 @@ export default function OrderDetailPage() {
         }
 
         fetchOrder()
+
+        // Realtime subscription
+        const channel = supabase
+            .channel(`order_detail_${orderId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'orders',
+                    filter: `id=eq.${orderId}`
+                },
+                (payload) => {
+                    const newOrder = payload.new as Order
+                    setOrder((currentOrder) => {
+                        if (!currentOrder) return null;
+                        // Merge updates safely
+                        return {
+                            ...currentOrder,
+                            status: newOrder.status,
+                            checklist: newOrder.checklist,
+                            notes: newOrder.notes,
+                            leasing_code: newOrder.leasing_code,
+                            final_price: newOrder.final_price
+                            // updated_at not strictly needed or in interface
+                        } as Order
+                    })
+
+                    // Also update editable fields to match new state if we aren't editing them right now?
+                    // For simplicity, we assume we want latest server state. 
+                    // To avoid overwriting local edits if user is typing, we might check saving state 
+                    // but for checklist sync (primary goal), updating state is key.
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
     }, [workshopId, orderId])
 
     const handleStatusChange = async (newStatus: string) => {

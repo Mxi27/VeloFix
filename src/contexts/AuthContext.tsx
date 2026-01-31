@@ -22,7 +22,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true)
 
     const fetchWorkshop = async (userId: string): Promise<string | null> => {
-        console.log('[fetchWorkshop] Fetching for userId:', userId)
         try {
             // Check employee first
             const { data: employeeData } = await supabase
@@ -32,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .maybeSingle()
 
             if (employeeData?.workshop_id) {
-                console.log('[fetchWorkshop] Found as employee:', employeeData.workshop_id)
                 return employeeData.workshop_id
             }
 
@@ -44,11 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 .maybeSingle()
 
             if (workshopData?.id) {
-                console.log('[fetchWorkshop] Found as owner:', workshopData.id)
                 return workshopData.id
             }
 
-            console.log('[fetchWorkshop] No workshop found')
             return null
         } catch (error) {
             console.error('[fetchWorkshop] Error:', error)
@@ -62,39 +58,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const initAuth = async () => {
             console.log('[AuthContext] Initializing...')
             try {
-                const { data: { session }, error } = await supabase.auth.getSession()
+                // Create a timeout promise
+                const timeoutPromise = new Promise<{ timeout: true }>((resolve) => {
+                    setTimeout(() => resolve({ timeout: true }), 5000) // 5 second timeout
+                })
+
+                // Race session check against timeout
+                const sessionPromise = supabase.auth.getSession()
+
+                const result = await Promise.race([sessionPromise, timeoutPromise]) as
+                    | { timeout: true }
+                    | { data: { session: Session | null }, error: AuthError | null }
 
                 if (!mounted) return
 
-                if (error) {
-                    console.error('[AuthContext] Session error:', error)
+                // Handle Timeout
+                if ('timeout' in result) {
+                    console.warn('[AuthContext] Session check timed out. Defaulting to no session.')
                     setSession(null)
                     setUser(null)
                     setWorkshopId(null)
                     setLoading(false)
-                } else if (session?.user) {
-                    console.log('[AuthContext] Session found, fetching workshop...')
+                    return
+                }
 
-                    // Fetch workshop BEFORE setting any state
+                // Handle Session Result
+                const { data: { session }, error } = result
+
+                if (error) {
+                    console.error('[AuthContext] Session error:', error)
+                    throw error
+                }
+
+                if (session?.user) {
+                    console.log('[AuthContext] Session found, fetching workshop...')
                     const wId = await fetchWorkshop(session.user.id)
 
                     if (mounted) {
-                        // BATCH STATE UPDATE - all at once to prevent flash
-                        console.log('[AuthContext] Setting all state at once')
                         setSession(session)
                         setUser(session.user)
                         setWorkshopId(wId)
-                        setLoading(false)
                     }
                 } else {
                     console.log('[AuthContext] No session')
-                    setSession(null)
-                    setUser(null)
-                    setWorkshopId(null)
-                    setLoading(false)
                 }
             } catch (error) {
                 console.error('[AuthContext] Init error:', error)
+                if (mounted) {
+                    setSession(null)
+                    setUser(null)
+                    setWorkshopId(null)
+                }
+            } finally {
                 if (mounted) {
                     setLoading(false)
                 }
@@ -110,30 +125,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (!mounted) return
 
             if (event === 'SIGNED_OUT') {
+                // Clear state immediately
                 setSession(null)
                 setUser(null)
                 setWorkshopId(null)
-            } else if (event === 'SIGNED_IN' && newSession?.user) {
-                // On sign in, fetch workshop first then batch update
-                const wId = await fetchWorkshop(newSession.user.id)
-                if (mounted) {
+                setLoading(false)
+            } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                // On sign in, fetch workshop BEFORE updating state to prevent redirect race conditions
+                if (newSession?.user) {
+                    const wId = await fetchWorkshop(newSession.user.id)
+
+                    if (mounted) {
+                        // Batch update
+                        setSession(newSession)
+                        setUser(newSession.user)
+                        setWorkshopId(wId)
+                        setLoading(false)
+                    }
+                }
+            } else if (event === 'TOKEN_REFRESHED') {
+                // Just update session, no need to re-fetch workshop usually
+                if (newSession) {
                     setSession(newSession)
                     setUser(newSession.user)
-                    setWorkshopId(wId)
                 }
             } else if (newSession?.user) {
+                // Catch-all for other events
                 setSession(newSession)
                 setUser(newSession.user)
-
-                // Refresh workshop on other auth events
-                const wId = await fetchWorkshop(newSession.user.id)
-                if (mounted) {
-                    setWorkshopId(wId)
+                if (!workshopId) {
+                    const wId = await fetchWorkshop(newSession.user.id)
+                    if (mounted) setWorkshopId(wId)
                 }
-            } else {
-                setSession(null)
-                setUser(null)
-                setWorkshopId(null)
             }
         })
 

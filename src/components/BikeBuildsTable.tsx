@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, Eye, Plus } from "lucide-react"
+import { Search, Filter, Eye } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -219,7 +219,7 @@ export function BikeBuildsTable({ mode = 'active' }: BikeBuildsTableProps) {
 
     if (loading) {
         return (
-            <Card variant="glass">
+            <Card >
                 <CardContent className="p-12">
                     <div className="flex items-center justify-center">
                         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -230,7 +230,7 @@ export function BikeBuildsTable({ mode = 'active' }: BikeBuildsTableProps) {
     }
 
     return (
-        <Card variant="glass">
+        <Card >
             <CardHeader className="pb-4">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="space-y-1 text-center sm:text-left">
