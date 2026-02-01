@@ -2,6 +2,9 @@ import { useEffect, useState } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
+import { OrderHistory } from "@/components/OrderHistory"
+import { logOrderEvent } from "@/lib/history"
+import type { OrderHistoryEvent } from "@/lib/history"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -83,6 +86,13 @@ interface Order {
     checklist: ChecklistItem[] | null
     notes: string[] | null
     leasing_code: string | null
+    history: OrderHistoryEvent[] | null
+    end_control: {
+        steps: any[]
+        completed: boolean
+        rating?: number
+        feedback?: string
+    } | null
 }
 
 const BIKE_TYPE_LABELS: Record<string, string> = {
@@ -95,7 +105,7 @@ const BIKE_TYPE_LABELS: Record<string, string> = {
 export default function OrderDetailPage() {
     const { orderId } = useParams<{ orderId: string }>()
     const navigate = useNavigate()
-    const { workshopId } = useAuth()
+    const { workshopId, user } = useAuth()
     const [order, setOrder] = useState<Order | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -197,27 +207,45 @@ export default function OrderDetailPage() {
     }, [workshopId, orderId])
 
     const handleStatusChange = async (newStatus: string) => {
-        if (!order) return
-
-        // Intercept leasing pickup
-        if (newStatus === LEASING_STATUS.value && order.is_leasing && !order.leasing_code) {
-            setIsLeasingDialogOpen(true)
-            return
-        }
-
+        if (!order || saving) return
         setSaving(true)
-        const { error } = await supabase
-            .from('orders')
-            .update({ status: newStatus })
-            .eq('id', order.id)
 
-        if (error) {
+        try {
+            // 1. Update status
+            const { error } = await supabase
+                .from('orders')
+                .update({ status: newStatus })
+                .eq('id', order.id)
+
+            if (error) throw error
+
+            // 2. Prepare History Event Data
+            const newStatusLabel = [...STATUS_FLOW, LEASING_STATUS, COMPLETED_STATUS].find(s => s.value === newStatus)?.label || newStatus
+
+            const event = await logOrderEvent(
+                order.id,
+                {
+                    type: 'status_change',
+                    title: 'Status geändert',
+                    description: `Status zu "${newStatusLabel}" geändert`,
+                    metadata: { old_status: order.status, new_status: newStatus }
+                },
+                user
+            )
+
+            // 3. Update local state
+            setOrder(prev => prev ? ({
+                ...prev,
+                status: newStatus,
+                history: [event, ...(prev.history || [])]
+            }) : null)
+
+        } catch (error: any) {
             console.error("Error updating status:", error)
             alert(`Fehler beim Aktualisieren des Status: ${error.message}`)
-        } else {
-            setOrder({ ...order, status: newStatus })
+        } finally {
+            setSaving(false)
         }
-        setSaving(false)
     }
 
     const handleSaveLeasingCode = async () => {
@@ -720,10 +748,23 @@ export default function OrderDetailPage() {
                                     )}
                                 </CardContent>
                             </Card>
+
+
+
+                            {/* Order History */}
+                            <Card className="flex flex-col">
+                                <CardHeader>
+                                    <CardTitle className="text-base font-medium">Auftrags-Verlauf</CardTitle>
+                                </CardHeader>
+                                <CardContent className="pt-0">
+                                    <OrderHistory history={order.history || []} />
+                                </CardContent>
+                            </Card>
                         </div>
 
                         {/* Right Column - Notes & Status */}
                         <div className="space-y-6">
+
                             {/* Internal Notes */}
                             <Card className="flex flex-col">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -799,35 +840,34 @@ export default function OrderDetailPage() {
                                         )
                                     })}
 
-                                    {order.is_leasing && (
+                                    {LEASING_STATUS && (
                                         <Button
-                                            variant={order.status === LEASING_STATUS.value ? "outline" : "outline"}
-                                            className={`w-full justify-start ${order.status === LEASING_STATUS.value ? `${LEASING_STATUS.color} border-current` : 'text-muted-foreground'}`}
+                                            variant={order.status === LEASING_STATUS.value ? "outline" : "ghost"}
+                                            className={cn("w-full justify-start mt-2", order.status === LEASING_STATUS.value && "bg-blue-500/10 text-blue-600 border-blue-200")}
                                             onClick={() => handleStatusChange(LEASING_STATUS.value)}
-                                            disabled={saving || order.status === LEASING_STATUS.value}
+                                            disabled={saving || order.status === LEASING_STATUS.value || order.status === COMPLETED_STATUS.value}
                                         >
-                                            <Check className="mr-2 h-4 w-4" />
+                                            <LEASING_STATUS.icon className="mr-2 h-4 w-4" />
                                             {LEASING_STATUS.label}
                                         </Button>
                                     )}
 
-                                    <div className="my-2 border-t border-border/50" />
-
                                     <Button
                                         variant={order.status === COMPLETED_STATUS.value ? "outline" : "ghost"}
-                                        className={`w-full justify-start text-muted-foreground hover:text-foreground ${order.status === COMPLETED_STATUS.value ? `${COMPLETED_STATUS.color} border-current` : ''}`}
+                                        className={cn("w-full justify-start", order.status === COMPLETED_STATUS.value && "bg-green-500/10 text-green-600 border-green-200")}
                                         onClick={() => handleStatusChange(COMPLETED_STATUS.value)}
                                         disabled={saving || order.status === COMPLETED_STATUS.value}
                                     >
-                                        <Archive className="mr-2 h-4 w-4" />
-                                        {COMPLETED_STATUS.label} (Archivieren)
+                                        <COMPLETED_STATUS.icon className="mr-2 h-4 w-4" />
+                                        {COMPLETED_STATUS.label}
                                     </Button>
                                 </CardContent>
                             </Card>
+
+
                         </div>
                     </div>
                 </div>
-
             </DashboardLayout>
 
             {/* Dialog for Leasing Code */}
@@ -870,6 +910,6 @@ export default function OrderDetailPage() {
                 </DialogContent>
             </Dialog>
 
-        </PageTransition >
+        </PageTransition>
     )
 }

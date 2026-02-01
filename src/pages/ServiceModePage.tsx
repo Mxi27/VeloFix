@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { toast } from "@/lib/toast"
+import { useAuth } from "@/contexts/AuthContext"
+import { logOrderEvent } from "@/lib/history"
 import {
     Dialog,
     DialogContent,
@@ -40,6 +42,7 @@ interface ChecklistItem {
 export default function ServiceModePage() {
     const { orderId } = useParams()
     const navigate = useNavigate()
+    const { user } = useAuth() // Get user for logging
 
     // State
     const [loading, setLoading] = useState(true)
@@ -102,7 +105,6 @@ export default function ServiceModePage() {
     useEffect(() => {
         if (items.length > 0 && items.every(i => i.completed || i.skipped)) {
             // Only auto-switch to finished if we are literally past the last item or explicitly triggered
-            // But user might want to review. Let's make it so if you complete the LAST step, it sets finished.
         }
     }, [items])
 
@@ -131,6 +133,8 @@ export default function ServiceModePage() {
     // Actions
     const handleCompleteStep = async () => {
         if (isSaving) return
+        const currentItemText = items[currentStepIndex].text // Capture text before index change
+
         const newItems = [...items]
         newItems[currentStepIndex] = {
             ...newItems[currentStepIndex],
@@ -139,6 +143,15 @@ export default function ServiceModePage() {
         }
         setItems(newItems)
         await saveChecklist(newItems)
+
+        // Log History Event Immediately
+        if (orderId) {
+            logOrderEvent(orderId, {
+                type: 'service_step',
+                title: currentItemText, // Use the step text as title
+                description: `Schritt "${currentItemText}" erledigt`
+            }, user).catch(console.error)
+        }
 
         // Auto-advance or Finish
         if (currentStepIndex < items.length - 1) {

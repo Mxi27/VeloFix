@@ -27,6 +27,8 @@ import {
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { toast } from "@/lib/toast"
+import { useAuth } from "@/contexts/AuthContext"
+import { logOrderEvent } from "@/lib/history"
 
 interface ChecklistItem {
     text: string
@@ -40,6 +42,7 @@ interface ChecklistItem {
 export default function ControlModePage() {
     const { orderId } = useParams()
     const navigate = useNavigate()
+    const { user } = useAuth()
 
     // State
     const [loading, setLoading] = useState(true)
@@ -185,6 +188,8 @@ export default function ControlModePage() {
         }
     }
 
+
+
     const saveFinalFeedback = async () => {
         if (!orderId) return
 
@@ -192,6 +197,17 @@ export default function ControlModePage() {
         const success = await saveProgress(items, true)
 
         if (success) {
+            // Log completion event with rating
+            logOrderEvent(orderId, {
+                type: 'control', // Generic control type for the generic summary event (or could use info)
+                title: 'Endkontrolle abgeschlossen',
+                description: `Bewertung: ${rating} Sterne`,
+                metadata: {
+                    rating: rating,
+                    feedback: feedback
+                }
+            }, user).catch(console.error)
+
             toast.success("Kontrolle abgeschlossen und gespeichert")
             navigate(`/dashboard/orders/${orderId}`)
         }
@@ -200,6 +216,8 @@ export default function ControlModePage() {
     // Actions
     const handleVerifyStep = async () => {
         // if (isSaving) return // No async save anymore
+        const currentItemText = items[currentStepIndex].text
+
         const newItems = [...items]
         newItems[currentStepIndex] = {
             ...newItems[currentStepIndex],
@@ -207,6 +225,15 @@ export default function ControlModePage() {
         }
         setItems(newItems)
         // await saveChecklist(newItems) // Removed autosave
+
+        // Log Step immediately (fire and forget)
+        if (orderId) {
+            logOrderEvent(orderId, {
+                type: 'control_step',
+                title: currentItemText,
+                description: `Kontrolle "${currentItemText}" bestätigt`
+            }, user).catch(console.error)
+        }
 
         // Auto-advance
         if (currentStepIndex < items.length - 1) {
