@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase"
 
 export interface OrderHistoryEvent {
     id: string
-    type: 'creation' | 'status_change' | 'assignment' | 'service' | 'info' | 'control' | 'service_step' | 'control_step'
+    type: 'creation' | 'status_change' | 'assignment' | 'service' | 'info' | 'control' | 'service_step' | 'control_step' | 'checklist_update'
     title: string
     description?: string
     timestamp: string
@@ -27,10 +27,10 @@ export async function logOrderEvent(
         ...event,
         id: crypto.randomUUID(),
         timestamp: new Date().toISOString(),
-        actor: user ? {
+        actor: event.actor || (user ? {
             id: user.id,
             name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unbekannt'
-        } : undefined
+        } : undefined)
     }
 
     const { error } = await supabase.rpc('append_order_history', {

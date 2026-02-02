@@ -85,7 +85,47 @@ export default function OnboardingPage() {
     }
 
 
+    const handleJoinWorkshop = async (e: React.FormEvent) => {
+        e.preventDefault()
+        console.log("Join: Started with code", joinId)
+        if (!user || !joinId) return
+        setIsLoading(true)
 
+        try {
+            console.log("Join: Calling RPC...")
+            const { data, error } = await supabase
+                .rpc('join_workshop_by_code', {
+                    p_invite_code: joinId,
+                    p_user_id: user.id,
+                    p_user_email: user.email || '',
+                    p_user_name: user.user_metadata?.full_name || 'Mitarbeiter'
+                })
+
+            console.log("Join: RPC Result", data, error)
+
+            if (error) throw error
+
+            // Check the JSON response we defined in the SQL function
+            if (!data.success) {
+                console.log("Join: Success false", data.message)
+                alert("Fehler: " + data.message)
+                setIsLoading(false)
+                return
+            }
+
+            console.log("Join: Success true, refreshing session...")
+
+            // Success
+            await refreshSession()
+            console.log("Join: Session refreshed, navigating...")
+            navigate("/dashboard")
+
+        } catch (error: any) {
+            console.error("Join Error:", error)
+            alert("Fehler beim Beitreten: " + (error.message || "Unbekannter Fehler"))
+            setIsLoading(false)
+        }
+    }
     return (
         <PageTransition>
             <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -144,28 +184,25 @@ export default function OnboardingPage() {
                             </TabsContent>
 
                             <TabsContent value="join" className="space-y-4">
-                                <form onSubmit={(e) => e.preventDefault()} className="space-y-4 opacity-50 pointer-events-none select-none relative">
-                                    <div className="absolute inset-0 z-10 flex items-center justify-center">
-                                        <div className="bg-background/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-primary/20 shadow-lg transform -rotate-2">
-                                            <span className="font-bold text-primary">Coming Soon 🚀</span>
-                                        </div>
-                                    </div>
+                                <form onSubmit={handleJoinWorkshop} className="space-y-4">
                                     <div className="bg-muted p-4 rounded-lg text-sm text-muted-foreground mb-4 border border-border">
-                                        Fragen Sie Ihren Administrator nach dem <strong>Invite Code</strong>.
+                                        Fragen Sie Ihren Werkstatt-Inhaber nach dem <strong>Invite Code</strong> (6-stellig).
+                                        <br />Dieser wird täglich neu generiert.
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="ws-id">Werkstatt ID</Label>
+                                        <Label htmlFor="invite-code">Invite Code</Label>
                                         <Input
-                                            id="ws-id"
-                                            placeholder="z.B. 123e4567-e89b-..."
+                                            id="invite-code"
+                                            placeholder="z.B. AB12CD"
                                             value={joinId}
-                                            onChange={e => setJoinId(e.target.value)}
+                                            onChange={e => setJoinId(e.target.value.toUpperCase())}
                                             required
-                                            disabled
+                                            maxLength={6}
+                                            className="font-mono tracking-widest uppercase"
                                         />
                                     </div>
-                                    <Button type="submit" variant="outline" className="w-full" disabled>
-                                        <Users className="mr-2 h-4 w-4" />
+                                    <Button type="submit" variant="outline" className="w-full" disabled={isLoading || joinId.length < 6}>
+                                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
                                         Beitreten
                                     </Button>
                                 </form>

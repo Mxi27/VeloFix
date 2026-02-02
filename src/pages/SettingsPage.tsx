@@ -20,7 +20,7 @@ import type { Database } from '@/types/supabase'
 type Workshop = Database['public']['Tables']['workshops']['Row']
 
 export default function SettingsPage() {
-    const { user, workshopId } = useAuth()
+    const { user, workshopId, userRole } = useAuth()
     const [workshop, setWorkshop] = useState<Workshop | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -98,6 +98,7 @@ export default function SettingsPage() {
         .join('')
         .toUpperCase() || 'U'
 
+
     if (loading) {
         return (
             <DashboardLayout>
@@ -114,7 +115,9 @@ export default function SettingsPage() {
                 <div className="flex flex-col gap-2 mb-8">
                     <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
                     <p className="text-muted-foreground">
-                        Verwalten Sie Ihr Profil, Werkstatt-Details und Mitarbeiter
+                        {userRole === 'admin'
+                            ? 'Verwalten Sie Ihr Profil, Werkstatt-Details und Mitarbeiter'
+                            : 'Verwalten Sie Ihr Benutzerprofil'}
                     </p>
                 </div>
 
@@ -124,26 +127,31 @@ export default function SettingsPage() {
                             <User className="h-4 w-4" />
                             <span className="hidden sm:inline">Profil</span>
                         </TabsTrigger>
-                        <TabsTrigger value="workshop" className="gap-2 whitespace-nowrap">
-                            <Building2 className="h-4 w-4" />
-                            <span className="hidden sm:inline">Werkstatt</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="employees" className="gap-2 whitespace-nowrap">
-                            <Users className="h-4 w-4" />
-                            <span className="hidden sm:inline">Mitarbeiter</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="checklists" className="gap-2 whitespace-nowrap">
-                            <ListChecks className="h-4 w-4" />
-                            <span className="hidden sm:inline">Checklisten</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="intake" className="gap-2 whitespace-nowrap">
-                            <ClipboardList className="h-4 w-4" />
-                            <span className="hidden sm:inline">Annahme</span>
-                        </TabsTrigger>
-                        <TabsTrigger value="leasing" className="gap-2 whitespace-nowrap">
-                            <CreditCard className="h-4 w-4" />
-                            <span className="hidden sm:inline">Leasing</span>
-                        </TabsTrigger>
+
+                        {userRole === 'admin' && (
+                            <>
+                                <TabsTrigger value="workshop" className="gap-2 whitespace-nowrap">
+                                    <Building2 className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Werkstatt</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="employees" className="gap-2 whitespace-nowrap">
+                                    <Users className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Mitarbeiter</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="checklists" className="gap-2 whitespace-nowrap">
+                                    <ListChecks className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Checklisten</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="intake" className="gap-2 whitespace-nowrap">
+                                    <ClipboardList className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Annahme</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="leasing" className="gap-2 whitespace-nowrap">
+                                    <CreditCard className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Leasing</span>
+                                </TabsTrigger>
+                            </>
+                        )}
                     </TabsList>
 
                     {/* Profile Tab */}

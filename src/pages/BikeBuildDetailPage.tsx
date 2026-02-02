@@ -29,12 +29,14 @@ interface BikeBuild {
 export default function BikeBuildDetailPage() {
     const { id } = useParams()
     const navigate = useNavigate()
-    useAuth()
+    const { userRole } = useAuth()
 
     const [build, setBuild] = useState<BikeBuild | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [hasChanges, setHasChanges] = useState(false)
+
+    const isReadOnly = userRole === 'read'
 
     useEffect(() => {
         const fetchBuild = async () => {
@@ -152,17 +154,19 @@ export default function BikeBuildDetailPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <Button
-                                variant="destructive"
-                                size="icon"
-                                onClick={handleDelete}
-                                className="h-10 w-10 opacity-70 hover:opacity-100 transition-opacity"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {!isReadOnly && (
+                                <Button
+                                    variant="destructive"
+                                    size="icon"
+                                    onClick={handleDelete}
+                                    className="h-10 w-10 opacity-70 hover:opacity-100 transition-opacity"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            )}
                             <Button
                                 onClick={handleSave}
-                                disabled={!hasChanges || saving}
+                                disabled={!hasChanges || saving || isReadOnly}
                                 className="min-w-[140px] shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] transition-all"
                             >
                                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -190,6 +194,7 @@ export default function BikeBuildDetailPage() {
                                             value={build.brand}
                                             onChange={(e) => updateField('brand', e.target.value)}
                                             className="bg-background/50 border-input/50"
+                                            disabled={isReadOnly}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -199,6 +204,7 @@ export default function BikeBuildDetailPage() {
                                             value={build.model}
                                             onChange={(e) => updateField('model', e.target.value)}
                                             className="bg-background/50 border-input/50"
+                                            disabled={isReadOnly}
                                         />
                                     </div>
                                 </div>
@@ -211,6 +217,7 @@ export default function BikeBuildDetailPage() {
                                             value={build.color}
                                             onChange={(e) => updateField('color', e.target.value)}
                                             className="bg-background/50 border-input/50"
+                                            disabled={isReadOnly}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -220,6 +227,7 @@ export default function BikeBuildDetailPage() {
                                             value={build.frame_size}
                                             onChange={(e) => updateField('frame_size', e.target.value)}
                                             className="bg-background/50 border-input/50"
+                                            disabled={isReadOnly}
                                         />
                                     </div>
                                 </div>
@@ -231,6 +239,7 @@ export default function BikeBuildDetailPage() {
                                         value={build.internal_number}
                                         onChange={(e) => updateField('internal_number', e.target.value)}
                                         className="bg-background/50 border-input/50 font-mono"
+                                        disabled={isReadOnly}
                                     />
                                 </div>
                             </CardContent>
@@ -251,6 +260,7 @@ export default function BikeBuildDetailPage() {
                                             onChange={(e) => updateField('battery_serial', e.target.value)}
                                             placeholder="-- "
                                             className="bg-background/50 border-input/50"
+                                            disabled={isReadOnly}
                                         />
                                     </div>
 
@@ -280,6 +290,7 @@ export default function BikeBuildDetailPage() {
                                         onChange={(e) => updateField('notes', e.target.value)}
                                         className="bg-background/50 border-input/50 min-h-[150px] resize-none"
                                         placeholder="Hier ist Platz für interne Notizen..."
+                                        disabled={isReadOnly}
                                     />
                                 </CardContent>
                             </Card>

@@ -6,6 +6,7 @@ import {
     LogOut,
     Bike,
     CreditCard,
+    Trash2,
 } from "lucide-react"
 import {
     Sidebar,
@@ -32,7 +33,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
-    const { user, signOut } = useAuth()
+    const { user, signOut, userRole } = useAuth()
     const navigate = useNavigate()
     const location = useLocation()
     const [isNewOrderOpen, setIsNewOrderOpen] = useState(false)
@@ -74,6 +75,14 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
         },
     ]
 
+    if (userRole === 'admin') {
+        navItems.splice(4, 0, {
+            title: "Papierkorb",
+            icon: Trash2,
+            href: "/dashboard/trash",
+        })
+    }
+
     const initials = user?.user_metadata?.full_name
         ?.split(" ")
         .map((n: string) => n[0])
@@ -99,24 +108,27 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {/* New Order Modal Trigger */}
-                            <CreateOrderModal
-                                open={isNewOrderOpen}
-                                onOpenChange={setIsNewOrderOpen}
-                                onOrderCreated={onOrderCreated}
-                            >
-                                <SidebarMenuItem>
-                                    <SidebarMenuButton
-                                        asChild
-                                        className="text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
-                                        onClick={() => setIsNewOrderOpen(true)}
-                                    >
-                                        <span>
-                                            <PlusCircle />
-                                            <span>Neuer Auftrag</span>
-                                        </span>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            </CreateOrderModal>
+                            {/* New Order Modal Trigger - Hidden for Read-Only users */}
+                            {userRole !== 'read' && (
+                                <CreateOrderModal
+                                    open={isNewOrderOpen}
+                                    onOpenChange={setIsNewOrderOpen}
+                                    onOrderCreated={onOrderCreated}
+                                >
+                                    <SidebarMenuItem>
+                                        <SidebarMenuButton
+                                            asChild
+                                            className="text-primary hover:text-primary hover:bg-primary/10 cursor-pointer"
+                                            onClick={() => setIsNewOrderOpen(true)}
+                                        >
+                                            <span>
+                                                <PlusCircle />
+                                                <span>Neuer Auftrag</span>
+                                            </span>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                </CreateOrderModal>
+                            )}
 
                             {navItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>

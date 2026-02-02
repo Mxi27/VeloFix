@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -28,6 +28,8 @@ import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { toast } from "@/lib/toast"
 import { useAuth } from "@/contexts/AuthContext"
+import { useEmployee } from "@/contexts/EmployeeContext"
+import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
 import { logOrderEvent } from "@/lib/history"
 
 interface ChecklistItem {
@@ -42,7 +44,11 @@ interface ChecklistItem {
 export default function ControlModePage() {
     const { orderId } = useParams()
     const navigate = useNavigate()
-    const { user } = useAuth()
+    const { user, userRole } = useAuth()
+    const { activeEmployee, isKioskMode, selectEmployee, clearSelectedEmployee } = useEmployee()
+    const isReadOnly = userRole === 'read'
+
+    const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
 
     // State
     const [loading, setLoading] = useState(true)
@@ -59,6 +65,20 @@ export default function ControlModePage() {
     // Final Feedback State
     const [rating, setRating] = useState(0)
     const [feedback, setFeedback] = useState("")
+
+    const selectionMade = useRef(false)
+
+    // Kiosk Enforcement
+    // Force re-selection on entry (Mount)
+    useEffect(() => {
+        if (isKioskMode) {
+            clearSelectedEmployee()
+            setShowEmployeeSelect(true)
+            selectionMade.current = false
+        }
+    }, [isKioskMode])
+
+    // REMOVED continuous useEffect
 
     // Initial fetch
     useEffect(() => {
@@ -197,6 +217,10 @@ export default function ControlModePage() {
         const success = await saveProgress(items, true)
 
         if (success) {
+            const actorOverride = activeEmployee
+                ? { id: activeEmployee.id, name: activeEmployee.name }
+                : (user ? { id: user.id, name: user.user_metadata?.full_name || user.email || 'Unbekannt' } : undefined)
+
             // Log completion event with rating
             logOrderEvent(orderId, {
                 type: 'control', // Generic control type for the generic summary event (or could use info)
@@ -205,7 +229,8 @@ export default function ControlModePage() {
                 metadata: {
                     rating: rating,
                     feedback: feedback
-                }
+                },
+                actor: actorOverride
             }, user).catch(console.error)
 
             toast.success("Kontrolle abgeschlossen und gespeichert")
@@ -228,10 +253,15 @@ export default function ControlModePage() {
 
         // Log Step immediately (fire and forget)
         if (orderId) {
+            const actorOverride = activeEmployee
+                ? { id: activeEmployee.id, name: activeEmployee.name }
+                : (user ? { id: user.id, name: user.user_metadata?.full_name || user.email || 'Unbekannt' } : undefined)
+
             logOrderEvent(orderId, {
                 type: 'control_step',
                 title: currentItemText,
-                description: `Kontrolle "${currentItemText}" bestätigt`
+                description: `Kontrolle "${currentItemText}" bestätigt`,
+                actor: actorOverride
             }, user).catch(console.error)
         }
 
@@ -317,8 +347,13 @@ export default function ControlModePage() {
                                     {[1, 2, 3, 4, 5].map((star) => (
                                         <button
                                             key={star}
-                                            onClick={() => setRating(star)}
-                                            className="focus:outline-none transition-transform hover:scale-110"
+                                            onClick={() => !isReadOnly && setRating(star)}
+                                            disabled={isReadOnly}
+                                            className={cn(
+                                                "focus:outline-none transition-transform",
+                                                !isReadOnly && "hover:scale-110",
+                                                isReadOnly && "cursor-not-allowed opacity-70"
+                                            )}
                                         >
                                             <Star
                                                 className={cn(
@@ -336,15 +371,16 @@ export default function ControlModePage() {
                                 <Textarea
                                     value={feedback}
                                     onChange={(e) => setFeedback(e.target.value)}
-                                    placeholder="Kommentar zur Qualität der Arbeit..."
+                                    placeholder={isReadOnly ? "Kein Feedback (Nur Lesen)" : "Kommentar zur Qualität der Arbeit..."}
                                     className="min-h-[100px]"
+                                    disabled={isReadOnly}
                                 />
                             </div>
                         </div>
 
                         <Button
                             onClick={saveFinalFeedback}
-                            disabled={isSaving}
+                            disabled={isSaving || isReadOnly}
                             className="w-full bg-green-600 hover:bg-green-700 text-white"
                         >
                             {isSaving ? "Speichere..." : "Kontrolle abschließen & speichern"}
@@ -379,6 +415,11 @@ export default function ControlModePage() {
                             <ShieldCheck className="mr-1 h-3 w-3" />
                             Kontrolle
                         </Badge>
+                        {isReadOnly && (
+                            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+                                Nur Lesen
+                            </Badge>
+                        )}
                         <div>
                             <h1 className="text-sm font-semibold sm:text-base">{order.order_number}</h1>
                             <p className="text-xs text-muted-foreground truncate max-w-[150px] sm:max-w-xs">{order.bike_model}</p>
@@ -480,8 +521,9 @@ export default function ControlModePage() {
                                     <Textarea
                                         value={currentItem?.control_notes}
                                         onChange={(e) => handleControlNoteChange(e.target.value)}
-                                        placeholder="Alles okay? Probleme gefunden?"
+                                        placeholder={isReadOnly ? "Keine Notizen" : "Alles okay? Probleme gefunden?"}
                                         className="bg-indigo-500/5 resize-none min-h-[100px] border-indigo-200/20 focus:bg-background transition-all text-base focus:border-indigo-500"
+                                        disabled={isReadOnly}
                                     />
                                 </div>
                             </div>
@@ -502,14 +544,14 @@ export default function ControlModePage() {
                                     <Button
                                         variant="outline"
                                         onClick={handleSkipStep}
-                                        disabled={isSaving}
+                                        disabled={isSaving || isReadOnly}
                                         className="flex-1 sm:flex-none border-border/50"
                                     >
                                         Überspringen
                                     </Button>
                                     <Button
                                         onClick={handleVerifyStep}
-                                        disabled={isSaving}
+                                        disabled={isSaving || isReadOnly}
                                         className={cn(
                                             "flex-1 sm:flex-none min-w-[140px] bg-indigo-600 hover:bg-indigo-700 text-white",
                                             currentItem?.control_completed ? "bg-green-600 hover:bg-green-700" : ""
@@ -561,6 +603,25 @@ export default function ControlModePage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Kiosk Employee Selection */}
+            <EmployeeSelectionModal
+                open={showEmployeeSelect}
+                onOpenChange={(open) => {
+                    // Only allow closing if selection was made or if we decide to exit
+                    if (!open && !selectionMade.current) {
+                        // User dismissed without selecting -> Navigate back
+                        navigate(-1)
+                    }
+                    setShowEmployeeSelect(open)
+                }}
+                triggerAction="Endkontrolle durchführen"
+                onEmployeeSelected={(id) => {
+                    selectionMade.current = true
+                    selectEmployee(id)
+                    setShowEmployeeSelect(false)
+                }}
+            />
         </div>
     )
 }

@@ -7,10 +7,12 @@ import SettingsPage from "@/pages/SettingsPage";
 import ArchivePage from "@/pages/ArchivePage";
 import LeasingBillingPage from "@/pages/LeasingBillingPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, AuthProvider } from "@/contexts/AuthContext";
+import { EmployeeProvider } from "@/contexts/EmployeeContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import ServiceModePage from "@/pages/ServiceModePage";
 import ControlModePage from "@/pages/ControlModePage";
+import TrashPage from "@/pages/TrashPage";
 import BikeBuildsPage from "@/pages/BikeBuildsPage";
 import BikeBuildDetailPage from "@/pages/BikeBuildDetailPage";
 
@@ -103,6 +105,14 @@ function AppRoutes() {
                 }
             />
             <Route
+                path="/dashboard/trash"
+                element={
+                    <ProtectedRoute>
+                        {workshopId ? <TrashPage /> : <Navigate to="/onboarding" replace />}
+                    </ProtectedRoute>
+                }
+            />
+            <Route
                 path="/dashboard/archive"
                 element={
                     <ProtectedRoute>
@@ -133,9 +143,23 @@ function AppRoutes() {
 
 export function App() {
     return (
-        <BrowserRouter>
-            <AppRoutes />
-        </BrowserRouter>
+        // Assuming AuthProvider and EmployeeProvider are intended to wrap the BrowserRouter
+        // and that their opening tags are implicitly added or already exist in the user's mental model.
+        // This change adds the closing tags as requested, implying the structure:
+        // <AuthProvider>
+        //   <EmployeeProvider>
+        //     <BrowserRouter>
+        //       <AppRoutes />
+        //     </BrowserRouter>
+        //   </EmployeeProvider>
+        // </AuthProvider>
+        <AuthProvider>
+            <EmployeeProvider>
+                <BrowserRouter>
+                    <AppRoutes />
+                </BrowserRouter>
+            </EmployeeProvider>
+        </AuthProvider>
     );
 }
 

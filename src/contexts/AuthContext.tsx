@@ -2,10 +2,13 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { type User, type Session, type AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
+export type UserRole = 'admin' | 'write' | 'read' | null
+
 interface AuthContextType {
     user: User | null
     session: Session | null
     loading: boolean
+    userRole: UserRole
     signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
     signUp: (email: string, password: string, name: string) => Promise<{ data?: { user: User | null; session: Session | null }; error: AuthError | null }>
     signOut: () => Promise<void>
@@ -19,36 +22,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [session, setSession] = useState<Session | null>(null)
     const [workshopId, setWorkshopId] = useState<string | null>(null)
+    const [userRole, setUserRole] = useState<UserRole>(null)
     const [loading, setLoading] = useState(true)
 
-    const fetchWorkshop = async (userId: string): Promise<string | null> => {
+    const fetchMembership = async (): Promise<{ workshopId: string | null, role: UserRole }> => {
         try {
-            // Check employee first
-            const { data: employeeData } = await supabase
-                .from('employees')
-                .select('workshop_id')
-                .eq('user_id', userId)
-                .maybeSingle()
+            console.log('[AuthContext] Fetching membership...')
 
-            if (employeeData?.workshop_id) {
-                return employeeData.workshop_id
+            // 3000ms timeout race to prevent hang
+            const timeoutPromise = new Promise<{ timeout: true }>((resolve) =>
+                setTimeout(() => resolve({ timeout: true }), 3000)
+            )
+
+            const rpcPromise = supabase.rpc('get_my_membership')
+
+            const result = await Promise.race([rpcPromise, timeoutPromise]) as
+                | { timeout: true }
+                | { data: any, error: any }
+
+            if ('timeout' in result) {
+                console.error('[AuthContext] Membership fetch timed out (3000ms)')
+                return { workshopId: null, role: null }
             }
 
-            // Check owner
-            const { data: workshopData } = await supabase
-                .from('workshops')
-                .select('id')
-                .eq('owner_user_id', userId)
-                .maybeSingle()
+            const { data, error } = result
 
-            if (workshopData?.id) {
-                return workshopData.id
+            if (error) {
+                console.warn('[AuthContext] RPC Error (using fallback nulls):', error)
+                return { workshopId: null, role: null }
             }
 
-            return null
+            console.log('[AuthContext] Membership data:', data)
+            const resultData = data as { workshopId: string | null, role: string | null }
+            const role = (resultData?.role as UserRole) || null
+            const workshopId = resultData?.workshopId || null
+
+            return { workshopId, role }
         } catch (error) {
-            console.error('[fetchWorkshop] Error:', error)
-            return null
+            console.error('[fetchMembership] Unexpected Error:', error)
+            return { workshopId: null, role: null }
         }
     }
 
@@ -78,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setSession(null)
                     setUser(null)
                     setWorkshopId(null)
+                    setUserRole(null)
                     setLoading(false)
                     return
                 }
@@ -91,13 +104,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
 
                 if (session?.user) {
-                    console.log('[AuthContext] Session found, fetching workshop...')
-                    const wId = await fetchWorkshop(session.user.id)
+                    console.log('[AuthContext] Session found, fetching membership...')
+                    const { workshopId: wId, role } = await fetchMembership()
 
                     if (mounted) {
                         setSession(session)
                         setUser(session.user)
                         setWorkshopId(wId)
+                        setUserRole(role)
                     }
                 } else {
                     console.log('[AuthContext] No session')
@@ -108,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setSession(null)
                     setUser(null)
                     setWorkshopId(null)
+                    setUserRole(null)
                 }
             } finally {
                 if (mounted) {
@@ -129,22 +144,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setSession(null)
                 setUser(null)
                 setWorkshopId(null)
+                setUserRole(null)
                 setLoading(false)
             } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-                // On sign in, fetch workshop BEFORE updating state to prevent redirect race conditions
+                // On sign in, fetch membership BEFORE updating state
                 if (newSession?.user) {
-                    const wId = await fetchWorkshop(newSession.user.id)
+                    const { workshopId: wId, role } = await fetchMembership()
 
                     if (mounted) {
                         // Batch update
                         setSession(newSession)
                         setUser(newSession.user)
                         setWorkshopId(wId)
+                        setUserRole(role)
                         setLoading(false)
                     }
                 }
             } else if (event === 'TOKEN_REFRESHED') {
-                // Just update session, no need to re-fetch workshop usually
+                // Just update session
                 if (newSession) {
                     setSession(newSession)
                     setUser(newSession.user)
@@ -154,8 +171,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setSession(newSession)
                 setUser(newSession.user)
                 if (!workshopId) {
-                    const wId = await fetchWorkshop(newSession.user.id)
-                    if (mounted) setWorkshopId(wId)
+                    const { workshopId: wId, role } = await fetchMembership()
+                    if (mounted) {
+                        setWorkshopId(wId)
+                        setUserRole(role)
+                    }
                 }
             }
         })
@@ -170,12 +190,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
         if (data.user && data.session) {
-            // Wait for workshop data to be fetched before resolving
-            // This ensures the UI stays in loading state until we have all data
-            const wId = await fetchWorkshop(data.user.id)
+            // Wait for workshop data
+            const { workshopId: wId, role } = await fetchMembership()
             setSession(data.session)
             setUser(data.user)
             setWorkshopId(wId)
+            setUserRole(role)
         }
 
         return { error }
@@ -196,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const signOut = async () => {
         setWorkshopId(null)
+        setUserRole(null)
         setUser(null)
         setSession(null)
         await supabase.auth.signOut()
@@ -203,8 +224,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const refreshSession = async () => {
         if (user) {
-            const wId = await fetchWorkshop(user.id)
+            const { workshopId: wId, role } = await fetchMembership()
             setWorkshopId(wId)
+            setUserRole(role)
         }
     }
 
@@ -212,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         loading,
+        userRole,
         signIn,
         signUp,
         signOut,

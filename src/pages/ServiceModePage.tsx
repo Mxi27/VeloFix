@@ -1,36 +1,27 @@
-import { useState, useEffect } from "react"
-import { useParams, useNavigate } from "react-router-dom"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState, useEffect, useRef } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-    Check,
-    X,
-    SkipForward,
-    CheckCircle2,
-    ArrowLeft,
-    Plus
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
+    Plus, Check, ArrowLeft,
+    X, CheckCircle2, Download, SkipForward
+} from 'lucide-react'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { toast } from "@/lib/toast"
 import { useAuth } from "@/contexts/AuthContext"
+import { useEmployee } from "@/contexts/EmployeeContext"
+import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
 import { logOrderEvent } from "@/lib/history"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import jsPDF from "jspdf"
 
-import { Download } from "lucide-react"
+
 
 interface ChecklistItem {
     text: string
@@ -42,7 +33,12 @@ interface ChecklistItem {
 export default function ServiceModePage() {
     const { orderId } = useParams()
     const navigate = useNavigate()
-    const { user } = useAuth() // Get user for logging
+    const { user, userRole } = useAuth() // Fallback
+    const { activeEmployee, isKioskMode, selectEmployee, clearSelectedEmployee } = useEmployee()
+    const isReadOnly = userRole === 'read'
+
+    // Kiosk Selection State
+    const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
 
     // State
     const [loading, setLoading] = useState(true)
@@ -56,6 +52,22 @@ export default function ServiceModePage() {
     const [isAddStepOpen, setIsAddStepOpen] = useState(false)
     const [newStepText, setNewStepText] = useState("")
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+
+    // Kiosk Mode Enforcer
+    // Force re-selection on entry (Mount)
+    const selectionMade = useRef(false) // Track if selection happened
+
+    // Kiosk Mode Enforcer
+    // Force re-selection on entry (Mount)
+    useEffect(() => {
+        if (isKioskMode) {
+            clearSelectedEmployee()
+            setShowEmployeeSelect(true)
+            selectionMade.current = false
+        }
+    }, [isKioskMode])
+
+    // REMOVED continuous useEffect to avoid double-open loop
 
     // Initial fetch
     useEffect(() => {
@@ -146,10 +158,13 @@ export default function ServiceModePage() {
 
         // Log History Event Immediately
         if (orderId) {
+            const actor = activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name, email: activeEmployee.email } : undefined
+
             logOrderEvent(orderId, {
                 type: 'service_step',
                 title: currentItemText, // Use the step text as title
-                description: `Schritt "${currentItemText}" erledigt`
+                description: `Schritt "${currentItemText}" erledigt`,
+                actor: actor
             }, user).catch(console.error)
         }
 
@@ -477,13 +492,15 @@ export default function ServiceModePage() {
                                 <div className="space-y-2">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Badge variant="secondary">Schritt {currentStepIndex + 1} von {items.length}</Badge>
-                                        <button
-                                            onClick={handleDeleteClick}
-                                            className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                                            title="Schritt löschen"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
+                                        {!isReadOnly && (
+                                            <button
+                                                onClick={handleDeleteClick}
+                                                className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                                                title="Schritt löschen"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
+                                        )}
                                     </div>
                                     <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">
                                         {currentItem?.text}
@@ -503,8 +520,9 @@ export default function ServiceModePage() {
                                 <Textarea
                                     value={currentItem?.notes}
                                     onChange={(e) => handleNoteChange(e.target.value)}
-                                    placeholder="z.B. Bremsbeläge erneuert, Kette geölt..."
+                                    placeholder={isReadOnly ? "Keine Notizen" : "z.B. Bremsbeläge erneuert, Kette geölt..."}
                                     className="bg-muted/30 resize-none min-h-[150px] border-border/50 focus:bg-background transition-all text-base"
+                                    disabled={isReadOnly}
                                 />
                             </div>
                         </div>
@@ -527,7 +545,7 @@ export default function ServiceModePage() {
                                     <Button
                                         variant="ghost"
                                         onClick={handleRevertStep}
-                                        disabled={isSaving}
+                                        disabled={isSaving || isReadOnly}
                                         className="flex-1 sm:flex-none text-muted-foreground hover:text-foreground"
                                     >
                                         Als unerledigt markieren
@@ -538,7 +556,7 @@ export default function ServiceModePage() {
                                     <Button
                                         variant="outline"
                                         onClick={handleSkipStep}
-                                        disabled={isSaving}
+                                        disabled={isSaving || isReadOnly}
                                         className="flex-1 sm:flex-none border-border/50"
                                     >
                                         Überspringen
@@ -547,7 +565,7 @@ export default function ServiceModePage() {
 
                                 <Button
                                     onClick={handleCompleteStep}
-                                    disabled={isSaving}
+                                    disabled={isSaving || isReadOnly}
                                     className={cn(
                                         "flex-1 sm:flex-none min-w-[140px]",
                                         currentItem?.completed ? "bg-green-600 hover:bg-green-700" : ""
@@ -586,6 +604,11 @@ export default function ServiceModePage() {
                         <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
                             Service-Modus
                         </Badge>
+                        {isReadOnly && (
+                            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+                                Nur Lesen
+                            </Badge>
+                        )}
                         <div>
                             <h1 className="text-sm font-semibold sm:text-base">{order.order_number}</h1>
                             <p className="text-xs text-muted-foreground truncate max-w-[150px] sm:max-w-xs">{order.bike_model}</p>
@@ -641,13 +664,15 @@ export default function ServiceModePage() {
                         })}
 
                         {/* Add Step Button */}
-                        <button
-                            onClick={() => setIsAddStepOpen(true)}
-                            className="h-10 w-10 flex items-center justify-center rounded-lg border border-dashed border-primary/50 text-primary hover:bg-primary/5 transition-all"
-                            title="Schritt hinzufügen"
-                        >
-                            <Plus className="h-5 w-5" />
-                        </button>
+                        {!isReadOnly && (
+                            <button
+                                onClick={() => setIsAddStepOpen(true)}
+                                className="h-10 w-10 flex items-center justify-center rounded-lg border border-dashed border-primary/50 text-primary hover:bg-primary/5 transition-all"
+                                title="Schritt hinzufügen"
+                            >
+                                <Plus className="h-5 w-5" />
+                            </button>
+                        )}
                     </div>
                 </div>
             ) : null}
@@ -706,6 +731,24 @@ export default function ServiceModePage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+            {/* Kiosk Employee Selection */}
+            <EmployeeSelectionModal
+                open={showEmployeeSelect}
+                onOpenChange={(open) => {
+                    // Only allow closing if selection was made or if we decide to exit
+                    if (!open && !selectionMade.current) {
+                        // User dismissed without selecting -> Navigate back
+                        navigate(-1)
+                    }
+                    setShowEmployeeSelect(open)
+                }}
+                triggerAction="Service-Modus starten"
+                onEmployeeSelected={(id) => {
+                    selectionMade.current = true
+                    selectEmployee(id)
+                    setShowEmployeeSelect(false)
+                }}
+            />
         </div>
     )
 }

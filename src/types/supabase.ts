@@ -21,6 +21,8 @@ export interface Database {
                     postal_code: string | null
                     created_at: string
                     updated_at: string
+                    invite_code?: string | null
+                    allow_guest_join?: boolean
                 }
                 Insert: {
                     id?: string
@@ -33,6 +35,8 @@ export interface Database {
                     postal_code?: string | null
                     created_at?: string
                     updated_at?: string
+                    invite_code?: string | null
+                    allow_guest_join?: boolean
                 }
                 Update: {
                     id?: string
@@ -45,6 +49,8 @@ export interface Database {
                     postal_code?: string | null
                     created_at?: string
                     updated_at?: string
+                    invite_code?: string | null
+                    allow_guest_join?: boolean
                 }
             }
             employees: {
@@ -57,6 +63,9 @@ export interface Database {
                     role: 'admin' | 'write' | 'read'
                     active: boolean
                     created_at: string
+                    color?: string
+                    initials?: string
+                    is_kiosk_mode?: boolean
                 }
                 Insert: {
                     id?: string
@@ -67,6 +76,9 @@ export interface Database {
                     role?: 'admin' | 'write' | 'read'
                     active?: boolean
                     created_at?: string
+                    color?: string
+                    initials?: string
+                    is_kiosk_mode?: boolean
                 }
                 Update: {
                     id?: string
@@ -77,6 +89,9 @@ export interface Database {
                     role?: 'admin' | 'write' | 'read'
                     active?: boolean
                     created_at?: string
+                    color?: string
+                    initials?: string
+                    is_kiosk_mode?: boolean
                 }
             }
             orders: {
@@ -105,6 +120,7 @@ export interface Database {
                     leasing_code: string | null
                     is_billed: boolean
                     archived: boolean
+                    trash_date: string | null
                 }
                 Insert: {
                     id?: string
@@ -131,6 +147,7 @@ export interface Database {
                     leasing_code?: string | null
                     is_billed?: boolean
                     archived?: boolean
+                    trash_date?: string | null
                 }
                 Update: {
                     id?: string
@@ -157,6 +174,7 @@ export interface Database {
                     leasing_code?: string | null
                     is_billed?: boolean
                     archived?: boolean
+                    trash_date?: string | null
                 }
             }
             checklist_templates: {

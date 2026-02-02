@@ -47,11 +47,25 @@ import {
     Loader2,
     Archive,
     Wrench,
-    ShieldCheck
+    ShieldCheck,
+    Pencil,
+    Trash2
 } from "lucide-react"
 import { LoadingScreen } from "@/components/LoadingScreen"
 import { PageTransition } from "@/components/PageTransition"
 import { STATUS_COLORS } from "@/lib/constants"
+import { useEmployee } from "@/contexts/EmployeeContext"
+import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 const STATUS_FLOW = [
     { value: 'eingegangen', label: 'Eingegangen', icon: Clock, color: STATUS_COLORS.eingegangen },
@@ -105,7 +119,7 @@ const BIKE_TYPE_LABELS: Record<string, string> = {
 export default function OrderDetailPage() {
     const { orderId } = useParams<{ orderId: string }>()
     const navigate = useNavigate()
-    const { workshopId, user } = useAuth()
+    const { workshopId, user, userRole } = useAuth()
     const [order, setOrder] = useState<Order | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -113,13 +127,71 @@ export default function OrderDetailPage() {
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
     const [isDialogOpen, setIsDialogOpen] = useState(false)
 
+    const isReadOnly = userRole === 'read'
+
     // Editable fields
     const [notes, setNotes] = useState("")
-    const [finalPrice, setFinalPrice] = useState("")
+
 
     // Leasing dialog state
     const [isLeasingDialogOpen, setIsLeasingDialogOpen] = useState(false)
     const [leasingCodeInput, setLeasingCodeInput] = useState("")
+
+    // Kiosk Interception
+    const { isKioskMode, employees } = useEmployee()
+    const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
+    const [pendingAction, setPendingAction] = useState<{
+        type: 'status' | 'save_notes_data' | 'save_leasing' | 'save_price_data' | 'toggle_checklist' | 'save_customer' | 'save_bike',
+        payload?: any
+    } | null>(null)
+
+    const [showExitDialog, setShowExitDialog] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+    const handleDeleteOrder = async () => {
+        if (!order) return
+
+        try {
+            // Soft Delete (Move to Trash)
+            const { error } = await supabase
+                .from('orders')
+                .update({ status: 'trash', trash_date: new Date().toISOString() })
+                .eq('id', order.id)
+
+            if (error) throw error
+
+            // Smooth transition support
+            if (document.startViewTransition) {
+                document.startViewTransition(() => {
+                    navigate(returnPath)
+                })
+            } else {
+                navigate(returnPath)
+            }
+        } catch (error: any) {
+            console.error("Error deleting order:", error)
+            alert(`Fehler beim Löschen des Auftrags: ${error.message || JSON.stringify(error)}`)
+        }
+    }
+
+    // Customer Edit State
+    const [isCustomerEditDialogOpen, setIsCustomerEditDialogOpen] = useState(false)
+    const [editCustomerName, setEditCustomerName] = useState("")
+    const [editCustomerEmail, setEditCustomerEmail] = useState("")
+    const [editCustomerPhone, setEditCustomerPhone] = useState("")
+
+    // Bike Edit State
+    const [isBikeEditDialogOpen, setIsBikeEditDialogOpen] = useState(false)
+    const [editBikeModel, setEditBikeModel] = useState("")
+    const [editBikeType, setEditBikeType] = useState("")
+
+    // Standardized Edit States
+    const [isNotesEditDialogOpen, setIsNotesEditDialogOpen] = useState(false)
+    const [editNotes, setEditNotes] = useState("")
+
+    const [isPriceEditDialogOpen, setIsPriceEditDialogOpen] = useState(false)
+    const [editEstimatedPrice, setEditEstimatedPrice] = useState("")
+    const [editFinalPrice, setEditFinalPrice] = useState("")
 
     useEffect(() => {
         const fetchOrder = async () => {
@@ -152,7 +224,11 @@ export default function OrderDetailPage() {
                     : (typeof notesData === 'string' ? notesData : "")
 
                 setNotes(notesString)
-                setFinalPrice(orderResult.data.final_price?.toString() || "")
+                setEditNotes(notesString)
+
+
+                setEditFinalPrice(orderResult.data.final_price?.toString() || "")
+                setEditEstimatedPrice(orderResult.data.estimated_price?.toString() || "")
                 // Initialize leasing code input properly to allow editing
                 setLeasingCodeInput(orderResult.data.leasing_code || "")
             }
@@ -206,8 +282,141 @@ export default function OrderDetailPage() {
         }
     }, [workshopId, orderId])
 
-    const handleStatusChange = async (newStatus: string) => {
+    // Handler for Kiosk selection
+    const handleEmployeeSelected = (employeeId: string) => {
+        const selectedEmp = employees.find(e => e.id === employeeId)
+        if (!selectedEmp || !pendingAction) {
+            setShowEmployeeSelect(false)
+            setPendingAction(null)
+            return
+        }
+
+        const actor = {
+            id: selectedEmp.id,
+            name: selectedEmp.name,
+            email: selectedEmp.email || undefined
+        }
+
+        // Execute pending action with actor override
+        switch (pendingAction.type) {
+            case 'status':
+                handleStatusChange(pendingAction.payload, actor)
+                break
+            case 'save_leasing':
+                handleSaveLeasingCode(actor)
+                break
+            // Legacy cases removed or updated
+            case 'toggle_checklist':
+                handleToggleChecklist(pendingAction.payload.index, pendingAction.payload.checked, actor)
+                break
+            case 'save_customer':
+                handleSaveCustomerData(actor)
+                break
+            case 'save_customer':
+                handleSaveCustomerData(actor)
+                break
+            case 'save_bike':
+                handleSaveBikeData(actor)
+                break
+            case 'save_notes_data':
+                handleSaveNotesData(actor)
+                break
+            case 'save_price_data':
+                handleSavePriceData(actor)
+                break
+        }
+
+        setShowEmployeeSelect(false)
+        setPendingAction(null)
+    }
+
+    const handleSaveCustomerData = async (actorOverride?: { id: string, name: string }) => {
+        if (!order) return
+
+        if (isKioskMode && !actorOverride) {
+            setPendingAction({ type: 'save_customer' })
+            setShowEmployeeSelect(true)
+            return
+        }
+
+        setSaving(true)
+        const updates = {
+            customer_name: editCustomerName,
+            customer_email: editCustomerEmail || null,
+            customer_phone: editCustomerPhone || null
+        }
+
+        const { error } = await supabase
+            .from('orders')
+            .update(updates)
+            .eq('id', order.id)
+
+        if (error) {
+            console.error("Error updating customer:", error)
+            alert("Fehler beim Speichern der Kundendaten")
+        } else {
+            setOrder({ ...order, ...updates })
+            setIsCustomerEditDialogOpen(false)
+
+            // Log Event
+            logOrderEvent(order.id, {
+                type: 'info',
+                title: 'Kundendaten aktualisiert',
+                description: `Kundendaten bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
+                actor: actorOverride
+            }, user).catch(console.error)
+        }
+        setSaving(false)
+    }
+
+    const handleSaveBikeData = async (actorOverride?: { id: string, name: string }) => {
+        if (!order) return
+
+        if (isKioskMode && !actorOverride) {
+            setPendingAction({ type: 'save_bike' })
+            setShowEmployeeSelect(true)
+            return
+        }
+
+        setSaving(true)
+        const updates = {
+            bike_model: editBikeModel,
+            bike_type: editBikeType || null
+        }
+
+        const { error } = await supabase
+            .from('orders')
+            .update(updates)
+            .eq('id', order.id)
+
+        if (error) {
+            console.error("Error updating bike:", error)
+            alert("Fehler beim Speichern der Fahrraddaten")
+        } else {
+            setOrder({ ...order, ...updates })
+            setIsBikeEditDialogOpen(false)
+
+            // Log Event
+            logOrderEvent(order.id, {
+                type: 'info',
+                title: 'Fahrraddaten aktualisiert',
+                description: `Fahrraddaten bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
+                actor: actorOverride
+            }, user).catch(console.error)
+        }
+        setSaving(false)
+    }
+
+    const handleStatusChange = async (newStatus: string, actorOverride?: { id: string, name: string }) => {
         if (!order || saving) return
+
+        // Intercept Kiosk Mode
+        if (isKioskMode && !actorOverride) {
+            setPendingAction({ type: 'status', payload: newStatus })
+            setShowEmployeeSelect(true)
+            return
+        }
+
         setSaving(true)
 
         try {
@@ -228,7 +437,8 @@ export default function OrderDetailPage() {
                     type: 'status_change',
                     title: 'Status geändert',
                     description: `Status zu "${newStatusLabel}" geändert`,
-                    metadata: { old_status: order.status, new_status: newStatus }
+                    metadata: { old_status: order.status, new_status: newStatus },
+                    actor: actorOverride
                 },
                 user
             )
@@ -248,8 +458,14 @@ export default function OrderDetailPage() {
         }
     }
 
-    const handleSaveLeasingCode = async () => {
+    const handleSaveLeasingCode = async (actorOverride?: { id: string, name: string }) => {
         if (!order || !workshopId) return
+
+        if (isKioskMode && !actorOverride) {
+            setPendingAction({ type: 'save_leasing' })
+            setShowEmployeeSelect(true)
+            return
+        }
 
         // NOTE: We allow saving empty leasing code now as requested (nullable)
 
@@ -277,16 +493,29 @@ export default function OrderDetailPage() {
                 ...order,
                 ...updates
             })
+
+            // Log event if status changed or just info?
+            // If status changed to Abgeholt (LEASING_STATUS), we should log it.
+            // But handleStatusChange does logic too. 
+            // LEASING_STATUS change here is implicit. We should probably log it.
+            // But for now, let's just respect the Kiosk flow.
+
             setIsLeasingDialogOpen(false)
         }
         setSaving(false)
     }
 
-    const handleSaveNotes = async () => {
+    const handleSaveNotesData = async (actorOverride?: { id: string, name: string }) => {
         if (!order || !workshopId) return
 
+        if (isKioskMode && !actorOverride) {
+            setPendingAction({ type: 'save_notes_data' })
+            setShowEmployeeSelect(true)
+            return
+        }
+
         setSaving(true)
-        const notesArray = notes.split('\n')
+        const notesArray = editNotes.split('\n')
 
         const { error } = await supabase
             .from('orders')
@@ -299,39 +528,65 @@ export default function OrderDetailPage() {
             alert(`Fehler beim Speichern der Notizen: ${error.message || JSON.stringify(error)}`)
         } else {
             setOrder({ ...order, notes: notesArray })
+            setNotes(editNotes)
+            setIsNotesEditDialogOpen(false)
+
+            // Log Event
+            logOrderEvent(order.id, {
+                type: 'info',
+                title: 'Notizen aktualisiert',
+                description: `Notizen bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
+                actor: actorOverride
+            }, user).catch(console.error)
         }
         setSaving(false)
     }
 
-    const handleSaveFinalPrice = async () => {
+    const handleSavePriceData = async (actorOverride?: { id: string, name: string }) => {
         if (!order || !workshopId) return
 
-        const price = parseFloat(finalPrice)
-        if (isNaN(price)) {
-            alert("Bitte geben Sie einen gültigen Preis ein")
+        if (isKioskMode && !actorOverride) {
+            setPendingAction({ type: 'save_price_data' })
+            setShowEmployeeSelect(true)
             return
         }
+
+        const estPrice = parseFloat(editEstimatedPrice)
+        const actPrice = parseFloat(editFinalPrice)
+
+        // Allow saving empty strings as null? For now keeping strict number parse or 0/null logic if desired.
+        // Assuming user enters valid numbers or we save null if empty string.
+        // Let's safe parse. 
+        const itemsToUpdate: any = {}
+        if (editEstimatedPrice !== "") itemsToUpdate.estimated_price = isNaN(estPrice) ? null : estPrice
+        if (editFinalPrice !== "") itemsToUpdate.final_price = isNaN(actPrice) ? null : actPrice
 
         setSaving(true)
         const { error } = await supabase
             .from('orders')
-            .update({ final_price: price })
+            .update(itemsToUpdate)
             .eq('id', order.id)
             .eq('workshop_id', workshopId)
 
         if (error) {
             console.error("Error saving price:", error)
-            alert(`Fehler beim Speichern des Preises: ${error.message || JSON.stringify(error)}`)
+            alert(`Fehler beim Speichern der Preisdaten`)
         } else {
-            setOrder({ ...order, final_price: price })
+            setOrder({ ...order, ...itemsToUpdate })
+            setIsPriceEditDialogOpen(false)
+
+            // Log Event
+            logOrderEvent(order.id, {
+                type: 'info',
+                title: 'Preisdaten aktualisiert',
+                description: `Preisdaten bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
+                actor: actorOverride
+            }, user).catch(console.error)
         }
         setSaving(false)
     }
 
-    // Helper to check if dirty
-    const currentNotesString = order && Array.isArray(order.notes) ? order.notes.join('\n') : (order?.notes || "")
-    const isNotesDirty = order ? notes !== currentNotesString : false
-    const isPriceDirty = order ? finalPrice !== (order.final_price?.toString() || "") : false
+
 
     const handleApplyTemplate = async () => {
         if (!order || !selectedTemplateId) return
@@ -367,8 +622,14 @@ export default function OrderDetailPage() {
         setSaving(false)
     }
 
-    const handleToggleChecklist = async (index: number, checked: boolean) => {
+    const handleToggleChecklist = async (index: number, checked: boolean, actorOverride?: { id: string, name: string }) => {
         if (!order || !order.checklist) return
+
+        if (isKioskMode && !actorOverride) {
+            setPendingAction({ type: 'toggle_checklist', payload: { index, checked } })
+            setShowEmployeeSelect(true)
+            return
+        }
 
         const newChecklist = [...order.checklist]
         newChecklist[index] = { ...newChecklist[index], completed: checked }
@@ -384,6 +645,18 @@ export default function OrderDetailPage() {
             console.error("Error updating checklist:", error)
             setOrder({ ...order, checklist: order.checklist })
             alert("Fehler beim Speichern der Checkliste")
+        } else {
+            // Log event with attribution
+            const itemText = order.checklist[index].text
+            const action = checked ? "erledigt" : "unerledigt"
+
+            logOrderEvent(order.id, {
+                type: 'checklist_update',
+                title: checked ? 'Checkliste Fortschritt' : 'Checkliste Änderung',
+                description: `Punkt "${itemText}" markiert als ${action}`,
+                metadata: { item_index: index, checked: checked },
+                actor: actorOverride
+            }, user).catch(console.error)
         }
     }
 
@@ -418,7 +691,9 @@ export default function OrderDetailPage() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => navigate(returnPath)}
+                                onClick={() => {
+                                    navigate(returnPath)
+                                }}
                             >
                                 <ArrowLeft className="mr-2 h-4 w-4" />
                                 Zurück
@@ -466,6 +741,17 @@ export default function OrderDetailPage() {
                                 <ShieldCheck className="mr-2 h-4 w-4" />
                                 Kontrolle
                             </Button>
+                            {userRole === 'admin' && (
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Löschen
+                                </Button>
+                            )}
                         </div>
                     </div>
 
@@ -476,11 +762,27 @@ export default function OrderDetailPage() {
                             {/* Customer Information */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-base">
-                                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                            <User className="h-4 w-4 text-primary" />
+                                    <CardTitle className="flex items-center gap-2 text-base w-full">
+                                        <div className="flex items-center gap-2 flex-1">
+                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                <User className="h-4 w-4 text-primary" />
+                                            </div>
+                                            Kundendaten
                                         </div>
-                                        Kundendaten
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 hover:bg-neutral-100"
+                                            disabled={isReadOnly}
+                                            onClick={() => {
+                                                setEditCustomerName(order.customer_name)
+                                                setEditCustomerEmail(order.customer_email || "")
+                                                setEditCustomerPhone(order.customer_phone || "")
+                                                setIsCustomerEditDialogOpen(true)
+                                            }}
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
@@ -512,11 +814,26 @@ export default function OrderDetailPage() {
                             {/* Bike Information */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-base">
-                                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                            <Bike className="h-4 w-4 text-primary" />
+                                    <CardTitle className="flex items-center gap-2 text-base w-full">
+                                        <div className="flex items-center gap-2 flex-1">
+                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                <Bike className="h-4 w-4 text-primary" />
+                                            </div>
+                                            Fahrrad
                                         </div>
-                                        Fahrrad
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 hover:bg-neutral-100"
+                                            disabled={isReadOnly}
+                                            onClick={() => {
+                                                setEditBikeModel(order.bike_model || "")
+                                                setEditBikeType(order.bike_type || "")
+                                                setIsBikeEditDialogOpen(true)
+                                            }}
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
@@ -563,7 +880,7 @@ export default function OrderDetailPage() {
                                                     size="sm"
                                                     className="h-8 w-8 p-0"
                                                     disabled={saving || (leasingCodeInput === (order.leasing_code || ""))}
-                                                    onClick={handleSaveLeasingCode}
+                                                    onClick={() => handleSaveLeasingCode()}
                                                 >
                                                     <Save className="h-4 w-4" />
                                                 </Button>
@@ -576,11 +893,26 @@ export default function OrderDetailPage() {
                             {/* Price Overview */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-base">
-                                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                            <Euro className="h-4 w-4 text-primary" />
+                                    <CardTitle className="flex items-center gap-2 text-base w-full">
+                                        <div className="flex items-center gap-2 flex-1">
+                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                <Euro className="h-4 w-4 text-primary" />
+                                            </div>
+                                            Preisübersicht
                                         </div>
-                                        Preisübersicht
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 hover:bg-neutral-100"
+                                            disabled={isReadOnly}
+                                            onClick={() => {
+                                                setEditEstimatedPrice(order.estimated_price?.toString() || "")
+                                                setEditFinalPrice(order.final_price?.toString() || "")
+                                                setIsPriceEditDialogOpen(true)
+                                            }}
+                                        >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                        </Button>
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
@@ -596,43 +928,15 @@ export default function OrderDetailPage() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label htmlFor="actual-price" className="text-xs text-muted-foreground ml-1">
+                                            <Label className="text-xs text-muted-foreground ml-1">
                                                 Tatsächlicher Preis
                                             </Label>
-                                            <div className="flex gap-2">
-                                                <div className="relative flex-1">
-                                                    <Input
-                                                        id="final-price"
-                                                        type="number"
-                                                        step="0.01"
-                                                        placeholder="0.00"
-                                                        value={finalPrice}
-                                                        onChange={(e) => setFinalPrice(e.target.value)}
-                                                        className="pr-8"
-                                                    />
-                                                    <span className="absolute right-3 top-2.5 text-xs text-muted-foreground">€</span>
-                                                </div>
-                                                <Button
-                                                    size="icon"
-                                                    onClick={handleSaveFinalPrice}
-                                                    disabled={saving || !isPriceDirty}
-                                                    variant={isPriceDirty ? "default" : "outline"}
-                                                    className={cn("shrink-0 transition-all", isPriceDirty && "animate-pulse")}
-                                                >
-                                                    {saving ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                    ) : isPriceDirty ? (
-                                                        <Save className="h-4 w-4" />
-                                                    ) : (
-                                                        <Check className="h-4 w-4 text-green-500" />
-                                                    )}
-                                                </Button>
+                                            <div className="text-xl font-medium px-2">
+                                                {order.final_price !== null
+                                                    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.final_price)
+                                                    : <span className="text-muted-foreground italic text-sm">Nicht festgelegt</span>
+                                                }
                                             </div>
-                                            {!isPriceDirty && finalPrice && (
-                                                <p className="text-[10px] text-muted-foreground text-right mr-1">
-                                                    Gespeichert
-                                                </p>
-                                            )}
                                         </div>
                                     </div>
                                 </CardContent>
@@ -654,7 +958,7 @@ export default function OrderDetailPage() {
                                         </div>
 
                                         <div className="flex gap-2">
-                                            <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                                            <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId} disabled={isReadOnly}>
                                                 <SelectTrigger className="h-8 text-xs bg-muted/50 flex-1">
                                                     <SelectValue placeholder="Vorlage wählen..." />
                                                 </SelectTrigger>
@@ -667,7 +971,7 @@ export default function OrderDetailPage() {
                                             <Button
                                                 size="sm"
                                                 className="h-8"
-                                                disabled={!selectedTemplateId}
+                                                disabled={!selectedTemplateId || isReadOnly}
                                                 onClick={() => setIsDialogOpen(true)}
                                             >
                                                 Anwenden
@@ -713,6 +1017,7 @@ export default function OrderDetailPage() {
                                                         id={`item-${index}`}
                                                         checked={item.completed}
                                                         onCheckedChange={(checked) => handleToggleChecklist(index, checked as boolean)}
+                                                        disabled={isReadOnly}
                                                         className={cn(
                                                             "mt-0.5 transition-all duration-300",
                                                             item.completed ? "data-[state=checked]:bg-primary data-[state=checked]:border-primary" : "border-muted-foreground/40"
@@ -768,42 +1073,26 @@ export default function OrderDetailPage() {
                             {/* Internal Notes */}
                             <Card className="flex flex-col">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-base font-medium">Interne Notizen</CardTitle>
-                                    {isNotesDirty && (
-                                        <Badge variant="secondary" className="text-[10px] h-5">Ungespeichert</Badge>
-                                    )}
+                                    <CardTitle className="text-base font-medium flex items-center gap-2">
+                                        Interne Notizen
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 hover:bg-neutral-100"
+                                            disabled={isReadOnly}
+                                            onClick={() => {
+                                                setEditNotes(notes)
+                                                setIsNotesEditDialogOpen(true)
+                                            }}
+                                        >
+                                            <Pencil className="h-3 w-3" />
+                                        </Button>
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3 pt-4 flex-1">
-                                    <Textarea
-                                        placeholder="Notizen für Mechaniker eingeben..."
-                                        value={notes}
-                                        onChange={(e) => setNotes(e.target.value)}
-                                        className="resize-none min-h-[150px] focus-visible:ring-primary/20"
-                                    />
-                                    <Button
-                                        onClick={handleSaveNotes}
-                                        disabled={saving || !isNotesDirty}
-                                        className="w-full"
-                                        size="sm"
-                                        variant={isNotesDirty ? "default" : "outline"}
-                                    >
-                                        {saving ? (
-                                            <>
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Speichern...
-                                            </>
-                                        ) : isNotesDirty ? (
-                                            <>
-                                                <Save className="mr-2 h-4 w-4" />
-                                                Änderungen speichern
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Check className="mr-2 h-4 w-4 text-green-500" />
-                                                Aktuell
-                                            </>
-                                        )}
-                                    </Button>
+                                    <div className="bg-muted/30 rounded-md p-3 min-h-[100px] text-sm whitespace-pre-wrap">
+                                        {notes || <span className="text-muted-foreground italic">Keine Notizen vorhanden.</span>}
+                                    </div>
                                 </CardContent>
                             </Card>
 
@@ -832,7 +1121,7 @@ export default function OrderDetailPage() {
                                                 variant={isActive ? "outline" : "outline"}
                                                 className={`w-full justify-start ${isActive ? `${statusOption.color} border-current` : 'text-muted-foreground'}`}
                                                 onClick={() => handleStatusChange(statusOption.value)}
-                                                disabled={saving || isActive}
+                                                disabled={saving || isActive || isReadOnly}
                                             >
                                                 <Icon className="mr-2 h-4 w-4" />
                                                 {statusOption.label}
@@ -845,7 +1134,7 @@ export default function OrderDetailPage() {
                                             variant={order.status === LEASING_STATUS.value ? "outline" : "ghost"}
                                             className={cn("w-full justify-start mt-2", order.status === LEASING_STATUS.value && "bg-blue-500/10 text-blue-600 border-blue-200")}
                                             onClick={() => handleStatusChange(LEASING_STATUS.value)}
-                                            disabled={saving || order.status === LEASING_STATUS.value || order.status === COMPLETED_STATUS.value}
+                                            disabled={saving || order.status === LEASING_STATUS.value || order.status === COMPLETED_STATUS.value || isReadOnly}
                                         >
                                             <LEASING_STATUS.icon className="mr-2 h-4 w-4" />
                                             {LEASING_STATUS.label}
@@ -856,7 +1145,7 @@ export default function OrderDetailPage() {
                                         variant={order.status === COMPLETED_STATUS.value ? "outline" : "ghost"}
                                         className={cn("w-full justify-start", order.status === COMPLETED_STATUS.value && "bg-green-500/10 text-green-600 border-green-200")}
                                         onClick={() => handleStatusChange(COMPLETED_STATUS.value)}
-                                        disabled={saving || order.status === COMPLETED_STATUS.value}
+                                        disabled={saving || order.status === COMPLETED_STATUS.value || isReadOnly}
                                     >
                                         <COMPLETED_STATUS.icon className="mr-2 h-4 w-4" />
                                         {COMPLETED_STATUS.label}
@@ -869,6 +1158,158 @@ export default function OrderDetailPage() {
                     </div>
                 </div>
             </DashboardLayout>
+
+            {/* Edit Customer Dialog */}
+            <Dialog open={isCustomerEditDialogOpen} onOpenChange={setIsCustomerEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Kundendaten bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Name</Label>
+                            <Input
+                                value={editCustomerName}
+                                onChange={e => setEditCustomerName(e.target.value)}
+                                placeholder="Name eingeben"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>E-Mail</Label>
+                            <Input
+                                value={editCustomerEmail}
+                                onChange={e => setEditCustomerEmail(e.target.value)}
+                                placeholder="E-Mail eingeben"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Telefon</Label>
+                            <Input
+                                value={editCustomerPhone}
+                                onChange={e => setEditCustomerPhone(e.target.value)}
+                                placeholder="Telefon eingeben"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsCustomerEditDialogOpen(false)}>Abbrechen</Button>
+                        <Button
+                            onClick={() => handleSaveCustomerData()}
+                            disabled={!editCustomerName || saving}
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Bike Dialog */}
+            <Dialog open={isBikeEditDialogOpen} onOpenChange={setIsBikeEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Fahrraddaten bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Modell</Label>
+                            <Input
+                                value={editBikeModel}
+                                onChange={e => setEditBikeModel(e.target.value)}
+                                placeholder="Modell eingeben"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Typ</Label>
+                            <Select value={editBikeType} onValueChange={setEditBikeType}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Typ wählen" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Object.entries(BIKE_TYPE_LABELS).map(([key, label]) => (
+                                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsBikeEditDialogOpen(false)}>Abbrechen</Button>
+                        <Button
+                            onClick={() => handleSaveBikeData()}
+                            disabled={!editBikeModel || saving}
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Notes Dialog */}
+            <Dialog open={isNotesEditDialogOpen} onOpenChange={setIsNotesEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Notizen bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Textarea
+                            value={editNotes}
+                            onChange={e => setEditNotes(e.target.value)}
+                            placeholder="Interne Notizen hier eingeben..."
+                            className="min-h-[150px]"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsNotesEditDialogOpen(false)}>Abbrechen</Button>
+                        <Button
+                            onClick={() => handleSaveNotesData()}
+                            disabled={saving}
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Price Dialog */}
+            <Dialog open={isPriceEditDialogOpen} onOpenChange={setIsPriceEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Preise bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Geschätzter Preis (€)</Label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                value={editEstimatedPrice}
+                                onChange={e => setEditEstimatedPrice(e.target.value)}
+                                placeholder="0.00"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Tatsächlicher Preis (€)</Label>
+                            <Input
+                                type="number"
+                                step="0.01"
+                                value={editFinalPrice}
+                                onChange={e => setEditFinalPrice(e.target.value)}
+                                placeholder="0.00"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsPriceEditDialogOpen(false)}>Abbrechen</Button>
+                        <Button
+                            onClick={() => handleSavePriceData()}
+                            disabled={saving}
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
 
             {/* Dialog for Leasing Code */}
             <Dialog open={isLeasingDialogOpen} onOpenChange={setIsLeasingDialogOpen}>
@@ -894,7 +1335,7 @@ export default function OrderDetailPage() {
                             Abbrechen
                         </Button>
                         <Button
-                            onClick={handleSaveLeasingCode}
+                            onClick={() => handleSaveLeasingCode()}
                             disabled={!leasingCodeInput.trim() || saving}
                         >
                             {saving ? (
@@ -910,6 +1351,64 @@ export default function OrderDetailPage() {
                 </DialogContent>
             </Dialog>
 
-        </PageTransition>
+            {/* Kiosk Employee Selection */}
+            <EmployeeSelectionModal
+                open={showEmployeeSelect}
+                onOpenChange={(open) => {
+                    setShowEmployeeSelect(open)
+                    if (!open) setPendingAction(null) // Clear pending action on cancel
+                }}
+                triggerAction={
+                    pendingAction?.type === 'status' ? 'Status ändern' :
+                        pendingAction?.type === 'save_notes_data' ? 'Notizen speichern' :
+                            pendingAction?.type === 'save_price_data' ? 'Preise speichern' :
+                                pendingAction?.type === 'toggle_checklist' ? 'Checkliste speichern' :
+                                    pendingAction?.type === 'save_customer' ? 'Kundendaten speichern' :
+                                        pendingAction?.type === 'save_bike' ? 'Fahrraddaten speichern' :
+                                            'Speichern'
+                }
+                onEmployeeSelected={handleEmployeeSelected}
+            />
+
+            <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Ungespeicherte Änderungen</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Sie haben ungespeicherte Änderungen (Notizen oder Preis). Möchten Sie die Seite wirklich verlassen, ohne zu speichern?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <Button variant="outline" onClick={() => setShowExitDialog(false)}>
+                            Abbrechen
+                        </Button>
+                        <Button variant="destructive" onClick={() => navigate(returnPath)}>
+                            Verlassen
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Auftrag wirklich löschen?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Der Auftrag wird in den Papierkorb verschoben und nach 30 Tagen automatisch endgültig gelöscht.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteOrder}
+                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                        >
+                            Verschieben
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+        </PageTransition >
     )
 }
