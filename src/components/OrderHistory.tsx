@@ -4,7 +4,6 @@ import { format } from "date-fns"
 import {
     CheckCircle2,
     Circle,
-    Clock,
     FileText,
     User,
     Wrench,
@@ -134,7 +133,7 @@ function HistoryItem({ event }: { event: OrderHistoryEvent }) {
 
     // Determine if this item has expandable content
     const hasDetails = (event.type === 'service' || event.type === 'control') &&
-        (event.metadata?.checklist_count > 0 || event.metadata?.rating)
+        ((event.metadata?.checklist_count ?? 0) > 0 || !!event.metadata?.rating)
 
     return (
         <div className="relative group">
@@ -186,7 +185,7 @@ function HistoryItem({ event }: { event: OrderHistoryEvent }) {
                                     className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors group/btn"
                                 >
                                     <div className="flex items-center gap-3">
-                                        {event.metadata?.checklist_count > 0 && (
+                                        {event.metadata?.checklist_count && event.metadata.checklist_count > 0 && (
                                             <div className={cn(
                                                 "bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-medium border border-primary/20",
                                                 event.type === 'control' && "bg-green-500/10 text-green-500 border-green-500/20"

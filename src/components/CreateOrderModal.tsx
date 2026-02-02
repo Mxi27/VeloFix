@@ -35,7 +35,8 @@ interface CreateOrderModalProps {
 
 export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated }: CreateOrderModalProps) {
     const { user, workshopId } = useAuth()
-    const { activeEmployee, isKioskMode, hasSelectedEmployee, selectEmployee } = useEmployee()
+
+    const { activeEmployee, isKioskMode } = useEmployee()
     const [kioskSelectedEmployeeId, setKioskSelectedEmployeeId] = useState<string | null>(null)
 
     // Kiosk State
