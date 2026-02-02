@@ -224,7 +224,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
             // Create initial history event
             // Determine Actor (Kiosk override or active employee)
-            let actor = null
+
             if (isKioskMode && kioskSelectedEmployeeId) {
                 // If we have selected an employee in step 0, use them as actor
                 // But we need their name/email. Ideally EmployeeSelector would return user obj, but ID is fine if we can fetch or if we just store ID.
