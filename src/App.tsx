@@ -15,6 +15,8 @@ import ControlModePage from "@/pages/ControlModePage";
 import TrashPage from "@/pages/TrashPage";
 import BikeBuildsPage from "@/pages/BikeBuildsPage";
 import BikeBuildDetailPage from "@/pages/BikeBuildDetailPage";
+import OrderStatusPage from "@/pages/OrderStatusPage";
+import IntakePage from "@/pages/IntakePage";
 
 import OnboardingPage from "@/pages/OnboardingPage";
 
@@ -44,6 +46,12 @@ function AppRoutes() {
                         : <SignupPage />
                 }
             />
+
+            {/* Public Status Page */}
+            <Route path="/status/:orderId" element={<OrderStatusPage />} />
+
+            {/* Public Intake Page */}
+            <Route path="/intake/:workshopId" element={<IntakePage />} />
 
             <Route
                 path="/onboarding"

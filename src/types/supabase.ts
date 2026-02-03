@@ -113,11 +113,17 @@ export interface Database {
                     created_date: string
                     updated_date: string
                     notes: Json
+                    internal_note: string | null
+                    customer_note: string | null
                     checklist: Json
                     assignments: Json
                     history: Json
                     leasing_provider: string | null
                     leasing_code: string | null
+                    contract_id: string | null
+                    service_package: string | null
+                    inspection_code: string | null
+                    pickup_code: string | null
                     is_billed: boolean
                     archived: boolean
                     trash_date: string | null
@@ -129,6 +135,7 @@ export interface Database {
                     customer_name: string
                     customer_email?: string | null
                     customer_phone?: string | null
+                    customer_address?: string | null
                     bike_brand?: string | null
                     bike_model?: string | null
                     bike_color?: string | null
@@ -140,11 +147,17 @@ export interface Database {
                     created_date?: string
                     updated_date?: string
                     notes?: Json
+                    internal_note?: string | null
+                    customer_note?: string | null
                     checklist?: Json
                     assignments?: Json
                     history?: Json
                     leasing_provider?: string | null
                     leasing_code?: string | null
+                    contract_id?: string | null
+                    service_package?: string | null
+                    inspection_code?: string | null
+                    pickup_code?: string | null
                     is_billed?: boolean
                     archived?: boolean
                     trash_date?: string | null
@@ -156,6 +169,7 @@ export interface Database {
                     customer_name?: string
                     customer_email?: string | null
                     customer_phone?: string | null
+                    customer_address?: string | null
                     bike_brand?: string | null
                     bike_model?: string | null
                     bike_color?: string | null
@@ -167,11 +181,17 @@ export interface Database {
                     created_date?: string
                     updated_date?: string
                     notes?: Json
+                    internal_note?: string | null
+                    customer_note?: string | null
                     checklist?: Json
                     assignments?: Json
                     history?: Json
                     leasing_provider?: string | null
                     leasing_code?: string | null
+                    contract_id?: string | null
+                    service_package?: string | null
+                    inspection_code?: string | null
+                    pickup_code?: string | null
                     is_billed?: boolean
                     archived?: boolean
                     trash_date?: string | null
@@ -202,6 +222,71 @@ export interface Database {
                     name?: string
                     description?: string | null
                     items?: Json
+                    created_at?: string
+                    updated_at?: string
+                }
+            }
+            intake_requests: {
+                Row: {
+                    id: string
+                    workshop_id: string
+                    customer_name: string
+                    customer_email: string | null
+                    customer_phone: string | null
+                    customer_address: string | null
+                    description: string | null
+                    status: string
+                    intake_type?: string
+                    leasing_provider?: string | null
+                    contract_id?: string | null
+                    service_package?: string | null
+                    inspection_code?: string | null
+                    pickup_code?: string | null
+                    private_email?: string | null
+                    bike_model?: string | null
+                    bike_type?: string | null
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    workshop_id: string
+                    customer_name: string
+                    customer_email?: string | null
+                    customer_phone?: string | null
+                    customer_address?: string | null
+                    description?: string | null
+                    status?: string
+                    intake_type?: string
+                    leasing_provider?: string | null
+                    contract_id?: string | null
+                    service_package?: string | null
+                    inspection_code?: string | null
+                    pickup_code?: string | null
+                    private_email?: string | null
+                    bike_model?: string | null
+                    bike_type?: string | null
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    workshop_id?: string
+                    customer_name?: string
+                    customer_email?: string | null
+                    customer_phone?: string | null
+                    customer_address?: string | null
+                    description?: string | null
+                    status?: string
+                    intake_type?: string
+                    leasing_provider?: string | null
+                    contract_id?: string | null
+                    service_package?: string | null
+                    inspection_code?: string | null
+                    pickup_code?: string | null
+                    private_email?: string | null
+                    bike_model?: string | null
+                    bike_type?: string | null
                     created_at?: string
                     updated_at?: string
                 }

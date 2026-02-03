@@ -17,7 +17,9 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 
-export function AcceptanceSettings() {
+import { IntakeQRGenerator } from './IntakeQRGenerator'
+
+export function AcceptanceSettings({ workshopName }: { workshopName?: string }) {
     const { workshopId } = useAuth()
     const [items, setItems] = useState<string[]>([])
     const [newItem, setNewItem] = useState('')
@@ -130,107 +132,111 @@ export function AcceptanceSettings() {
 
     return (
         <>
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                        <div className="bg-primary/10 p-2 rounded-lg">
-                            <ClipboardList className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                            <CardTitle>Annahme-Prozess</CardTitle>
-                            <CardDescription>
-                                Definieren Sie die Punkte, die bei der Annahme eines Auftrags abgehakt werden müssen.
-                            </CardDescription>
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="flex gap-2 items-end">
-                        <div className="grid w-full max-w-sm items-center gap-1.5">
-                            <Label htmlFor="new-item">Neuer Punkt</Label>
-                            <Input
-                                id="new-item"
-                                placeholder="z.B. Probefahrt durchgeführt"
-                                value={newItem}
-                                onChange={(e) => setNewItem(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleAddItem()
-                                }}
-                            />
-                        </div>
-                        <Button onClick={handleAddItem} disabled={saving || !newItem.trim()}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Hinzufügen
-                        </Button>
-                    </div>
+            <div className="space-y-6">
+                {workshopId && <IntakeQRGenerator workshopId={workshopId} workshopName={workshopName || 'Werkstatt'} />}
 
-                    <div className="bg-muted/30 rounded-lg border border-border/50 overflow-hidden">
-                        {items.length === 0 ? (
-                            <div className="p-8 text-center text-muted-foreground">
-                                Keine Punkte definiert
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <div className="bg-primary/10 p-2 rounded-lg">
+                                <ClipboardList className="h-5 w-5 text-primary" />
                             </div>
-                        ) : (
-                            <div className="divide-y divide-border/50">
-                                {items.map((item) => (
-                                    <div key={item} className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors h-14">
-                                        {editingItem === item ? (
-                                            <div className="flex items-center gap-2 flex-1 mr-2">
-                                                <Input
-                                                    value={editValue}
-                                                    onChange={(e) => setEditValue(e.target.value)}
-                                                    className="h-8"
-                                                    autoFocus
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') saveEditing()
-                                                        if (e.key === 'Escape') cancelEditing()
-                                                    }}
-                                                />
-                                                <Button size="sm" variant="ghost" onClick={saveEditing} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30">
-                                                    <Check className="h-4 w-4" />
-                                                </Button>
-                                                <Button size="sm" variant="ghost" onClick={cancelEditing} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30">
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <span className="font-medium px-2">{item}</span>
-                                                <div className="flex items-center gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
-                                                        onClick={() => startEditing(item)}
-                                                        disabled={saving}
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
+                            <div>
+                                <CardTitle>Annahme-Prozess</CardTitle>
+                                <CardDescription>
+                                    Definieren Sie die Punkte, die bei der Annahme eines Auftrags abgehakt werden müssen.
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="flex gap-2 items-end">
+                            <div className="grid w-full max-w-sm items-center gap-1.5">
+                                <Label htmlFor="new-item">Neuer Punkt</Label>
+                                <Input
+                                    id="new-item"
+                                    placeholder="z.B. Probefahrt durchgeführt"
+                                    value={newItem}
+                                    onChange={(e) => setNewItem(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleAddItem()
+                                    }}
+                                />
+                            </div>
+                            <Button onClick={handleAddItem} disabled={saving || !newItem.trim()}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Hinzufügen
+                            </Button>
+                        </div>
+
+                        <div className="bg-muted/30 rounded-lg border border-border/50 overflow-hidden">
+                            {items.length === 0 ? (
+                                <div className="p-8 text-center text-muted-foreground">
+                                    Keine Punkte definiert
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-border/50">
+                                    {items.map((item) => (
+                                        <div key={item} className="flex items-center justify-between p-3 hover:bg-muted/50 transition-colors h-14">
+                                            {editingItem === item ? (
+                                                <div className="flex items-center gap-2 flex-1 mr-2">
+                                                    <Input
+                                                        value={editValue}
+                                                        onChange={(e) => setEditValue(e.target.value)}
+                                                        className="h-8"
+                                                        autoFocus
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') saveEditing()
+                                                            if (e.key === 'Escape') cancelEditing()
+                                                        }}
+                                                    />
+                                                    <Button size="sm" variant="ghost" onClick={saveEditing} className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-900/30">
+                                                        <Check className="h-4 w-4" />
                                                     </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                                                        onClick={() => confirmDelete(item)}
-                                                        disabled={saving}
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
+                                                    <Button size="sm" variant="ghost" onClick={cancelEditing} className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-900/30">
+                                                        <X className="h-4 w-4" />
                                                     </Button>
                                                 </div>
-                                            </>
-                                        )}
-                                    </div>
-                                ))}
+                                            ) : (
+                                                <>
+                                                    <span className="font-medium px-2">{item}</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                                                            onClick={() => startEditing(item)}
+                                                            disabled={saving}
+                                                        >
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                                                            onClick={() => confirmDelete(item)}
+                                                            disabled={saving}
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {saving && (
+                            <div className="flex items-center justify-end text-xs text-muted-foreground animate-pulse">
+                                <Save className="h-3 w-3 mr-1" />
+                                Speichert...
                             </div>
                         )}
-                    </div>
-
-                    {saving && (
-                        <div className="flex items-center justify-end text-xs text-muted-foreground animate-pulse">
-                            <Save className="h-3 w-3 mr-1" />
-                            Speichert...
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            </div>
 
             <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
                 <AlertDialogContent>

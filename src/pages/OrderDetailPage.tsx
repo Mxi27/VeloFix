@@ -9,8 +9,8 @@ import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import {
     Select,
@@ -49,7 +49,8 @@ import {
     Wrench,
     ShieldCheck,
     Pencil,
-    Trash2
+    Trash2,
+    Copy
 } from "lucide-react"
 import { LoadingScreen } from "@/components/LoadingScreen"
 import { PageTransition } from "@/components/PageTransition"
@@ -93,12 +94,19 @@ interface Order {
     bike_type: string | null
     is_leasing: boolean
     leasing_provider: string | null
+    leasing_portal_email: string | null
     status: string
     created_at: string
     estimated_price: number | null
     final_price: number | null
     checklist: ChecklistItem[] | null
     notes: string[] | null
+    internal_note: string | null
+    customer_note: string | null
+    contract_id: string | null
+    service_package: string | null
+    inspection_code: string | null
+    pickup_code: string | null
     leasing_code: string | null
     history: OrderHistoryEvent[] | null
     end_control: {
@@ -130,7 +138,9 @@ export default function OrderDetailPage() {
     const isReadOnly = userRole === 'read'
 
     // Editable fields
-    const [notes, setNotes] = useState("")
+    // Editable fields
+    const [internalNote, setInternalNote] = useState("")
+    const [customerNote, setCustomerNote] = useState("")
 
 
     // Leasing dialog state
@@ -141,7 +151,7 @@ export default function OrderDetailPage() {
     const { isKioskMode, employees } = useEmployee()
     const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
     const [pendingAction, setPendingAction] = useState<{
-        type: 'status' | 'save_notes_data' | 'save_leasing' | 'save_price_data' | 'toggle_checklist' | 'save_customer' | 'save_bike',
+        type: 'status' | 'save_notes_data' | 'save_leasing' | 'save_price_data' | 'toggle_checklist' | 'save_customer' | 'save_bike' | 'save_customer_note',
         payload?: any
     } | null>(null)
 
@@ -180,14 +190,15 @@ export default function OrderDetailPage() {
     const [editCustomerEmail, setEditCustomerEmail] = useState("")
     const [editCustomerPhone, setEditCustomerPhone] = useState("")
 
+
     // Bike Edit State
     const [isBikeEditDialogOpen, setIsBikeEditDialogOpen] = useState(false)
     const [editBikeModel, setEditBikeModel] = useState("")
     const [editBikeType, setEditBikeType] = useState("")
 
     // Standardized Edit States
-    const [isNotesEditDialogOpen, setIsNotesEditDialogOpen] = useState(false)
-    const [editNotes, setEditNotes] = useState("")
+    const [isInternalNoteEditDialogOpen, setIsInternalNoteEditDialogOpen] = useState(false)
+    const [editInternalNote, setEditInternalNote] = useState("")
 
     const [isPriceEditDialogOpen, setIsPriceEditDialogOpen] = useState(false)
     const [editEstimatedPrice, setEditEstimatedPrice] = useState("")
@@ -218,13 +229,10 @@ export default function OrderDetailPage() {
                 console.error("Error fetching order:", orderResult.error)
             } else {
                 setOrder(orderResult.data)
-                const notesData = orderResult.data.notes
-                const notesString = Array.isArray(notesData)
-                    ? notesData.join('\n')
-                    : (typeof notesData === 'string' ? notesData : "")
-
-                setNotes(notesString)
-                setEditNotes(notesString)
+                setInternalNote(orderResult.data.internal_note || "")
+                setCustomerNote(orderResult.data.customer_note || "")
+                setEditInternalNote(orderResult.data.internal_note || "")
+                setEditInternalNote(orderResult.data.internal_note || "")
 
 
                 setEditFinalPrice(orderResult.data.final_price?.toString() || "")
@@ -312,14 +320,11 @@ export default function OrderDetailPage() {
             case 'save_customer':
                 handleSaveCustomerData(actor)
                 break
-            case 'save_customer':
-                handleSaveCustomerData(actor)
-                break
             case 'save_bike':
                 handleSaveBikeData(actor)
                 break
             case 'save_notes_data':
-                handleSaveNotesData(actor)
+                handleSaveInternalNotesData(actor)
                 break
             case 'save_price_data':
                 handleSavePriceData(actor)
@@ -505,42 +510,42 @@ export default function OrderDetailPage() {
         setSaving(false)
     }
 
-    const handleSaveNotesData = async (actorOverride?: { id: string, name: string }) => {
+    const handleSaveInternalNotesData = async (actorOverride?: { id: string, name: string }) => {
         if (!order || !workshopId) return
 
         if (isKioskMode && !actorOverride) {
-            setPendingAction({ type: 'save_notes_data' })
+            setPendingAction({ type: 'save_notes_data' }) // Reuse type or new type? reusing logic key
             setShowEmployeeSelect(true)
             return
         }
 
         setSaving(true)
-        const notesArray = editNotes.split('\n')
 
         const { error } = await supabase
             .from('orders')
-            .update({ notes: notesArray })
+            .update({ internal_note: editInternalNote })
             .eq('id', order.id)
             .eq('workshop_id', workshopId)
 
         if (error) {
-            console.error("Error saving notes:", error)
+            console.error("Error saving internal notes:", error)
             alert(`Fehler beim Speichern der Notizen: ${error.message || JSON.stringify(error)}`)
         } else {
-            setOrder({ ...order, notes: notesArray })
-            setNotes(editNotes)
-            setIsNotesEditDialogOpen(false)
+            setOrder({ ...order, internal_note: editInternalNote })
+            setInternalNote(editInternalNote)
+            setIsInternalNoteEditDialogOpen(false)
 
-            // Log Event
             logOrderEvent(order.id, {
                 type: 'info',
-                title: 'Notizen aktualisiert',
+                title: 'Interne Notizen aktualisiert',
                 description: `Notizen bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
                 actor: actorOverride
             }, user).catch(console.error)
         }
         setSaving(false)
     }
+
+
 
     const handleSavePriceData = async (actorOverride?: { id: string, name: string }) => {
         if (!order || !workshopId) return
@@ -721,6 +726,21 @@ export default function OrderDetailPage() {
                             >
                                 {order.is_leasing ? "Leasing" : "Standard"}
                             </Badge>
+
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-2"
+                                onClick={() => {
+                                    const url = `${window.location.origin}/status/${order.id}`
+                                    navigator.clipboard.writeText(url)
+                                    alert("Status-Link kopiert! " + url)
+                                }}
+                            >
+                                <Copy className="h-4 w-4" />
+                                <span className="hidden sm:inline">Status-Link</span>
+                            </Button>
+
                             <Button
                                 size="sm"
                                 onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
@@ -778,6 +798,7 @@ export default function OrderDetailPage() {
                                                 setEditCustomerName(order.customer_name)
                                                 setEditCustomerEmail(order.customer_email || "")
                                                 setEditCustomerPhone(order.customer_phone || "")
+
                                                 setIsCustomerEditDialogOpen(true)
                                             }}
                                         >
@@ -802,12 +823,13 @@ export default function OrderDetailPage() {
                                     {order.customer_phone && (
                                         <div className="flex items-start gap-2">
                                             <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                            <div>
+                                            <div className="flex-1 min-w-0">
                                                 <p className="text-xs text-muted-foreground">Telefon</p>
-                                                <p className="font-medium">{order.customer_phone}</p>
+                                                <p className="font-medium text-sm truncate">{order.customer_phone}</p>
                                             </div>
                                         </div>
                                     )}
+
                                 </CardContent>
                             </Card>
 
@@ -861,14 +883,41 @@ export default function OrderDetailPage() {
                                             Leasing
                                         </CardTitle>
                                     </CardHeader>
-                                    <CardContent className="space-y-3">
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Anbieter</p>
-                                            <p className="font-medium">{order.leasing_provider || 'Nicht angegeben'}</p>
+                                    <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground">Anbieter</p>
+                                                <p className="font-medium">{order.leasing_provider || '—'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground">Portal E-Mail</p>
+                                                <p className="font-medium text-sm truncate">{order.leasing_portal_email || '—'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground">Vertrags-Nr.</p>
+                                                <p className="font-medium text-sm truncate" title={order.contract_id || ""}>{order.contract_id || '—'}</p>
+                                            </div>
                                         </div>
+
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Service Paket</p>
+                                            <p className="font-medium">{order.service_package || '—'}</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <p className="text-xs text-muted-foreground">Inspektion Code</p>
+                                                <p className="font-mono text-sm bg-muted/50 p-1 rounded px-2 mt-0.5 inline-block">{order.inspection_code || '—'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-muted-foreground">Abhol Code</p>
+                                                <p className="font-mono text-sm bg-muted/50 p-1 rounded px-2 mt-0.5 inline-block">{order.pickup_code || '—'}</p>
+                                            </div>
+                                        </div>
+
                                         <div className="pt-2 border-t border-border/50" />
                                         <div>
-                                            <p className="text-xs text-muted-foreground mb-2">Leasing-Code</p>
+                                            <p className="text-xs text-muted-foreground mb-2">Manueller Leasing-Code (Altsystem)</p>
                                             <div className="flex gap-2">
                                                 <Input
                                                     value={leasingCodeInput}
@@ -1071,6 +1120,21 @@ export default function OrderDetailPage() {
                         <div className="space-y-6">
 
                             {/* Internal Notes */}
+                            {/* Customer Notes (Kundenwunsch) */}
+                            <Card className="flex flex-col">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-base font-medium flex items-center gap-2">
+                                        Kundenwunsch
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-3 pt-4 flex-1">
+                                    <div className="bg-muted/30 rounded-md p-3 min-h-[80px] text-sm whitespace-pre-wrap">
+                                        {customerNote || <span className="text-muted-foreground italic">Keine Beschreibung vorhanden.</span>}
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Internal Notes */}
                             <Card className="flex flex-col">
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className="text-base font-medium flex items-center gap-2">
@@ -1081,8 +1145,8 @@ export default function OrderDetailPage() {
                                             className="h-6 w-6 hover:bg-neutral-100"
                                             disabled={isReadOnly}
                                             onClick={() => {
-                                                setEditNotes(notes)
-                                                setIsNotesEditDialogOpen(true)
+                                                setEditInternalNote(internalNote)
+                                                setIsInternalNoteEditDialogOpen(true)
                                             }}
                                         >
                                             <Pencil className="h-3 w-3" />
@@ -1090,8 +1154,8 @@ export default function OrderDetailPage() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-3 pt-4 flex-1">
-                                    <div className="bg-muted/30 rounded-md p-3 min-h-[100px] text-sm whitespace-pre-wrap">
-                                        {notes || <span className="text-muted-foreground italic">Keine Notizen vorhanden.</span>}
+                                    <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-md p-3 min-h-[100px] text-sm whitespace-pre-wrap">
+                                        {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -1190,6 +1254,7 @@ export default function OrderDetailPage() {
                                 placeholder="Telefon eingeben"
                             />
                         </div>
+
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsCustomerEditDialogOpen(false)}>Abbrechen</Button>
@@ -1244,31 +1309,8 @@ export default function OrderDetailPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Edit Notes Dialog */}
-            <Dialog open={isNotesEditDialogOpen} onOpenChange={setIsNotesEditDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Notizen bearbeiten</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                        <Textarea
-                            value={editNotes}
-                            onChange={e => setEditNotes(e.target.value)}
-                            placeholder="Interne Notizen hier eingeben..."
-                            className="min-h-[150px]"
-                        />
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsNotesEditDialogOpen(false)}>Abbrechen</Button>
-                        <Button
-                            onClick={() => handleSaveNotesData()}
-                            disabled={saving}
-                        >
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+
+
 
             {/* Edit Price Dialog */}
             <Dialog open={isPriceEditDialogOpen} onOpenChange={setIsPriceEditDialogOpen}>
@@ -1302,6 +1344,34 @@ export default function OrderDetailPage() {
                         <Button variant="outline" onClick={() => setIsPriceEditDialogOpen(false)}>Abbrechen</Button>
                         <Button
                             onClick={() => handleSavePriceData()}
+                            disabled={saving}
+                        >
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Internal Note Dialog */}
+            <Dialog open={isInternalNoteEditDialogOpen} onOpenChange={setIsInternalNoteEditDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Interne Notiz bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="internal-note" className="mb-2 block">Notiz</Label>
+                        <Textarea
+                            id="internal-note"
+                            value={editInternalNote}
+                            onChange={(e) => setEditInternalNote(e.target.value)}
+                            className="min-h-[150px]"
+                            placeholder="Interne Notizen hier eingeben..."
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsInternalNoteEditDialogOpen(false)}>Abbrechen</Button>
+                        <Button
+                            onClick={() => handleSaveInternalNotesData()}
                             disabled={saving}
                         >
                             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}

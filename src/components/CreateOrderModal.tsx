@@ -82,7 +82,14 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const [bikeType, setCustomerBikeType] = useState("")
     const [estimatedPrice, setEstimatedPrice] = useState("")
     const [leasingProvider, setLeasingProvider] = useState("")
-    const [notes, setNotes] = useState("")
+    const [customerNote, setCustomerNote] = useState("")
+    const [internalNote, setInternalNote] = useState("")
+    const [leasingDetails, setLeasingDetails] = useState<any>(null)
+    const [leasingPortalEmail, setLeasingPortalEmail] = useState("")
+
+    // Intake Requests State
+    const [intakeRequests, setIntakeRequests] = useState<any[]>([])
+    const [showIntakeSelection, setShowIntakeSelection] = useState(false)
 
     // Fetch templates and providers when modal opens
     useEffect(() => {
@@ -114,6 +121,17 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         setAcceptanceChecklistItems(data.acceptance_checklist)
                     }
                 })
+
+            // Fetch Intake Requests
+            supabase
+                .from('intake_requests')
+                .select('*')
+                .eq('workshop_id', workshopId)
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false })
+                .then(({ data }) => {
+                    if (data) setIntakeRequests(data)
+                })
         }
     }, [workshopId, open])
 
@@ -131,11 +149,77 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setCustomerBikeType("")
             setEstimatedPrice("")
             setLeasingProvider("")
-            setNotes("")
+            setLeasingProvider("")
+            setCustomerNote("")
+            setInternalNote("")
+            setLeasingDetails(null)
+            setLeasingPortalEmail("")
             setSelectedTemplateId(null)
             setKioskSelectedEmployeeId(null)
+            setShowIntakeSelection(false)
         }
         onOpenChange?.(newOpen)
+    }
+
+    const handleImportRequest = (request: any) => {
+        setCustomerName(request.customer_name)
+        setCustomerEmail(request.customer_email || request.private_email || "") // Prefer mapped email, fallback
+        setCustomerPhone(request.customer_phone || "")
+        setLeasingPortalEmail(request.email || "") // Store original portal email
+
+        // Map Bike Data
+        setCustomerBikeModel(request.bike_model || "")
+        setCustomerBikeType(request.bike_type || "")
+
+        // Base notes from description
+        setCustomerNote(request.description || "")
+
+        // Handle Leasing Specifics
+        if (request.intake_type === 'leasing') {
+            setOrderType('leasing')
+            if (request.leasing_provider) {
+                setLeasingProvider(request.leasing_provider)
+            }
+
+            // Store Leasing Details
+            setLeasingDetails({
+                provider: request.leasing_provider,
+                contract_id: request.contract_id,
+                service_package: request.service_package,
+                inspection_code: request.inspection_code,
+                pickup_code: request.pickup_code,
+                private_email: request.private_email
+            })
+
+            // Use Private Email if available
+            if (request.private_email) {
+                setCustomerEmail(request.private_email)
+            }
+        } else {
+            setOrderType('standard')
+            setLeasingDetails(null)
+        }
+
+        // Mark as imported (optimistic update or fire and forget)
+        supabase
+            .from('intake_requests')
+            .update({ status: 'imported' })
+            .eq('id', request.id)
+            .then(() => {
+                // Remove from local list
+                setIntakeRequests(prev => prev.filter(r => r.id !== request.id))
+            })
+
+        setShowIntakeSelection(false)
+        setStep(3) // Jump to Date Step (skip type selection as we set it, skip leasing if set?) 
+
+        // Logic fix: If leasing, we might want to review leasing step (Step 2)
+        // If standard, we go to Step 3.
+        if (request.intake_type === 'leasing') {
+            setStep(2) // Go to Leasing Step to confirm provider/details
+        } else {
+            setStep(3) // Go to Data Step
+        }
     }
 
     // STEPS:
@@ -275,9 +359,16 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     is_leasing: orderType === 'leasing',
                     status: 'eingegangen',
                     leasing_provider: orderType === 'leasing' ? leasingProvider : null,
+                    leasing_portal_email: orderType === 'leasing' ? (leasingPortalEmail || null) : null,
                     estimated_price: parseFloat(estimatedPrice) || 0,
                     checklist: finalChecklist,
-                    notes: notes ? [notes] : [],
+                    customer_note: customerNote || null,
+                    internal_note: internalNote || null,
+                    contract_id: orderType === 'leasing' && leasingDetails ? leasingDetails.contract_id : null,
+                    service_package: orderType === 'leasing' && leasingDetails ? leasingDetails.service_package : null,
+                    inspection_code: orderType === 'leasing' && leasingDetails ? leasingDetails.inspection_code : null,
+                    pickup_code: orderType === 'leasing' && leasingDetails ? leasingDetails.pickup_code : null,
+                    notes: [], // Legacy field, kept empty for now
                     history: initialHistory // Add history immediately
                 })
 
@@ -378,9 +469,26 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                 />
                             </div>
                         )}
-                        {step === 1 && (
+                        {step === 1 && !showIntakeSelection && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                                 <h3 className="text-lg font-medium">Auftragstyp wählen</h3>
+
+                                {intakeRequests.length > 0 && (
+                                    <div className="mb-6">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full h-auto py-4 border-dashed border-2 flex flex-col gap-2 hover:bg-primary/5 hover:border-primary/50"
+                                            onClick={() => setShowIntakeSelection(true)}
+                                        >
+                                            <div className="flex items-center gap-2 text-primary font-medium">
+                                                <ClipboardList className="h-5 w-5" />
+                                                <span>Import aus Kundenanfrage ({intakeRequests.length})</span>
+                                            </div>
+                                            <span className="text-xs text-muted-foreground">Daten aus Online-Formular übernehmen</span>
+                                        </Button>
+                                    </div>
+                                )}
+
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <button
                                         onClick={() => setOrderType("standard")}
@@ -421,6 +529,42 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                             </div>
                         )}
 
+                        {step === 1 && showIntakeSelection && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-lg font-medium">Anfrage auswählen</h3>
+                                    <Button variant="ghost" size="sm" onClick={() => setShowIntakeSelection(false)}>
+                                        Abbrechen
+                                    </Button>
+                                </div>
+                                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                                    {intakeRequests.map(req => (
+                                        <div
+                                            key={req.id}
+                                            className="p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors space-y-2"
+                                            onClick={() => handleImportRequest(req)}
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div className="font-medium">{req.customer_name}</div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {new Date(req.created_at).toLocaleDateString()}
+                                                </div>
+                                            </div>
+                                            {req.description && (
+                                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                                    {req.description}
+                                                </p>
+                                            )}
+                                            <div className="flex gap-4 text-xs text-muted-foreground">
+                                                {req.customer_phone && <span>📞 {req.customer_phone}</span>}
+                                                {req.customer_email && <span>✉️ {req.customer_email}</span>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {step === 2 && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                                 <h3 className="text-lg font-medium">Leasing-Informationen</h3>
@@ -444,6 +588,17 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             Keine Leasing-Anbieter konfiguriert. Bitte fügen Sie diese in den Einstellungen hinzu.
                                         </div>
                                     )}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="leasing_email">Leasing Portal E-Mail</Label>
+                                    <Input
+                                        id="leasing_email"
+                                        placeholder="email@leasing-portal.de"
+                                        value={leasingPortalEmail}
+                                        onChange={e => setLeasingPortalEmail(e.target.value)}
+                                        className="bg-muted/50"
+                                    />
+                                    <p className="text-xs text-muted-foreground">E-Mail Adresse, die im Leasing-Portal hinterlegt ist (falls abweichend).</p>
                                 </div>
                             </div>
                         )}
@@ -486,6 +641,10 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         </div>
                                     </div>
 
+
+
+
+
                                     <div className="border-t border-border/50 my-2" />
 
                                     <div className="grid grid-cols-2 gap-4">
@@ -515,20 +674,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="price">Geschätzter Preis (optional)</Label>
-                                        <div className="relative">
-                                            <Input
-                                                id="price"
-                                                placeholder="0.00"
-                                                type="number"
-                                                className="pl-3 pr-8 bg-muted/50"
-                                                value={estimatedPrice}
-                                                onChange={e => setEstimatedPrice(e.target.value)}
-                                            />
-                                            <span className="absolute right-3 top-2.5 text-muted-foreground">€</span>
-                                        </div>
-                                    </div>
+                                    {/* Price moved to Summary step */}
                                 </div>
                             </div>
                         )}
@@ -565,13 +711,41 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                 </div>
 
                                 <div className="space-y-2 pt-2">
-                                    <Label className="text-sm font-medium">Anmerkungen (optional)</Label>
+                                    <Label className="text-sm font-medium">Kundenwunsch / Beschreibung</Label>
                                     <Textarea
                                         className="bg-muted/20 min-h-[80px]"
-                                        placeholder="Kratzer, Besonderheiten..."
-                                        value={notes}
-                                        onChange={e => setNotes(e.target.value)}
+                                        placeholder="Was soll gemacht werden?"
+                                        value={customerNote}
+                                        onChange={e => setCustomerNote(e.target.value)}
                                     />
+                                </div>
+
+                                <div className="space-y-4 pt-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="internal_note_step4">Interne Notizen</Label>
+                                        <Textarea
+                                            id="internal_note_step4"
+                                            className="min-h-[80px]"
+                                            placeholder="Interne Infos für die Werkstatt..."
+                                            value={internalNote}
+                                            onChange={e => setInternalNote(e.target.value)}
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="price_final_step4">Geschätzter Preis</Label>
+                                        <div className="relative">
+                                            <Input
+                                                id="price_final_step4"
+                                                placeholder="0.00"
+                                                type="number"
+                                                className="pl-3 pr-8"
+                                                value={estimatedPrice}
+                                                onChange={e => setEstimatedPrice(e.target.value)}
+                                            />
+                                            <span className="absolute right-3 top-2.5 text-muted-foreground">€</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -646,19 +820,50 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         <li><strong>Typ:</strong> {orderType === "leasing" ? "Leasing" : "Standard"}</li>
                                         <li><strong>Kunde:</strong> {customerName}</li>
                                         <li><strong>Rad:</strong> {bikeModel} ({bikeType})</li>
-                                        {orderType === "leasing" && <li><strong>Provider:</strong> {leasingProvider}</li>}
-                                        <li><strong>Preis:</strong> {estimatedPrice} €</li>
                                     </ul>
 
-                                    <div className="border-t border-border/20 pt-2 mt-2">
-                                        <p className="text-sm">
-                                            <strong>Checkliste:</strong>{" "}
-                                            {selectedTemplateId
-                                                ? templates.find(t => t.id === selectedTemplateId)?.name
-                                                : "Keine Vorlage gewählt"}
-                                        </p>
+                                    <div className="grid md:grid-cols-2 gap-4 pt-2">
+                                        <div className="space-y-2">
+                                            <Label>Geschätzter Preis</Label>
+                                            <div className="p-2 bg-muted/30 rounded border text-sm">
+                                                {estimatedPrice ? `${estimatedPrice} €` : '—'}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Interne Notizen</Label>
+                                            <div className="p-2 bg-muted/30 rounded border text-sm min-h-[40px] whitespace-pre-wrap">
+                                                {internalNote || '—'}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {step === 6 && leasingDetails && (
+                            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 rounded-md text-sm">
+                                <h5 className="font-semibold text-blue-700 dark:text-blue-300 mb-2 flex items-center gap-2">
+                                    <CreditCard className="h-4 w-4" /> Leasing Daten
+                                </h5>
+                                <div className="grid grid-cols-2 gap-2 text-muted-foreground">
+                                    <div><span className="font-medium text-foreground">Vertrag:</span> {leasingDetails.contract_id}</div>
+                                    <div><span className="font-medium text-foreground">Paket:</span> {leasingDetails.service_package}</div>
+                                    <div><span className="font-medium text-foreground">Provider:</span> {leasingProvider}</div>
+                                    <div><span className="font-medium text-foreground">Portal Email:</span> {leasingPortalEmail || '-'}</div>
+                                    <div><span className="font-medium text-foreground">Inspection:</span> {leasingDetails.inspection_code || '-'}</div>
+                                    <div><span className="font-medium text-foreground">Pickup:</span> {leasingDetails.pickup_code || '-'}</div>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 6 && (
+                            <div className="border-t border-border/20 pt-2 mt-2">
+                                <p className="text-sm">
+                                    <strong>Checkliste:</strong>{" "}
+                                    {selectedTemplateId
+                                        ? templates.find(t => t.id === selectedTemplateId)?.name
+                                        : "Keine Vorlage"}
+                                </p>
                             </div>
                         )}
                     </div>
@@ -694,8 +899,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                             </Button>
                         )}
                     </div>
-                </DialogContent>
-            </Dialog>
+                </DialogContent >
+            </Dialog >
 
             {/* Kiosk Employee Selection - Removed separate modal for New Order flow */}
         </>

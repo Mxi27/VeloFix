@@ -298,7 +298,7 @@ export default function SettingsPage() {
 
                     {/* Intake Tab */}
                     <TabsContent value="intake">
-                        <AcceptanceSettings />
+                        <AcceptanceSettings workshopName={workshop?.name} />
                     </TabsContent>
 
                     {/* Leasing Tab */}
