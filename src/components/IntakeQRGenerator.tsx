@@ -42,7 +42,6 @@ export function IntakeQRGenerator({ workshopId, workshopName }: IntakeQRGenerato
 
             const pageWidth = doc.internal.pageSize.getWidth() // 210mm
             const pageHeight = doc.internal.pageSize.getHeight() // 297mm
-            const margin = 20
 
             // Helper for centering text
             const centerText = (text: string, y: number, fontSize: number, fontStyle: string = 'normal', color: string = '#000000') => {
