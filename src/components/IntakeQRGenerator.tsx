@@ -30,7 +30,11 @@ export function IntakeQRGenerator({ workshopId, workshopName }: IntakeQRGenerato
             const qrDataUrl = await QRCodeLib.toDataURL(intakeUrl, {
                 width: 1000,
                 margin: 1,
-                errorCorrectionLevel: 'H'
+                errorCorrectionLevel: 'H',
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
             })
 
             // 2. Create PDF (A4 Portrait)
@@ -43,72 +47,108 @@ export function IntakeQRGenerator({ workshopId, workshopName }: IntakeQRGenerato
             const pageWidth = doc.internal.pageSize.getWidth() // 210mm
             const pageHeight = doc.internal.pageSize.getHeight() // 297mm
 
+            // Colors (White Theme)
+            const bgWhite = [255, 255, 255]
+            const textBlack = [9, 9, 11] // #09090b
+            const textGray = [82, 82, 91] // #52525b
+            const accentGreen = [22, 163, 74] // #16a34a (Slightly darker for better contrast on white)
+
             // Helper for centering text
-            const centerText = (text: string, y: number, fontSize: number, fontStyle: string = 'normal', color: string = '#000000') => {
+            const centerText = (text: string, y: number, fontSize: number, fontStyle: string = 'normal', color: number[] = textBlack) => {
                 doc.setFontSize(fontSize)
                 doc.setFont("helvetica", fontStyle)
-                doc.setTextColor(color)
+                doc.setTextColor(color[0], color[1], color[2])
                 const textWidth = doc.getTextWidth(text)
                 doc.text(text, (pageWidth - textWidth) / 2, y)
             }
 
-            // --- DESIGN ---
+            // --- DESIGN IMPLEMENTATION ---
 
-            // Top Bar
-            doc.setFillColor(9, 9, 11) // #09090b
-            doc.rect(0, 0, pageWidth, 20, 'F')
+            // 1. Background (White)
+            doc.setFillColor(bgWhite[0], bgWhite[1], bgWhite[2])
+            doc.rect(0, 0, pageWidth, pageHeight, 'F')
 
-            // Shop Name
-            centerText(workshopName || 'Werkstatt', 60, 36, 'bold', '#000000')
-            centerText('Reparatur-Annahme', 75, 18, 'normal', '#666666')
+            // 2. Header Section
+            // Accent Line
+            doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2])
+            doc.setLineWidth(1)
+            doc.line(20, 15, pageWidth - 20, 15)
 
-            // QR Code Box (Moved UP to Y=85 to prevent bottom overlap)
+            centerText(workshopName ? workshopName.toUpperCase() : 'VELOFIX', 30, 14, 'bold', textGray)
+            centerText('SELF CHECK-IN', 48, 38, 'bold', textBlack)
+            centerText('Starten Sie Ihre Reparatur-Annahme hier.', 58, 12, 'normal', textGray)
+
+            // 3. QR Code Hero Section
             const boxSize = 100
             const boxX = (pageWidth - boxSize) / 2
-            const boxY = 85
+            const boxY = 80
 
-            // Draw Box Border
-            doc.setDrawColor(26, 26, 26) // #1a1a1a
+            // Frame Effect
+            doc.setDrawColor(228, 228, 231) // Light gray border
+            doc.setLineWidth(0.5)
+            doc.roundedRect(boxX - 5, boxY - 5, boxSize + 10, boxSize + 10, 5, 5, 'S') // Outer thin
+
+            doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2])
             doc.setLineWidth(1)
-            doc.roundedRect(boxX, boxY, boxSize, boxSize, 5, 5, 'S')
+            doc.roundedRect(boxX, boxY, boxSize, boxSize, 3, 3, 'S') // Main border (Green)
 
-            // Add QR Image
-            const qrSize = 85
+            // QR Image
+            const qrSize = 90
             const qrX = boxX + (boxSize - qrSize) / 2
             const qrY = boxY + (boxSize - qrSize) / 2
             doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize)
 
-            // Instructions
-            // boxY(85) + boxSize(100) + 25 = 210
-            const textStartY = boxY + boxSize + 25
-            centerText('Hier Scannen & Starten', textStartY, 28, 'bold', '#000000')
+            // "Scan Me" indicator badge
+            doc.setFillColor(accentGreen[0], accentGreen[1], accentGreen[2])
+            doc.roundedRect(pageWidth / 2 - 25, boxY + boxSize - 8, 50, 10, 5, 5, 'F')
 
-            doc.setFontSize(14)
-            doc.setFont("helvetica", "normal")
-            doc.setTextColor('#444444')
-            const desc = "Bitte scannen Sie den QR-Code mit Ihrer Smartphone-Kamera,\num Ihren Reparaturauftrag zu erfassen."
-            const splitDesc = doc.splitTextToSize(desc, 160)
-            doc.text(splitDesc, pageWidth / 2, textStartY + 15, { align: 'center' })
-
-            // Benefits
-            // 210 + 40 = 250 (Well above footer at 282)
-            const checkY = textStartY + 40
-            doc.setFontSize(16)
+            doc.setFontSize(10)
             doc.setFont("helvetica", "bold")
-            doc.setTextColor('#09090b')
+            doc.setTextColor(255, 255, 255) // White text on green badge
+            const badgeText = "JETZT SCANNEN"
+            const badgeWidth = doc.getTextWidth(badgeText)
+            doc.text(badgeText, (pageWidth - badgeWidth) / 2, boxY + boxSize - 1.5)
 
-            // Draw simple checkmarks and text
-            // Left Benefit
-            doc.text('✓ Keine Wartezeit', pageWidth / 2 - 55, checkY)
 
-            // Right Benefit
-            doc.text('✓ Einfache Erfassung', pageWidth / 2 + 5, checkY)
+            // 4. Instructions / Steps
+            const stepsY = boxY + boxSize + 35
+            const listGap = 20
 
-            // Footer
-            centerText('Powered by VeloFix', pageHeight - 15, 10, 'normal', '#999999')
+            // Clean Step Drawer
+            const renderStepRow = (num: string, text: string, y: number) => {
+                // Circle for number
+                doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2])
+                doc.setFillColor(240, 253, 244) // Very light green bg
+                doc.setLineWidth(0.5)
+                doc.circle(55, y - 2, 7, 'FD')
+
+                doc.setTextColor(accentGreen[0], accentGreen[1], accentGreen[2])
+                doc.setFontSize(12)
+                doc.setFont("helvetica", "bold")
+                doc.text(num, 53.5, y + 2)
+
+                doc.setTextColor(textBlack[0], textBlack[1], textBlack[2])
+                doc.setFontSize(14)
+                doc.text(text, 70, y + 2)
+            }
+
+            renderStepRow("1", "QR-Code mit Kamera scannen", stepsY)
+            renderStepRow("2", "Details zum Fahrrad eingeben", stepsY + listGap)
+            renderStepRow("3", "Auftrag unverbindlich absenden", stepsY + listGap * 2)
+
+
+            // 5. Footer
+            const footerY = pageHeight - 20
+
+            doc.setDrawColor(228, 228, 231) // Light gray line
+            doc.setLineWidth(0.5)
+            doc.line(60, footerY - 10, pageWidth - 60, footerY - 10)
+
+            centerText('POWERED BY VELOFIX OS', footerY, 9, 'bold', [161, 161, 170])
+            centerText('Digital • Schnell • Sicher', footerY + 5, 9, 'normal', [161, 161, 170])
 
             // Save
-            doc.save(`${workshopName.replace(/[^a-z0-9]/gi, '_')}_Annahme_QR.pdf`)
+            doc.save(`${workshopName ? workshopName.replace(/[^a-z0-9]/gi, '_') : 'Velofix'}_Annahme_QR.pdf`)
 
         } catch (error) {
             console.error('Error generating PDF:', error)
