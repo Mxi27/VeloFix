@@ -1,3 +1,4 @@
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState, useEffect } from "react"
 import {
     Dialog,
@@ -374,11 +375,11 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
             if (error) throw error
 
+            toastSuccess('Auftrag erstellt', 'Der Auftrag wurde erfolgreich erstellt.')
             handleOpenChange(false)
             onOrderCreated?.()
         } catch (error: any) {
-            console.error('Error creating order:', error)
-            alert(`Fehler: ${error.message}`)
+            toastError('Fehler beim Erstellen', error.message || 'Der Auftrag konnte nicht erstellt werden.')
         } finally {
             setIsSubmitting(false)
         }

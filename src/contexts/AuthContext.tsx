@@ -27,39 +27,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const fetchMembership = async (): Promise<{ workshopId: string | null, role: UserRole }> => {
         try {
-            console.log('[AuthContext] Fetching membership...')
-
-            // 3000ms timeout race to prevent hang
-            const timeoutPromise = new Promise<{ timeout: true }>((resolve) =>
-                setTimeout(() => resolve({ timeout: true }), 3000)
-            )
-
-            const rpcPromise = supabase.rpc('get_my_membership')
-
-            const result = await Promise.race([rpcPromise, timeoutPromise]) as
-                | { timeout: true }
-                | { data: any, error: any }
-
-            if ('timeout' in result) {
-                console.error('[AuthContext] Membership fetch timed out (3000ms)')
-                return { workshopId: null, role: null }
-            }
-
-            const { data, error } = result
+            const { data, error } = await supabase.rpc('get_my_membership')
 
             if (error) {
-                console.warn('[AuthContext] RPC Error (using fallback nulls):', error)
+                console.error('Error fetching membership:', error)
+                // We do not return nulls immediately if it's just a network glitch? 
+                // But for now, returning nulls is safer than stalling if we want to fail gracefully.
+                // However, without timeout, we just rely on supabase client's internal retry/timeout.
                 return { workshopId: null, role: null }
             }
 
-            console.log('[AuthContext] Membership data:', data)
             const resultData = data as { workshopId: string | null, role: string | null }
             const role = (resultData?.role as UserRole) || null
             const workshopId = resultData?.workshopId || null
 
             return { workshopId, role }
         } catch (error) {
-            console.error('[fetchMembership] Unexpected Error:', error)
+            console.error('Unexpected error fetching membership:', error)
             return { workshopId: null, role: null }
         }
     }
@@ -68,43 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let mounted = true
 
         const initAuth = async () => {
-            console.log('[AuthContext] Initializing...')
             try {
-                // Create a timeout promise
-                const timeoutPromise = new Promise<{ timeout: true }>((resolve) => {
-                    setTimeout(() => resolve({ timeout: true }), 5000) // 5 second timeout
-                })
+                // Remove timeout race. Just await the session.
+                const { data: { session }, error } = await supabase.auth.getSession()
 
-                // Race session check against timeout
-                const sessionPromise = supabase.auth.getSession()
-
-                const result = await Promise.race([sessionPromise, timeoutPromise]) as
-                    | { timeout: true }
-                    | { data: { session: Session | null }, error: AuthError | null }
-
-                if (!mounted) return
-
-                // Handle Timeout
-                if ('timeout' in result) {
-                    console.warn('[AuthContext] Session check timed out. Defaulting to no session.')
-                    setSession(null)
-                    setUser(null)
-                    setWorkshopId(null)
-                    setUserRole(null)
-                    setLoading(false)
-                    return
-                }
-
-                // Handle Session Result
-                const { data: { session }, error } = result
-
-                if (error) {
-                    console.error('[AuthContext] Session error:', error)
-                    throw error
-                }
+                if (error) throw error
 
                 if (session?.user) {
-                    console.log('[AuthContext] Session found, fetching membership...')
                     const { workshopId: wId, role } = await fetchMembership()
 
                     if (mounted) {
@@ -113,11 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         setWorkshopId(wId)
                         setUserRole(role)
                     }
-                } else {
-                    console.log('[AuthContext] No session')
                 }
             } catch (error) {
-                console.error('[AuthContext] Init error:', error)
+                console.error('Error initializing auth:', error)
                 if (mounted) {
                     setSession(null)
                     setUser(null)
@@ -135,24 +87,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Subscribe to auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-            console.log('[AuthContext] Auth state changed:', event)
-
             if (!mounted) return
 
             if (event === 'SIGNED_OUT') {
-                // Clear state immediately
                 setSession(null)
                 setUser(null)
                 setWorkshopId(null)
                 setUserRole(null)
                 setLoading(false)
             } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-                // On sign in, fetch membership BEFORE updating state
                 if (newSession?.user) {
+                    // Fetch membership BEFORE setting final state if possible to prevent redirects,
+                    // but we must be careful not to block UI if it takes too long.
+                    // However, we are already async here.
                     const { workshopId: wId, role } = await fetchMembership()
 
                     if (mounted) {
-                        // Batch update
                         setSession(newSession)
                         setUser(newSession.user)
                         setWorkshopId(wId)
@@ -161,15 +111,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     }
                 }
             } else if (event === 'TOKEN_REFRESHED') {
-                // Just update session
                 if (newSession) {
                     setSession(newSession)
                     setUser(newSession.user)
                 }
             } else if (newSession?.user) {
-                // Catch-all for other events
+                // Catch-all for other events (e.g. USER_UPDATED)
                 setSession(newSession)
                 setUser(newSession.user)
+
+                // Only fetch if we are logged in but missing workshop data (recovery)
                 if (!workshopId) {
                     const { workshopId: wId, role } = await fetchMembership()
                     if (mounted) {
@@ -190,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
         if (data.user && data.session) {
-            // Wait for workshop data
+            // Explicitly fetch membership to ensure state is ready before resolving
             const { workshopId: wId, role } = await fetchMembership()
             setSession(data.session)
             setUser(data.user)

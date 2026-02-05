@@ -1,3 +1,4 @@
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState } from 'react'
 import { ClipboardList, Download, Copy, Loader2, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -149,10 +150,10 @@ export function IntakeQRGenerator({ workshopId, workshopName }: IntakeQRGenerato
 
             // Save
             doc.save(`${workshopName ? workshopName.replace(/[^a-z0-9]/gi, '_') : 'Velofix'}_Annahme_QR.pdf`)
+            toastSuccess('PDF erfolgreich heruntergeladen', `${workshopName}_Annahme_QR.pdf`)
 
         } catch (error) {
-            console.error('Error generating PDF:', error)
-            alert('Fehler beim Erstellen des PDFs.')
+            toastError('Fehler beim Erstellen des PDFs', 'Bitte versuchen Sie es erneut.')
         } finally {
             setGenerating(false)
         }

@@ -1,3 +1,4 @@
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState, useEffect } from 'react'
 import { Plus, Pencil, Trash2, Eye, GripVertical, Check, X, MoreHorizontal } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -212,7 +213,7 @@ export function ChecklistTemplateManager() {
             .order('created_at', { ascending: false })
 
         if (error) {
-            console.error('Error fetching templates:', error)
+            toastError('Fehler beim Laden der Vorlagen', error.message)
         } else {
             setTemplates(data || [])
         }
@@ -223,8 +224,7 @@ export function ChecklistTemplateManager() {
         e.preventDefault()
 
         if (!workshopId) {
-            alert('Fehler: Keine Workshop-ID gefunden. Bitte melden Sie sich erneut an.')
-            console.error('No workshopId available')
+            toastError('Fehler', 'Keine Workshop-ID gefunden. Bitte melden Sie sich erneut an.')
             return
         }
 
@@ -257,7 +257,7 @@ export function ChecklistTemplateManager() {
 
         try {
             if (editingTemplate) {
-                const { data, error } = await supabase
+                const { error } = await supabase
                     .from('checklist_templates')
                     .update({
                         name: formData.name,
@@ -269,13 +269,12 @@ export function ChecklistTemplateManager() {
                     .select()
 
                 if (error) {
-                    console.error('Error updating template:', error)
-                    alert(`Fehler beim Aktualisieren: ${error.message}`)
+                    toastError('Fehler beim Aktualisieren', error.message)
                     return
                 }
-                console.log('Template updated successfully:', data)
+                toastSuccess('Vorlage aktualisiert', 'Die Vorlage wurde erfolgreich aktualisiert.')
             } else {
-                const { data, error } = await supabase
+                const { error } = await supabase
                     .from('checklist_templates')
                     .insert({
                         workshop_id: workshopId,
@@ -286,19 +285,17 @@ export function ChecklistTemplateManager() {
                     .select()
 
                 if (error) {
-                    console.error('Error creating template:', error)
-                    alert(`Fehler beim Erstellen: ${error.message}`)
+                    toastError('Fehler beim Erstellen', error.message)
                     return
                 }
-                console.log('Template created successfully:', data)
+                toastSuccess('Vorlage erstellt', 'Die Checklisten-Vorlage wurde erfolgreich erstellt.')
             }
 
             setDialogOpen(false)
             resetForm()
             fetchTemplates()
-        } catch (err) {
-            console.error('Unexpected error:', err)
-            alert('Ein unerwarteter Fehler ist aufgetreten. Siehe Konsole für Details.')
+        } catch (err: any) {
+            toastError('Fehler', err.message || 'Ein unerwarteter Fehler ist aufgetreten.')
         }
     }
 
@@ -367,9 +364,11 @@ export function ChecklistTemplateManager() {
             .eq('id', templateId)
 
         if (error) {
-            console.error('Error deleting template:', error)
+            toastError('Fehler', 'Die Vorlage konnte nicht gelöscht werden.')
             return
         }
+
+        toastSuccess('Vorlage gelöscht', 'Die Vorlage wurde erfolgreich gelöscht.')
 
         fetchTemplates()
     }

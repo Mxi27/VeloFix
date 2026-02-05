@@ -31,6 +31,9 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
 
     // On user change/load, identify if this is a Kiosk account
     useEffect(() => {
+        let mounted = true
+        const abortController = new AbortController()
+
         if (!user) {
             setActiveEmployee(null)
             setIsKioskMode(false)
@@ -40,6 +43,7 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         }
 
         const fetchEmployeeData = async () => {
+            if (!mounted) return
             setLoading(true)
             try {
                 // 1. Get the employee record linked to this logged-in user
@@ -47,11 +51,12 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
                     .from('employees')
                     .select('*')
                     .eq('user_id', user.id)
-                    .single()
+                    .maybeSingle()
 
-                if (myError) {
-                    console.error("Error fetching my employee record:", myError)
-                    // Fallback or error state?
+                if (!mounted || abortController.signal.aborted) return
+
+                if (myError || !myEmployee) {
+                    // User might not have an employee record yet (new signup)
                     setLoading(false)
                     return
                 }
@@ -74,20 +79,28 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
                     .eq('active', true)
                     .order('name')
 
-                if (allError) {
-                    console.error("Error fetching colleagues:", allError)
-                } else {
-                    setEmployees(allEmployees || [])
+                if (!mounted || abortController.signal.aborted) return
+
+                if (!allError && allEmployees) {
+                    setEmployees(allEmployees)
                 }
 
             } catch (err) {
-                console.error("Unexpected error in EmployeeProvider:", err)
+                // Silent fail - don't log errors in production
+                if (!mounted || abortController.signal.aborted) return
             } finally {
-                setLoading(false)
+                if (mounted && !abortController.signal.aborted) {
+                    setLoading(false)
+                }
             }
         }
 
         fetchEmployeeData()
+
+        return () => {
+            mounted = false
+            abortController.abort()
+        }
     }, [user])
 
     const selectEmployee = (employeeId: string) => {

@@ -1,3 +1,4 @@
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useEffect, useState } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
@@ -179,8 +180,7 @@ export default function OrderDetailPage() {
                 navigate(returnPath)
             }
         } catch (error: any) {
-            console.error("Error deleting order:", error)
-            alert(`Fehler beim Löschen des Auftrags: ${error.message || JSON.stringify(error)}`)
+            toastError('Fehler beim Löschen', error.message || 'Der Auftrag konnte nicht gelöscht werden.')
         }
     }
 
@@ -357,8 +357,7 @@ export default function OrderDetailPage() {
             .eq('id', order.id)
 
         if (error) {
-            console.error("Error updating customer:", error)
-            alert("Fehler beim Speichern der Kundendaten")
+            toastError('Fehler beim Speichern', 'Die Kundendaten konnten nicht gespeichert werden.')
         } else {
             setOrder({ ...order, ...updates })
             setIsCustomerEditDialogOpen(false)
@@ -395,8 +394,7 @@ export default function OrderDetailPage() {
             .eq('id', order.id)
 
         if (error) {
-            console.error("Error updating bike:", error)
-            alert("Fehler beim Speichern der Fahrraddaten")
+            toastError('Fehler beim Speichern', 'Die Fahrraddaten konnten nicht gespeichert werden.')
         } else {
             setOrder({ ...order, ...updates })
             setIsBikeEditDialogOpen(false)
@@ -456,8 +454,7 @@ export default function OrderDetailPage() {
             }) : null)
 
         } catch (error: any) {
-            console.error("Error updating status:", error)
-            alert(`Fehler beim Aktualisieren des Status: ${error.message}`)
+            toastError('Fehler beim Status-Update', error.message || 'Der Status konnte nicht aktualisiert werden.')
         } finally {
             setSaving(false)
         }
@@ -491,8 +488,7 @@ export default function OrderDetailPage() {
             .eq('id', order.id)
 
         if (error) {
-            console.error("Error saving leasing code:", error)
-            alert(`Fehler beim Speichern das Leasing-Codes: ${error.message}`)
+            toastError('Fehler beim Speichern', error.message || 'Der Leasing-Code konnte nicht gespeichert werden.')
         } else {
             setOrder({
                 ...order,
@@ -528,8 +524,7 @@ export default function OrderDetailPage() {
             .eq('workshop_id', workshopId)
 
         if (error) {
-            console.error("Error saving internal notes:", error)
-            alert(`Fehler beim Speichern der Notizen: ${error.message || JSON.stringify(error)}`)
+            toastError('Fehler beim Speichern', error.message || 'Die Notizen konnten nicht gespeichert werden.')
         } else {
             setOrder({ ...order, internal_note: editInternalNote })
             setInternalNote(editInternalNote)
@@ -574,8 +569,7 @@ export default function OrderDetailPage() {
             .eq('workshop_id', workshopId)
 
         if (error) {
-            console.error("Error saving price:", error)
-            alert(`Fehler beim Speichern der Preisdaten`)
+            toastError('Fehler beim Speichern', 'Die Preisdaten konnten nicht gespeichert werden.')
         } else {
             setOrder({ ...order, ...itemsToUpdate })
             setIsPriceEditDialogOpen(false)
@@ -617,8 +611,7 @@ export default function OrderDetailPage() {
             .eq('id', order.id)
 
         if (error) {
-            console.error("Error applying template:", error)
-            alert("Fehler beim Anwenden der Vorlage")
+            toastError('Fehler', 'Die Vorlage konnte nicht angewendet werden.')
         } else {
             setOrder({ ...order, checklist: newChecklist })
             setIsDialogOpen(false)
@@ -647,9 +640,8 @@ export default function OrderDetailPage() {
             .eq('id', order.id)
 
         if (error) {
-            console.error("Error updating checklist:", error)
             setOrder({ ...order, checklist: order.checklist })
-            alert("Fehler beim Speichern der Checkliste")
+            toastError('Fehler', 'Die Checkliste konnte nicht gespeichert werden.')
         } else {
             // Log event with attribution
             const itemText = order.checklist[index].text
@@ -734,7 +726,7 @@ export default function OrderDetailPage() {
                                 onClick={() => {
                                     const url = `${window.location.origin}/status/${order.id}`
                                     navigator.clipboard.writeText(url)
-                                    alert("Status-Link kopiert! " + url)
+                                    toastSuccess('Link kopiert', 'Der Status-Link wurde in die Zwischenablage kopiert.')
                                 }}
                             >
                                 <Copy className="h-4 w-4" />

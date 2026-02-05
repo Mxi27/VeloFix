@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { DashboardLayout } from '@/layouts/DashboardLayout'
 import { PageTransition } from '@/components/PageTransition'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
 import { WorkshopIdCard } from '@/components/WorkshopIdCard'
@@ -14,16 +14,66 @@ import { EmployeeManagement } from '@/components/EmployeeManagement'
 import { ChecklistTemplateManager } from '@/components/ChecklistTemplateManager'
 import { LeasingSettings } from '@/components/LeasingSettings'
 import { AcceptanceSettings } from '@/components/AcceptanceSettings'
-import { User, Building2, Users, ListChecks, CreditCard, ClipboardList } from 'lucide-react'
+import { NotificationSettings } from '@/components/NotificationSettings'
+import { SecuritySettings } from '@/components/SecuritySettings'
+import { DisplaySettings } from '@/components/DisplaySettings'
+import { DataExport } from '@/components/DataExport'
+import {
+    User,
+    Building2,
+    Users,
+    ListChecks,
+    CreditCard,
+    ClipboardList,
+    Bell,
+    Shield,
+    Palette,
+    ChevronRight,
+    FileSpreadsheet
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { Database } from '@/types/supabase'
 
 type Workshop = Database['public']['Tables']['workshops']['Row']
+
+type SettingsSection =
+    | 'profile'
+    | 'workshop'
+    | 'employees'
+    | 'checklists'
+    | 'intake'
+    | 'leasing'
+    | 'notifications'
+    | 'security'
+    | 'display'
+    | 'export'
+
+interface NavItem {
+    id: SettingsSection
+    label: string
+    icon: React.ElementType
+    adminOnly?: boolean
+}
+
+const navItems: NavItem[] = [
+    { id: 'profile', label: 'Profil', icon: User },
+    { id: 'workshop', label: 'Werkstatt', icon: Building2, adminOnly: true },
+    { id: 'employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
+    { id: 'checklists', label: 'Checklisten', icon: ListChecks, adminOnly: true },
+    { id: 'intake', label: 'Annahme', icon: ClipboardList, adminOnly: true },
+    { id: 'leasing', label: 'Leasing', icon: CreditCard, adminOnly: true },
+    { id: 'export', label: 'Datenexport', icon: FileSpreadsheet, adminOnly: true },
+    { id: 'notifications', label: 'Benachrichtigungen', icon: Bell },
+    { id: 'security', label: 'Sicherheit', icon: Shield },
+    { id: 'display', label: 'Darstellung', icon: Palette },
+]
 
 export default function SettingsPage() {
     const { user, workshopId, userRole } = useAuth()
     const [workshop, setWorkshop] = useState<Workshop | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [activeSection, setActiveSection] = useState<SettingsSection>('profile')
 
     const [workshopForm, setWorkshopForm] = useState({
         name: '',
@@ -31,7 +81,9 @@ export default function SettingsPage() {
         phone: '',
         address: '',
         city: '',
-        postal_code: ''
+        postal_code: '',
+        website: '',
+        opening_hours: ''
     })
 
     useEffect(() => {
@@ -60,7 +112,9 @@ export default function SettingsPage() {
                 phone: data.phone || '',
                 address: data.address || '',
                 city: data.city || '',
-                postal_code: data.postal_code || ''
+                postal_code: data.postal_code || '',
+                website: (data as any).website || '',
+                opening_hours: (data as any).opening_hours || ''
             })
         }
         setLoading(false)
@@ -98,64 +152,28 @@ export default function SettingsPage() {
         .join('')
         .toUpperCase() || 'U'
 
+    const filteredNavItems = navItems.filter(item =>
+        !item.adminOnly || userRole === 'admin'
+    )
 
     if (loading) {
         return (
             <DashboardLayout>
                 <div className="flex items-center justify-center h-screen">
-                    <p className="text-muted-foreground">Lädt Einstellungen...</p>
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                        <p className="text-muted-foreground">Lädt Einstellungen...</p>
+                    </div>
                 </div>
             </DashboardLayout>
         )
     }
 
-    return (
-        <PageTransition>
-            <DashboardLayout>
-                <div className="flex flex-col gap-2 mb-8">
-                    <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
-                    <p className="text-muted-foreground">
-                        {userRole === 'admin'
-                            ? 'Verwalten Sie Ihr Profil, Werkstatt-Details und Mitarbeiter'
-                            : 'Verwalten Sie Ihr Benutzerprofil'}
-                    </p>
-                </div>
-
-                <Tabs defaultValue="profile" className="space-y-6">
-                    <TabsList variant="line" className="w-full justify-start border-b mb-6 overflow-x-auto flex-nowrap no-scrollbar pb-1">
-                        <TabsTrigger value="profile" className="gap-2 whitespace-nowrap">
-                            <User className="h-4 w-4" />
-                            <span className="hidden sm:inline">Profil</span>
-                        </TabsTrigger>
-
-                        {userRole === 'admin' && (
-                            <>
-                                <TabsTrigger value="workshop" className="gap-2 whitespace-nowrap">
-                                    <Building2 className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Werkstatt</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="employees" className="gap-2 whitespace-nowrap">
-                                    <Users className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Mitarbeiter</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="checklists" className="gap-2 whitespace-nowrap">
-                                    <ListChecks className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Checklisten</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="intake" className="gap-2 whitespace-nowrap">
-                                    <ClipboardList className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Annahme</span>
-                                </TabsTrigger>
-                                <TabsTrigger value="leasing" className="gap-2 whitespace-nowrap">
-                                    <CreditCard className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Leasing</span>
-                                </TabsTrigger>
-                            </>
-                        )}
-                    </TabsList>
-
-                    {/* Profile Tab */}
-                    <TabsContent value="profile" className="space-y-6">
+    const renderContent = () => {
+        switch (activeSection) {
+            case 'profile':
+                return (
+                    <div className="space-y-6">
                         <Card>
                             <CardHeader>
                                 <CardTitle>Benutzerprofil</CardTitle>
@@ -164,43 +182,58 @@ export default function SettingsPage() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="flex items-center gap-4">
-                                    <Avatar className="h-20 w-20">
+                                <div className="flex items-center gap-6">
+                                    <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
                                         <AvatarImage src="" />
-                                        <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
+                                        <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/80 to-primary text-primary-foreground">
+                                            {initials}
+                                        </AvatarFallback>
                                     </Avatar>
-                                    <div>
-                                        <h3 className="text-lg font-semibold">
+                                    <div className="space-y-1">
+                                        <h3 className="text-xl font-semibold">
                                             {user?.user_metadata?.full_name || 'Benutzer'}
                                         </h3>
-                                        <p className="text-sm text-muted-foreground">{user?.email}</p>
+                                        <p className="text-muted-foreground">{user?.email}</p>
+                                        <p className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded inline-block">
+                                            {userRole === 'admin' ? 'Administrator' : 'Mitarbeiter'}
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div className="space-y-4 pt-4 border-t">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <Label className="text-muted-foreground">Name</Label>
+                                <div className="pt-6 border-t space-y-4">
+                                    <div className="grid sm:grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                                                Name
+                                            </Label>
                                             <p className="font-medium">
                                                 {user?.user_metadata?.full_name || 'Nicht angegeben'}
                                             </p>
                                         </div>
-                                        <div>
-                                            <Label className="text-muted-foreground">E-Mail</Label>
+                                        <div className="space-y-1">
+                                            <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                                                E-Mail
+                                            </Label>
                                             <p className="font-medium">{user?.email}</p>
                                         </div>
                                     </div>
-                                    <div>
-                                        <Label className="text-muted-foreground">Benutzer-ID</Label>
-                                        <p className="font-mono text-sm text-muted-foreground">{user?.id}</p>
+                                    <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                                            Benutzer-ID
+                                        </Label>
+                                        <p className="font-mono text-xs text-muted-foreground bg-muted px-3 py-2 rounded">
+                                            {user?.id}
+                                        </p>
                                     </div>
                                 </div>
                             </CardContent>
                         </Card>
-                    </TabsContent>
+                    </div>
+                )
 
-                    {/* Workshop Tab */}
-                    <TabsContent value="workshop" className="space-y-6">
+            case 'workshop':
+                return (
+                    <div className="space-y-6">
                         {workshop && workshopId && (
                             <WorkshopIdCard
                                 workshopId={workshopId}
@@ -216,7 +249,7 @@ export default function SettingsPage() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <form onSubmit={handleSaveWorkshop} className="space-y-4">
+                                <form onSubmit={handleSaveWorkshop} className="space-y-6">
                                     <div className="space-y-2">
                                         <Label htmlFor="workshop-name">Werkstatt-Name</Label>
                                         <Input
@@ -276,7 +309,7 @@ export default function SettingsPage() {
                                         </div>
                                     </div>
 
-                                    <div className="pt-4">
+                                    <div className="pt-4 flex justify-end">
                                         <Button type="submit" disabled={saving}>
                                             {saving ? 'Speichert...' : 'Änderungen speichern'}
                                         </Button>
@@ -284,28 +317,85 @@ export default function SettingsPage() {
                                 </form>
                             </CardContent>
                         </Card>
-                    </TabsContent>
+                    </div>
+                )
 
-                    {/* Employees Tab */}
-                    <TabsContent value="employees">
-                        <EmployeeManagement />
-                    </TabsContent>
+            case 'employees':
+                return <EmployeeManagement />
 
-                    {/* Checklists Tab */}
-                    <TabsContent value="checklists">
-                        <ChecklistTemplateManager />
-                    </TabsContent>
+            case 'checklists':
+                return <ChecklistTemplateManager />
 
-                    {/* Intake Tab */}
-                    <TabsContent value="intake">
-                        <AcceptanceSettings workshopName={workshop?.name} />
-                    </TabsContent>
+            case 'intake':
+                return <AcceptanceSettings workshopName={workshop?.name} />
 
-                    {/* Leasing Tab */}
-                    <TabsContent value="leasing">
-                        <LeasingSettings />
-                    </TabsContent>
-                </Tabs>
+            case 'leasing':
+                return <LeasingSettings />
+
+            case 'notifications':
+                return <NotificationSettings />
+
+            case 'security':
+                return <SecuritySettings />
+
+            case 'display':
+                return <DisplaySettings />
+
+            case 'export':
+                return <DataExport />
+
+            default:
+                return null
+        }
+    }
+
+    return (
+        <PageTransition>
+            <DashboardLayout>
+                <div className="flex flex-col gap-2 mb-8">
+                    <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
+                    <p className="text-muted-foreground">
+                        {userRole === 'admin'
+                            ? 'Verwalten Sie Ihr Profil, Werkstatt-Details und Mitarbeiter'
+                            : 'Verwalten Sie Ihr Benutzerprofil und Präferenzen'}
+                    </p>
+                </div>
+
+                <div className="flex flex-col lg:flex-row gap-8">
+                    {/* Sidebar Navigation */}
+                    <div className="lg:w-64 shrink-0">
+                        <nav className="space-y-1 sticky top-4">
+                            {filteredNavItems.map((item) => {
+                                const Icon = item.icon
+                                const isActive = activeSection === item.id
+
+                                return (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => setActiveSection(item.id)}
+                                        className={cn(
+                                            "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all",
+                                            isActive
+                                                ? "bg-primary text-primary-foreground shadow-md"
+                                                : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        <Icon className="h-5 w-5 shrink-0" />
+                                        <span className="font-medium">{item.label}</span>
+                                        {isActive && (
+                                            <ChevronRight className="h-4 w-4 ml-auto" />
+                                        )}
+                                    </button>
+                                )
+                            })}
+                        </nav>
+                    </div>
+
+                    {/* Content Area */}
+                    <div className="flex-1 min-w-0">
+                        {renderContent()}
+                    </div>
+                </div>
             </DashboardLayout>
         </PageTransition>
     )

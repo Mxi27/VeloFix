@@ -158,8 +158,6 @@ export default function ControlModePage() {
         }
 
         try {
-            console.log("Saving control data:", controlStorage)
-
             const { data, error } = await supabase
                 .from('orders')
                 .update({

@@ -1,3 +1,4 @@
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState } from "react"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
@@ -78,8 +79,7 @@ export default function OnboardingPage() {
             navigate("/dashboard")
 
         } catch (error: any) {
-            console.error(error)
-            alert("Fehler beim Erstellen: " + error.message)
+            toastError('Fehler beim Erstellen', error.message || 'Ein unbekannter Fehler ist aufgetreten.')
             setIsLoading(false)
         }
     }
@@ -87,12 +87,10 @@ export default function OnboardingPage() {
 
     const handleJoinWorkshop = async (e: React.FormEvent) => {
         e.preventDefault()
-        console.log("Join: Started with code", joinId)
         if (!user || !joinId) return
         setIsLoading(true)
 
         try {
-            console.log("Join: Calling RPC...")
             const { data, error } = await supabase
                 .rpc('join_workshop_by_code', {
                     p_invite_code: joinId,
@@ -101,28 +99,22 @@ export default function OnboardingPage() {
                     p_user_name: user.user_metadata?.full_name || 'Mitarbeiter'
                 })
 
-            console.log("Join: RPC Result", data, error)
-
             if (error) throw error
 
             // Check the JSON response we defined in the SQL function
             if (!data.success) {
-                console.log("Join: Success false", data.message)
-                alert("Fehler: " + data.message)
+                toastError('Fehler', data.message || 'Werkstatt konnte nicht beigetreten werden.')
                 setIsLoading(false)
                 return
             }
 
-            console.log("Join: Success true, refreshing session...")
-
             // Success
             await refreshSession()
-            console.log("Join: Session refreshed, navigating...")
+            toastSuccess('Erfolgreich', 'Sie sind der Werkstatt beigetreten!')
             navigate("/dashboard")
 
         } catch (error: any) {
-            console.error("Join Error:", error)
-            alert("Fehler beim Beitreten: " + (error.message || "Unbekannter Fehler"))
+            toastError('Fehler beim Beitreten', error.message || 'Unbekannter Fehler')
             setIsLoading(false)
         }
     }

@@ -1,4 +1,5 @@
 import useSWR from "swr"
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { STATUS_COLORS } from "@/lib/constants"
@@ -80,9 +81,9 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
             }
 
             mutate() // Refresh list
+            toastSuccess('Auftrag gelöscht', 'Der Auftrag wurde erfolgreich gelöscht.')
         } catch (error) {
-            console.error("Error deleting order:", error)
-            alert("Fehler beim Löschen des Auftrags")
+            toastError('Fehler beim Löschen', 'Der Auftrag konnte nicht gelöscht werden.')
         } finally {
             setOrderToDelete(null)
         }
@@ -97,9 +98,9 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
             if (error) throw error
             mutate()
+            toastSuccess('Wiederhergestellt', 'Der Auftrag wurde erfolgreich wiederhergestellt.')
         } catch (error) {
-            console.error("Error restoring order:", error)
-            alert("Fehler beim Wiederherstellen")
+            toastError('Fehler beim Wiederherstellen', 'Der Auftrag konnte nicht wiederhergestellt werden.')
         }
     }
 

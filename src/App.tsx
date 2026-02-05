@@ -17,6 +17,8 @@ import BikeBuildsPage from "@/pages/BikeBuildsPage";
 import BikeBuildDetailPage from "@/pages/BikeBuildDetailPage";
 import OrderStatusPage from "@/pages/OrderStatusPage";
 import IntakePage from "@/pages/IntakePage";
+import { Toaster } from "sonner";
+import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 
 import OnboardingPage from "@/pages/OnboardingPage";
 
@@ -166,6 +168,7 @@ export function App() {
                 <BrowserRouter>
                     <AppRoutes />
                 </BrowserRouter>
+                <Toaster richColors position="top-right" />
             </EmployeeProvider>
         </AuthProvider>
     );
