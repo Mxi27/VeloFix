@@ -163,14 +163,16 @@ export function App() {
         //     </BrowserRouter>
         //   </EmployeeProvider>
         // </AuthProvider>
-        <AuthProvider>
-            <EmployeeProvider>
-                <BrowserRouter>
-                    <AppRoutes />
-                </BrowserRouter>
-                <Toaster richColors position="top-right" />
-            </EmployeeProvider>
-        </AuthProvider>
+        <GlobalErrorBoundary>
+            <AuthProvider>
+                <EmployeeProvider>
+                    <BrowserRouter>
+                        <AppRoutes />
+                    </BrowserRouter>
+                    <Toaster richColors position="top-right" />
+                </EmployeeProvider>
+            </AuthProvider>
+        </GlobalErrorBoundary>
     );
 }
 
