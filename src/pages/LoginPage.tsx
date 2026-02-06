@@ -5,16 +5,16 @@ import { Bike } from "lucide-react"
 export default function LoginPage() {
     return (
         <PageTransition>
-            <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-                <div className="w-full max-w-sm space-y-6">
+            <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-background">
+                <div className="w-full max-w-sm space-y-8">
                     {/* Logo */}
-                    <div className="flex flex-col items-center gap-3">
-                        <div className="bg-primary p-3 rounded-xl shadow-lg">
-                            <Bike className="h-8 w-8 text-primary-foreground" />
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="bg-muted p-4 rounded-2xl border border-border">
+                            <Bike className="h-10 w-10 text-foreground" />
                         </div>
                         <div className="text-center">
-                            <h1 className="text-2xl font-bold tracking-tight">VeloFix</h1>
-                            <p className="text-muted-foreground text-sm">
+                            <h1 className="text-3xl font-bold tracking-tight text-foreground">VeloFix</h1>
+                            <p className="text-muted-foreground text-sm mt-1">
                                 Werkstatt-Management
                             </p>
                         </div>
@@ -24,7 +24,7 @@ export default function LoginPage() {
                     <LoginForm />
 
                     {/* Footer */}
-                    <p className="text-center text-xs text-muted-foreground/60">
+                    <p className="text-center text-xs text-muted-foreground">
                         © {new Date().getFullYear()} VeloFix
                     </p>
                 </div>

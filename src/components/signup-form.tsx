@@ -88,10 +88,10 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     }
 
     return (
-        <Card {...props}>
+        <Card {...props} className="bg-zinc-900/80 border-zinc-800/50 backdrop-blur-sm shadow-2xl">
             <CardHeader>
-                <CardTitle>Konto erstellen</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-zinc-100">Konto erstellen</CardTitle>
+                <CardDescription className="text-zinc-400">
                     Geben Sie Ihre Daten ein, um Ihr Konto zu erstellen
                 </CardDescription>
             </CardHeader>
@@ -104,12 +104,12 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                             </div>
                         )}
                         {success && (
-                            <div className="bg-primary/15 text-primary p-3 rounded-md text-sm border border-primary/20">
+                            <div className="bg-green-500/15 text-green-400 p-3 rounded-md text-sm border border-green-500/20">
                                 Konto erfolgreich erstellt! Sie werden zum Login weitergeleitet...
                             </div>
                         )}
                         <Field>
-                            <FieldLabel htmlFor="name">Vollständiger Name</FieldLabel>
+                            <FieldLabel htmlFor="name" className="text-zinc-300">Vollständiger Name</FieldLabel>
                             <Input
                                 id="name"
                                 type="text"
@@ -118,10 +118,11 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                                 onChange={(e) => setName(e.target.value)}
                                 required
                                 disabled={loading}
+                                className="bg-zinc-800/50 border-zinc-700/50 text-zinc-100 placeholder:text-zinc-500"
                             />
                         </Field>
                         <Field>
-                            <FieldLabel htmlFor="email">E-Mail</FieldLabel>
+                            <FieldLabel htmlFor="email" className="text-zinc-300">E-Mail</FieldLabel>
                             <Input
                                 id="email"
                                 type="email"
@@ -130,14 +131,14 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                                 disabled={loading}
+                                className="bg-zinc-800/50 border-zinc-700/50 text-zinc-100 placeholder:text-zinc-500"
                             />
-                            <FieldDescription>
-                                Wir verwenden diese E-Mail-Adresse, um Sie zu kontaktieren. Wir werden Ihre
-                                E-Mail-Adresse nicht an Dritte weitergeben.
+                            <FieldDescription className="text-zinc-500">
+                                Wir verwenden diese E-Mail-Adresse, um Sie zu kontaktieren.
                             </FieldDescription>
                         </Field>
                         <Field>
-                            <FieldLabel htmlFor="password">Passwort</FieldLabel>
+                            <FieldLabel htmlFor="password" className="text-zinc-300">Passwort</FieldLabel>
                             <Input
                                 id="password"
                                 type="password"
@@ -145,13 +146,14 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 disabled={loading}
+                                className="bg-zinc-800/50 border-zinc-700/50 text-zinc-100"
                             />
-                            <FieldDescription>
+                            <FieldDescription className="text-zinc-500">
                                 Muss mindestens 8 Zeichen lang sein.
                             </FieldDescription>
                         </Field>
                         <Field>
-                            <FieldLabel htmlFor="confirm-password">
+                            <FieldLabel htmlFor="confirm-password" className="text-zinc-300">
                                 Passwort bestätigen
                             </FieldLabel>
                             <Input
@@ -161,15 +163,16 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 required
                                 disabled={loading}
+                                className="bg-zinc-800/50 border-zinc-700/50 text-zinc-100"
                             />
-                            <FieldDescription>Bitte bestätigen Sie Ihr Passwort.</FieldDescription>
+                            <FieldDescription className="text-zinc-500">Bitte bestätigen Sie Ihr Passwort.</FieldDescription>
                         </Field>
                         <Field>
-                            <Button type="submit" className="w-full" disabled={loading}>
+                            <Button type="submit" className="w-full bg-zinc-100 text-zinc-900 hover:bg-zinc-200" disabled={loading}>
                                 {loading ? "Wird erstellt..." : "Konto erstellen"}
                             </Button>
-                            <FieldDescription className="px-6 text-center">
-                                Bereits ein Konto? <a href="/login">Anmelden</a>
+                            <FieldDescription className="px-6 text-center text-zinc-500">
+                                Bereits ein Konto? <a href="/login" className="text-zinc-300 hover:underline">Anmelden</a>
                             </FieldDescription>
                         </Field>
                     </FieldGroup>

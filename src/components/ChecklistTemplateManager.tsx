@@ -247,14 +247,6 @@ export function ChecklistTemplateManager() {
         // User didn't ask to filter, but usually good practice.
         // For now we keep them as empty items might be placeholders.
 
-        console.log('Submitting template:', {
-            workshopId,
-            name: formData.name,
-            description: formData.description,
-            itemCount: itemsJson.length,
-            items: itemsJson
-        })
-
         try {
             if (editingTemplate) {
                 const { error } = await supabase

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Plus, Check, ArrowLeft,
-    X, CheckCircle2, Download, SkipForward
+    X, CheckCircle2, Download, SkipForward, AlertTriangle
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,7 @@ interface ChecklistItem {
     completed: boolean
     notes?: string
     skipped?: boolean
+    warning?: boolean // Warning flag for items that need customer attention
 }
 
 export default function ServiceModePage() {
@@ -256,6 +257,19 @@ export default function ServiceModePage() {
         toast.success("Schritt gelöscht")
     }
 
+    // Toggle Warning
+    const handleToggleWarning = async () => {
+        if (isSaving) return
+        const newItems = [...items]
+        newItems[currentStepIndex] = {
+            ...newItems[currentStepIndex],
+            warning: !newItems[currentStepIndex].warning
+        }
+        setItems(newItems)
+        await saveChecklist(newItems)
+        toast.success(newItems[currentStepIndex].warning ? "Warnung aktiviert" : "Warnung entfernt")
+    }
+
     // Navigation
     const jumpToStep = (index: number) => {
         saveChecklist(items)
@@ -306,6 +320,19 @@ export default function ServiceModePage() {
             doc.setDrawColor(255, 255, 255)
             doc.setLineWidth(1)
             doc.line(x + 2, y + 3, x + 4, y + 3) // Dash
+        }
+
+        // Warning Icon (Red with exclamation)
+        const drawWarningIcon = (x: number, y: number) => {
+            doc.setFillColor(239, 68, 68) // Red
+            doc.roundedRect(x, y, 6, 6, 1.5, 1.5, 'F')
+            // White exclamation mark
+            doc.setDrawColor(255, 255, 255)
+            doc.setLineWidth(0.8)
+            doc.line(x + 3, y + 1.5, x + 3, y + 3.5) // Line
+            doc.circle(x + 3, y + 4.8, 0.4, 'F') // Dot
+            doc.setFillColor(255, 255, 255)
+            doc.circle(x + 3, y + 4.8, 0.4, 'F')
         }
 
         // --- HEADER ---
@@ -372,7 +399,9 @@ export default function ServiceModePage() {
             }
 
             // 1. Icon
-            if (item.completed) {
+            if (item.warning) {
+                drawWarningIcon(14, contentY - 4)
+            } else if (item.completed) {
                 drawCheckIcon(14, contentY - 4)
             } else if (item.skipped) {
                 drawSkipIcon(14, contentY - 4)
@@ -514,9 +543,26 @@ export default function ServiceModePage() {
                                 )}
                             </div>
 
-                            {/* Notes Section ONLY - No Photos */}
+                            {/* Notes Section */}
                             <div className="space-y-3">
-                                <h3 className="text-sm font-medium text-muted-foreground">Notiz für diesen Schritt (optional)</h3>
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-medium text-muted-foreground">Notiz für diesen Schritt (optional)</h3>
+                                    <Button
+                                        variant={currentItem?.warning ? "destructive" : "outline"}
+                                        size="sm"
+                                        onClick={handleToggleWarning}
+                                        disabled={isSaving || isReadOnly}
+                                        className={cn(
+                                            "gap-1.5 h-8",
+                                            currentItem?.warning
+                                                ? "bg-red-500/10 text-red-600 border-red-200 hover:bg-red-500/20"
+                                                : "text-muted-foreground border-border/50 hover:text-red-600 hover:border-red-200"
+                                        )}
+                                    >
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        {currentItem?.warning ? "Warnung aktiv" : "Als Warnung"}
+                                    </Button>
+                                </div>
                                 <Textarea
                                     value={currentItem?.notes}
                                     onChange={(e) => handleNoteChange(e.target.value)}

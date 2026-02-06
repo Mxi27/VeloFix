@@ -753,17 +753,6 @@ export default function OrderDetailPage() {
                                 <ShieldCheck className="mr-2 h-4 w-4" />
                                 Kontrolle
                             </Button>
-                            {userRole === 'admin' && (
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setShowDeleteConfirm(true)}
-                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Löschen
-                                </Button>
-                            )}
                         </div>
                     </div>
 
@@ -1212,6 +1201,27 @@ export default function OrderDetailPage() {
 
                         </div>
                     </div>
+
+                    {/* Danger Zone - Subtle at bottom */}
+                    {userRole === 'admin' && (
+                        <div className="mt-12 pt-8 border-t border-dashed border-muted-foreground/20">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Gefahrenzone</p>
+                                    <p className="text-sm text-muted-foreground">Auftrag unwiderruflich in den Papierkorb verschieben</p>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Löschen
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </DashboardLayout>
 

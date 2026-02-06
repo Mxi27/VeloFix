@@ -6,10 +6,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
 
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { WorkshopIdCard } from '@/components/WorkshopIdCard'
 import { EmployeeManagement } from '@/components/EmployeeManagement'
 import { ChecklistTemplateManager } from '@/components/ChecklistTemplateManager'
 import { LeasingSettings } from '@/components/LeasingSettings'
@@ -140,7 +140,9 @@ export default function SettingsPage() {
 
         if (error) {
             console.error('Error updating workshop:', error)
+            toast.error('Fehler beim Speichern', { description: error.message })
         } else {
+            toast.success('Werkstatt-Daten gespeichert')
             fetchWorkshop()
         }
         setSaving(false)
@@ -217,14 +219,6 @@ export default function SettingsPage() {
                                             <p className="font-medium">{user?.email}</p>
                                         </div>
                                     </div>
-                                    <div className="space-y-1">
-                                        <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                                            Benutzer-ID
-                                        </Label>
-                                        <p className="font-mono text-xs text-muted-foreground bg-muted px-3 py-2 rounded">
-                                            {user?.id}
-                                        </p>
-                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -234,13 +228,6 @@ export default function SettingsPage() {
             case 'workshop':
                 return (
                     <div className="space-y-6">
-                        {workshop && workshopId && (
-                            <WorkshopIdCard
-                                workshopId={workshopId}
-                                workshopName={workshop.name}
-                            />
-                        )}
-
                         <Card>
                             <CardHeader>
                                 <CardTitle>Werkstatt-Details</CardTitle>

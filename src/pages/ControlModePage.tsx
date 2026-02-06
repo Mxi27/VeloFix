@@ -158,20 +158,16 @@ export default function ControlModePage() {
         }
 
         try {
-            const { data, error } = await supabase
+            const { error } = await supabase
                 .from('orders')
                 .update({
                     end_control: controlStorage
                 })
                 .eq('id', orderId)
-                .select() // Request back the data to confirm write
 
             if (error) throw error
-
-            console.log("Save successful, response:", data)
             return true
         } catch (err: any) {
-            console.error("Error saving checklist:", err, err.message, err.details)
             const errorMessage = err.message || 'Unbekanntes Problem'
             setSaveError(errorMessage)
             toast.error("Speichern fehlgeschlagen", `Fehler: ${errorMessage}`)
@@ -186,23 +182,16 @@ export default function ControlModePage() {
     }
 
     const handleConfirmExitWithoutSave = () => {
-        console.log("Exiting without save, navigating to:", `/dashboard/orders/${orderId}`)
         setShowExitDialog(false)
         navigate(`/dashboard/orders/${orderId}`)
     }
 
     const handleConfirmSaveAndExit = async () => {
-        console.log("Save and Exit requested")
-        // Save as NOT final (progress only)
         const success = await saveProgress(items, false)
         if (success) {
             toast.success("Fortschritt gespeichert")
             setShowExitDialog(false)
-            console.log("Navigating to:", `/dashboard/orders/${orderId}`)
             navigate(`/dashboard/orders/${orderId}`)
-        } else {
-            console.error("Save failed, not exiting")
-            // Error is already set in saveProgress
         }
     }
 

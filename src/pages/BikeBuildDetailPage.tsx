@@ -154,16 +154,6 @@ export default function BikeBuildDetailPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {!isReadOnly && (
-                                <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    onClick={handleDelete}
-                                    className="h-10 w-10 opacity-70 hover:opacity-100 transition-opacity"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            )}
                             <Button
                                 onClick={handleSave}
                                 disabled={!hasChanges || saving || isReadOnly}
@@ -296,6 +286,27 @@ export default function BikeBuildDetailPage() {
                             </Card>
                         </div>
                     </div>
+
+                    {/* Danger Zone - Subtle at bottom */}
+                    {!isReadOnly && (
+                        <div className="mt-12 pt-8 border-t border-dashed border-muted-foreground/20">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Gefahrenzone</p>
+                                    <p className="text-sm text-muted-foreground">Fahrrad-Eintrag unwiderruflich löschen</p>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleDelete}
+                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Löschen
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </DashboardLayout>
         </PageTransition>

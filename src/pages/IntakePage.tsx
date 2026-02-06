@@ -135,19 +135,23 @@ export default function IntakePage() {
     )
 
     if (loading) {
-        return <div className="min-h-screen flex items-center justify-center bg-background text-foreground">Lade...</div>
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="text-muted-foreground">Lade...</div>
+            </div>
+        )
     }
 
     if (!workshopName && !loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
-                <Card className="w-full max-w-md border-destructive/50">
+            <div className="min-h-screen flex items-center justify-center bg-background p-4">
+                <Card className="w-full max-w-md border-border bg-card">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-destructive">
                             <AlertCircle className="h-5 w-5" />
                             Fehler
                         </CardTitle>
-                        <CardDescription>
+                        <CardDescription className="text-muted-foreground">
                             Die angeforderte Werkstatt konnte nicht gefunden werden.
                         </CardDescription>
                     </CardHeader>
@@ -158,20 +162,23 @@ export default function IntakePage() {
 
     if (submitted) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-4">
-                <Card className="w-full max-w-md border-green-500/50 bg-gradient-to-br from-green-500/5 to-transparent">
+            <div className="min-h-screen flex items-center justify-center bg-background p-4">
+                <Card className="w-full max-w-md border-green-500/30 bg-card">
                     <CardHeader className="text-center">
                         <div className="mx-auto bg-green-500/10 p-3 rounded-full w-fit mb-4">
                             <CheckCircle2 className="h-8 w-8 text-green-500" />
                         </div>
-                        <CardTitle className="text-2xl">Vielen Dank!</CardTitle>
-                        <CardDescription className="text-base mt-2">
-                            Ihre Anfrage wurde erfolgreich an <strong>{workshopName}</strong> übermittelt.
+                        <CardTitle className="text-2xl text-card-foreground">Vielen Dank!</CardTitle>
+                        <CardDescription className="text-base mt-2 text-muted-foreground">
+                            Ihre Anfrage wurde erfolgreich an <strong className="text-foreground">{workshopName}</strong> übermittelt.
                             Wir werden uns umgehend um Ihr Anliegen kümmern.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center pb-8">
-                        <Button variant="outline" onClick={() => window.location.reload()}>
+                        <Button
+                            variant="outline"
+                            onClick={() => window.location.reload()}
+                        >
                             Neue Anfrage stellen
                         </Button>
                     </CardContent>
@@ -181,54 +188,57 @@ export default function IntakePage() {
     }
 
     return (
-        <div className="min-h-screen bg-background text-foreground py-8 px-4">
-            <div className="max-w-2xl mx-auto space-y-6">
-                <div className="text-center space-y-2">
-                    <h1 className="text-2xl font-bold">{workshopName}</h1>
-                    <p className="text-muted-foreground">Service-Annahme</p>
+        <div className="min-h-screen bg-background py-12 px-4">
+            <div className="max-w-2xl mx-auto space-y-8">
+                <div className="text-center space-y-3">
+                    <div className="bg-muted p-3 rounded-2xl border border-border w-fit mx-auto">
+                        <Wrench className="h-8 w-8 text-foreground" />
+                    </div>
+                    <h1 className="text-3xl font-bold text-foreground">{workshopName}</h1>
+                    <p className="text-muted-foreground">Kunden-Annahme</p>
                 </div>
 
                 {!portalType ? (
-                    <Card className="border-border shadow-lg">
+                    <Card className="border-zinc-800/50 bg-zinc-900/80 backdrop-blur-sm shadow-2xl">
                         <CardHeader>
-                            <CardTitle className="text-center">Bitte wählen Sie:</CardTitle>
+                            <CardTitle className="text-center text-zinc-100">Bitte wählen Sie:</CardTitle>
                         </CardHeader>
                         <CardContent className="grid md:grid-cols-2 gap-4">
                             <button
                                 onClick={() => setPortalType("standard")}
-                                className="flex flex-col items-center justify-center p-8 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all gap-4 text-center group"
+                                className="flex flex-col items-center justify-center p-8 rounded-xl border-2 border-zinc-700/50 hover:border-zinc-500 hover:bg-zinc-800/50 transition-all gap-4 text-center group"
                             >
-                                <div className="h-16 w-16 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                                    <Wrench className="h-8 w-8 text-foreground group-hover:text-primary transition-colors" />
+                                <div className="h-16 w-16 rounded-full bg-zinc-800 group-hover:bg-zinc-700 flex items-center justify-center transition-colors">
+                                    <Wrench className="h-8 w-8 text-zinc-300 group-hover:text-zinc-100 transition-colors" />
                                 </div>
                                 <div>
-                                    <div className="font-bold text-lg">Standard Reparatur</div>
-                                    <div className="text-sm text-muted-foreground">Eigene Kosten, Inspektion</div>
+                                    <div className="font-bold text-lg text-zinc-100">Standard Reparatur</div>
+                                    <div className="text-sm text-zinc-500">Eigene Kosten, Inspektion</div>
                                 </div>
                             </button>
 
                             <button
                                 onClick={() => setPortalType("leasing")}
-                                className="flex flex-col items-center justify-center p-8 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all gap-4 text-center group"
+                                className="flex flex-col items-center justify-center p-8 rounded-xl border-2 border-zinc-700/50 hover:border-zinc-500 hover:bg-zinc-800/50 transition-all gap-4 text-center group"
                             >
-                                <div className="h-16 w-16 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                                    <CreditCard className="h-8 w-8 text-foreground group-hover:text-primary transition-colors" />
+                                <div className="h-16 w-16 rounded-full bg-zinc-800 group-hover:bg-zinc-700 flex items-center justify-center transition-colors">
+                                    <CreditCard className="h-8 w-8 text-zinc-300 group-hover:text-zinc-100 transition-colors" />
                                 </div>
                                 <div>
-                                    <div className="font-bold text-lg">Leasing Service</div>
-                                    <div className="text-sm text-muted-foreground">JobRad, BusinessBike, etc.</div>
+                                    <div className="font-bold text-lg text-zinc-100">Leasing Service</div>
+                                    <div className="text-sm text-zinc-500">JobRad, BusinessBike, etc.</div>
                                 </div>
                             </button>
                         </CardContent>
                     </Card>
                 ) : (
-                    <Card className="border-border shadow-lg">
+                    <Card className="border-zinc-800/50 bg-zinc-900/80 backdrop-blur-sm shadow-2xl">
                         <CardHeader>
                             <div className="flex items-center justify-between">
-                                <CardTitle>{portalType === 'standard' ? 'Standard Reparatur' : 'Leasing Service'}</CardTitle>
-                                <Button variant="ghost" size="sm" onClick={() => setPortalType(null)}>Zurück</Button>
+                                <CardTitle className="text-zinc-100">{portalType === 'standard' ? 'Standard Reparatur' : 'Leasing Service'}</CardTitle>
+                                <Button variant="ghost" size="sm" onClick={() => setPortalType(null)} className="text-zinc-400 hover:text-zinc-100">Zurück</Button>
                             </div>
-                            <CardDescription>
+                            <CardDescription className="text-zinc-400">
                                 {portalType === 'standard'
                                     ? 'Bitte geben Sie Ihre Kontaktdaten ein.'
                                     : 'Bitte halten Sie Ihre Leasing-Vertragsdaten bereit.'}
@@ -429,8 +439,8 @@ export default function IntakePage() {
                                     </div>
                                 )}
 
-                                <Button type="submit" className="w-full h-12 text-lg" disabled={submitting}>
-                                    {submitting ? 'Wird gesendet...' : 'Kostenpflichtig beauftragen'}
+                                <Button type="submit" className="w-full h-12 text-lg bg-zinc-100 text-zinc-900 hover:bg-zinc-200" disabled={submitting}>
+                                    {submitting ? 'Wird gesendet...' : 'Service anfragen'}
                                 </Button>
                                 <p className="text-xs text-center text-muted-foreground">
                                     Mit dem Absenden stimmen Sie zu, dass wir Ihre Daten zur Bearbeitung Ihres Auftrags speichern.

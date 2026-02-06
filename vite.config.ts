@@ -11,4 +11,22 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React libraries
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          // PDF generation
+          'vendor-pdf': ['jspdf', 'html2canvas', 'qrcode'],
+          // Supabase client
+          'vendor-supabase': ['@supabase/supabase-js'],
+          // Animation libraries
+          'vendor-motion': ['framer-motion'],
+          // UI utilities
+          'vendor-ui': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
+        },
+      },
+    },
+  },
 })

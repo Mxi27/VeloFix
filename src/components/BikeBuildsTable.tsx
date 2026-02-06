@@ -12,7 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Trash2 } from "lucide-react"
+import { Search, Eye } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { format } from "date-fns"
@@ -50,23 +50,11 @@ export function BikeBuildsTable() {
         return data as BikeBuild[]
     }
 
-    const { data: builds = [], isLoading, mutate } = useSWR(
+    const { data: builds = [], isLoading } = useSWR(
         workshopId ? ['bike_builds', workshopId] : null,
         fetchBuilds
     )
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Möchten Sie diesen Eintrag wirklich löschen?')) return
-
-        const { error } = await supabase
-            .from('bike_builds')
-            .delete()
-            .eq('id', id)
-
-        if (!error) {
-            mutate()
-        }
-    }
 
     const filteredBuilds = builds.filter(build => {
         const searchLower = searchTerm.toLowerCase()
@@ -174,10 +162,10 @@ export function BikeBuildsTable() {
                                                         className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            handleDelete(build.id);
+                                                            navigate(`/dashboard/bike-builds/${build.id}`);
                                                         }}
                                                     >
-                                                        <Trash2 className="h-4 w-4" />
+                                                        <Eye className="h-4 w-4" />
                                                     </Button>
                                                 </div>
                                             </TableCell>
