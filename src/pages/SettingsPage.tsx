@@ -188,7 +188,7 @@ export default function SettingsPage() {
         .toUpperCase() || 'U'
 
     const filteredNavItems = navItems.filter(item =>
-        !item.adminOnly || userRole === 'admin'
+        !item.adminOnly || (userRole === 'admin' || userRole === 'owner')
     )
 
     if (loading) {
@@ -385,7 +385,7 @@ export default function SettingsPage() {
                 <div className="flex flex-col gap-2 mb-8">
                     <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
                     <p className="text-muted-foreground">
-                        {userRole === 'admin'
+                        {(userRole === 'admin' || userRole === 'owner')
                             ? 'Verwalten Sie Ihr Profil, Werkstatt-Details und Mitarbeiter'
                             : 'Verwalten Sie Ihr Benutzerprofil und Präferenzen'}
                     </p>

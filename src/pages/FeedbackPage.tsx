@@ -12,6 +12,15 @@ import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+
 import {
     Command,
     CommandEmpty,
@@ -51,8 +60,15 @@ export default function FeedbackPage() {
 
     const currentViewEmployee = employees.find(e => e.id === viewEmployeeId)
 
+    // Filter States
+    const [searchTerm, setSearchTerm] = useState("")
+    const [timeFilter, setTimeFilter] = useState("all") // '7d', '30d', '90d', 'all'
+    const [sortOrder, setSortOrder] = useState("date-desc") // 'date-desc', 'date-asc', 'rating-desc', 'rating-asc'
+
     useEffect(() => {
         const fetchData = async () => {
+            // ... existing fetch logic ...
+            // (Keeping the existing fetch logic same, filtering happens client-side for now as requested)
             if (!workshopId) return
 
             setLoading(true)
@@ -130,9 +146,44 @@ export default function FeedbackPage() {
         fetchData()
     }, [workshopId, viewEmployeeId])
 
-    const allFeedback = [...repairFeedback, ...buildFeedback].sort((a, b) =>
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-    )
+    const allFeedback = [...repairFeedback, ...buildFeedback]
+        .filter(item => {
+            // Text Search
+            const matchesSearch = searchTerm === "" ||
+                item.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.subtitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                item.feedback?.toLowerCase().includes(searchTerm.toLowerCase())
+
+            // Time Filter
+            if (timeFilter !== 'all') {
+                const date = new Date(item.date)
+                const now = new Date()
+                const diffTime = Math.abs(now.getTime() - date.getTime())
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+                if (timeFilter === '7d' && diffDays > 7) return false
+                if (timeFilter === '30d' && diffDays > 30) return false
+                if (timeFilter === '90d' && diffDays > 90) return false
+            }
+
+            return matchesSearch
+        })
+        .sort((a, b) => {
+            // Sort
+            if (sortOrder === 'date-desc') {
+                return new Date(b.date).getTime() - new Date(a.date).getTime()
+            }
+            if (sortOrder === 'date-asc') {
+                return new Date(a.date).getTime() - new Date(b.date).getTime()
+            }
+            if (sortOrder === 'rating-desc') {
+                return b.rating - a.rating
+            }
+            if (sortOrder === 'rating-asc') {
+                return a.rating - b.rating
+            }
+            return 0
+        })
 
     const avgRating = allFeedback.length > 0
         ? (allFeedback.reduce((acc, curr) => acc + curr.rating, 0) / allFeedback.length).toFixed(1)
@@ -233,6 +284,43 @@ export default function FeedbackPage() {
                             </Command>
                         </PopoverContent>
                     </Popover>
+                </div>
+
+                {/* Filters */}
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1">
+                        <Input
+                            placeholder="Suchen nach Nummer, Modell oder Feedback-Text..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="bg-background"
+                        />
+                    </div>
+                    <div className="flex gap-2 w-full sm:w-auto">
+                        <Select value={timeFilter} onValueChange={setTimeFilter}>
+                            <SelectTrigger className="w-full sm:w-[160px] bg-background">
+                                <SelectValue placeholder="Zeitraum" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Gesamter Zeitraum</SelectItem>
+                                <SelectItem value="7d">Letzte 7 Tage</SelectItem>
+                                <SelectItem value="30d">Letzte 30 Tage</SelectItem>
+                                <SelectItem value="90d">Letzte 3 Monate</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <Select value={sortOrder} onValueChange={setSortOrder}>
+                            <SelectTrigger className="w-full sm:w-[160px] bg-background">
+                                <SelectValue placeholder="Sortierung" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="date-desc">Datum (Neu zuerst)</SelectItem>
+                                <SelectItem value="date-asc">Datum (Alt zuerst)</SelectItem>
+                                <SelectItem value="rating-desc">Bewertung (Beste)</SelectItem>
+                                <SelectItem value="rating-asc">Bewertung (Schlechteste)</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 {/* Metrics */}

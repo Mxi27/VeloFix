@@ -23,6 +23,7 @@ import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 
 import OnboardingPage from "@/pages/OnboardingPage";
 
+
 function AppRoutes() {
     const { user, workshopId, loading } = useAuth();
 
@@ -177,8 +178,13 @@ export function App() {
                 <EmployeeProvider>
                     <BrowserRouter>
                         <AppRoutes />
+                        <div id="debug-monitor-root">
+                            {/* Dynamic import or just rendered if available */}
+                        </div>
                     </BrowserRouter>
                     <Toaster richColors position="top-right" />
+                    {/* Monitor Injected Here */}
+
                 </EmployeeProvider>
             </AuthProvider>
         </GlobalErrorBoundary>

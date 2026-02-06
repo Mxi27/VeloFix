@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react'
 import { type User, type Session, type AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 
-export type UserRole = 'admin' | 'write' | 'read' | null
+export type UserRole = 'owner' | 'admin' | 'write' | 'read' | null
 
 interface AuthContextType {
     user: User | null
@@ -18,6 +18,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+const AUTH_CACHE_KEY = 'velofix_auth_meta'
+
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [session, setSession] = useState<Session | null>(null)
@@ -25,21 +28,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [userRole, setUserRole] = useState<UserRole>(null)
     const [loading, setLoading] = useState(true)
 
+    // Helper to load cache synchronously if possible (or effectively so)
+    const loadFromCache = () => {
+        try {
+            const cached = localStorage.getItem(AUTH_CACHE_KEY)
+            if (cached) {
+                const parsed = JSON.parse(cached) as { workshopId: string | null, role: UserRole }
+                return parsed
+            }
+        } catch (e) {
+            console.error('Failed to parse auth cache', e)
+        }
+        return null
+    }
+
     const fetchMembership = async (): Promise<{ workshopId: string | null, role: UserRole }> => {
         try {
-            const { data, error } = await supabase.rpc('get_my_membership')
+            const { data, error } = await supabase.rpc('get_my_role')
 
             if (error) {
                 console.error('Error fetching membership:', error)
-                // We do not return nulls immediately if it's just a network glitch? 
-                // But for now, returning nulls is safer than stalling if we want to fail gracefully.
-                // However, without timeout, we just rely on supabase client's internal retry/timeout.
                 return { workshopId: null, role: null }
             }
 
             const resultData = data as { workshopId: string | null, role: string | null }
             const role = (resultData?.role as UserRole) || null
             const workshopId = resultData?.workshopId || null
+
+            // Cache the successful result
+            if (workshopId) {
+                localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({ workshopId, role }))
+            }
 
             return { workshopId, role }
         } catch (error) {
@@ -48,10 +67,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }
 
+    const mountedRef = useRef(true)
+
+    useEffect(() => {
+        return () => {
+            mountedRef.current = false
+        }
+    }, [])
+
     useEffect(() => {
         let mounted = true
 
         const initAuth = async () => {
+            // Safety valve: Force unblock after 3s no matter what
+            const safetyTimeout = setTimeout(() => {
+                if (mounted) {
+                    console.warn('Auth initialization timed out, forcing unblock')
+                    setLoading(false)
+                }
+            }, 3000)
+
             try {
                 // Remove timeout race. Just await the session.
                 const { data: { session }, error } = await supabase.auth.getSession()
@@ -59,13 +94,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (error) throw error
 
                 if (session?.user) {
-                    const { workshopId: wId, role } = await fetchMembership()
+                    // 1. Set User State IMMEDIATELY (Optimistic)
+                    // This ensures we are "authenticated" even if membership fetch hangs/fails
+                    setSession(session)
+                    setUser(session.user)
 
+                    // 2. Try Cache First for immediate UI
+                    const cached = loadFromCache()
+
+                    if (cached && mounted) {
+                        setWorkshopId(cached.workshopId)
+                        setUserRole(cached.role)
+                        // If we have cache, we can unblock loading immediately!
+                        setLoading(false)
+                        clearTimeout(safetyTimeout)
+                    }
+
+                    // 3. Fetch fresh data in background (Stale-While-Revalidate)
+                    try {
+                        const { workshopId: wId, role } = await fetchMembership()
+
+                        if (mounted) {
+                            // Only update if changed or if we didn't have cache to avoid unnecessary re-renders
+                            if (!cached || wId !== cached.workshopId || role !== cached.role) {
+                                // Session/User already set above, just update meta
+                                setWorkshopId(wId)
+                                setUserRole(role)
+                            }
+
+                            // Ensure loading is false if we didn't use cache
+                            if (!cached) {
+                                setLoading(false)
+                                clearTimeout(safetyTimeout)
+                            }
+                        }
+                    } catch (fetchErr) {
+                        console.error('Background fetch failed', fetchErr)
+                        // Even if fetch fails, we are logged in.
+                        if (mounted && !cached) {
+                            setLoading(false)
+                            clearTimeout(safetyTimeout) // Ensure we unblock
+                        }
+                    }
+                } else {
+                    // No user, stop loading
                     if (mounted) {
-                        setSession(session)
-                        setUser(session.user)
-                        setWorkshopId(wId)
-                        setUserRole(role)
+                        setLoading(false)
+                        clearTimeout(safetyTimeout)
                     }
                 }
             } catch (error) {
@@ -75,10 +150,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     setUser(null)
                     setWorkshopId(null)
                     setUserRole(null)
-                }
-            } finally {
-                if (mounted) {
                     setLoading(false)
+                    clearTimeout(safetyTimeout)
                 }
             }
         }
@@ -97,18 +170,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setLoading(false)
             } else if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
                 if (newSession?.user) {
-                    // Fetch membership BEFORE setting final state if possible to prevent redirects,
-                    // but we must be careful not to block UI if it takes too long.
-                    // However, we are already async here.
-                    const { workshopId: wId, role } = await fetchMembership()
-
+                    // Optimistic update: Set session/user immediately!
+                    // Do NOT wait for fetchMembership
                     if (mounted) {
                         setSession(newSession)
                         setUser(newSession.user)
-                        setWorkshopId(wId)
-                        setUserRole(role)
-                        setLoading(false)
                     }
+
+                    // Background fetch
+                    fetchMembership().then(({ workshopId: wId, role }) => {
+                        if (mounted) {
+                            setWorkshopId(wId)
+                            setUserRole(role)
+                            setLoading(false) // Ensure loading is cleared
+                        }
+                    })
                 }
             } else if (event === 'TOKEN_REFRESHED') {
                 if (newSession) {
@@ -122,11 +198,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 // Only fetch if we are logged in but missing workshop data (recovery)
                 if (!workshopId) {
-                    const { workshopId: wId, role } = await fetchMembership()
-                    if (mounted) {
-                        setWorkshopId(wId)
-                        setUserRole(role)
-                    }
+                    fetchMembership().then(({ workshopId: wId, role }) => {
+                        if (mounted) {
+                            setWorkshopId(wId)
+                            setUserRole(role)
+                        }
+                    })
                 }
             }
         })
@@ -138,15 +215,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [])
 
     const signIn = async (email: string, password: string) => {
+        // Optimistic UI: Don't wait for workshop data to resolve login form
         const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
         if (data.user && data.session) {
-            // Explicitly fetch membership to ensure state is ready before resolving
-            const { workshopId: wId, role } = await fetchMembership()
             setSession(data.session)
             setUser(data.user)
-            setWorkshopId(wId)
-            setUserRole(role)
+
+            // Fetch in background
+            fetchMembership().then(({ workshopId: wId, role }) => {
+                // Check if component is still mounted using ref since we are in async callback of a function
+                if (mountedRef.current) {
+                    setWorkshopId(wId)
+                    setUserRole(role)
+                }
+            })
         }
 
         return { error }
@@ -170,6 +253,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUserRole(null)
         setUser(null)
         setSession(null)
+        localStorage.removeItem(AUTH_CACHE_KEY)
         await supabase.auth.signOut()
     }
 
