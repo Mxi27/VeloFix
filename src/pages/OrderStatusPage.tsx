@@ -139,6 +139,22 @@ export default function OrderStatusPage() {
                     </CardHeader>
 
                     <CardContent className="space-y-6">
+                        {/* Warnings Section */}
+                        {order.checklist && Array.isArray(order.checklist) && order.checklist.some((item: any) => item.warning) && (
+                            <div className="space-y-3">
+                                {order.checklist.filter((item: any) => item.warning).map((item: any, idx: number) => (
+                                    <div key={idx} className="bg-destructive/10 border-l-4 border-destructive p-4 rounded-r-md flex items-start gap-3">
+                                        <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                                        <div>
+                                            <h4 className="font-semibold text-destructive text-sm">Achtung: Wichtige Information</h4>
+                                            <p className="text-sm text-destructive/90">{item.text}</p>
+                                            {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
                         {/* Status Stepper - Simplified */}
                         <div className="space-y-4">
                             {STATUS_STEPS.map((step, index) => {

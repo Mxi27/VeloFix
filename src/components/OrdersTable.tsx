@@ -25,10 +25,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, Eye, Trash2, RotateCcw } from "lucide-react"
+import { Search, Filter, Eye, Trash2, RotateCcw, UserPlus, Users, X, Check } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
+import { useEmployee } from "@/contexts/EmployeeContext"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 interface Order {
     id: string
@@ -40,6 +56,7 @@ interface Order {
     status: string
     created_at: string
     estimated_price: number | null
+    assigned_employee_id: string | null
 }
 
 
@@ -53,9 +70,11 @@ interface OrdersTableProps {
 
 export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps) {
     const { workshopId, userRole } = useAuth()
+    const { employees } = useEmployee()
     const navigate = useNavigate()
     const [searchTerm, setSearchTerm] = useState("")
     const [filterStatus, setFilterStatus] = useState("all")
+    const [filterEmployee, setFilterEmployee] = useState<string>("all")
     const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
 
     const handleDeleteOrder = async () => {
@@ -101,6 +120,26 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
             toastSuccess('Wiederhergestellt', 'Der Auftrag wurde erfolgreich wiederhergestellt.')
         } catch (error) {
             toastError('Fehler beim Wiederherstellen', 'Der Auftrag konnte nicht wiederhergestellt werden.')
+        }
+    }
+
+    const handleAssignEmployee = async (orderId: string, employeeId: string | null) => {
+        // Optimistic update
+        const updatedOrders = orders.map(o => o.id === orderId ? { ...o, assigned_employee_id: employeeId } : o)
+        mutate(updatedOrders, false)
+
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({ assigned_employee_id: employeeId })
+                .eq('id', orderId)
+
+            if (error) throw error
+            toastSuccess('Zuweisung aktualisiert', employeeId ? 'Mitarbeiter zugewiesen.' : 'Zuweisung aufgehoben.')
+            mutate() // Revalidate
+        } catch (error) {
+            toastError('Fehler', 'Mitarbeiter konnte nicht zugewiesen werden.')
+            mutate() // Rollback
         }
     }
 
@@ -157,7 +196,14 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                 ? (filterStatus === 'all' ? true : order.status === filterStatus)
                 : true
 
-        return matchesSearch && matchesStatus
+        const matchesEmployee =
+            filterEmployee === 'all'
+                ? true
+                : filterEmployee === 'unassigned'
+                    ? order.assigned_employee_id === null
+                    : order.assigned_employee_id === filterEmployee
+
+        return matchesSearch && matchesStatus && matchesEmployee
     })
 
     const handleViewOrder = (orderId: string) => {
@@ -168,6 +214,11 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         navigate(`/dashboard/orders/${orderId}`, { state: { from: returnPath } })
     }
 
+    const getEmployeeName = (id: string | null) => {
+        if (!id) return null
+        return employees.find(e => e.id === id)?.name || "Unbekannt"
+    }
+
     const renderTable = (ordersToRender: Order[]) => (
         <div className="rounded-xl border border-border/60 bg-background overflow-x-auto shadow-sm">
             <Table>
@@ -176,7 +227,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                         <TableHead className="w-[110px] pl-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
                         <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Kunde</TableHead>
                         <TableHead className="hidden md:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fahrrad</TableHead>
-                        <TableHead className="hidden sm:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Typ</TableHead>
+                        <TableHead className="hidden sm:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Mitarbeiter</TableHead>
                         <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
                         <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Datum</TableHead>
                         <TableHead className="text-right pr-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Aktion</TableHead>
@@ -213,16 +264,14 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 <TableCell className="hidden md:table-cell py-4 text-sm text-muted-foreground">
                                     {order.bike_model || '—'}
                                 </TableCell>
-                                <TableCell className="hidden sm:table-cell py-4">
-                                    <Badge
-                                        variant="outline"
-                                        className={order.is_leasing
-                                            ? "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20 hover:bg-purple-500/20 transition-colors"
-                                            : "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/20 transition-colors"
-                                        }
-                                    >
-                                        {order.is_leasing ? "Leasing" : "Standard"}
-                                    </Badge>
+                                <TableCell className="hidden sm:table-cell py-4" onClick={(e) => e.stopPropagation()}>
+                                    {order.assigned_employee_id ? (
+                                        <Badge variant="outline" className="bg-background">
+                                            {getEmployeeName(order.assigned_employee_id)}
+                                        </Badge>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground italic">—</span>
+                                    )}
                                 </TableCell>
                                 <TableCell className="py-4">
                                     <Badge
@@ -237,6 +286,43 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 </TableCell>
                                 <TableCell className="text-right pr-4 py-4">
                                     <div className="flex justify-end gap-2">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <UserPlus className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuLabel>Mitarbeiter zuweisen</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    handleAssignEmployee(order.id, null)
+                                                }}>
+                                                    <X className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                    <span>Keine Zuweisung</span>
+                                                </DropdownMenuItem>
+                                                {employees.map(emp => (
+                                                    <DropdownMenuItem
+                                                        key={emp.id}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleAssignEmployee(order.id, emp.id)
+                                                        }}
+                                                    >
+                                                        <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                        <span>{emp.name}</span>
+                                                        {order.assigned_employee_id === emp.id && <Check className="ml-auto h-4 w-4" />}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -305,16 +391,33 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 {getTitle()}
                             </CardTitle>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={fetchOrders}
-                            disabled={loading}
-                            className="shrink-0 bg-background hover:bg-muted/50"
-                        >
-                            {loading ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" /> : <Filter className="mr-2 h-4 w-4" />}
-                            {loading ? "Lädt..." : "Aktualisieren"}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <div className="w-40 sm:w-56">
+                                <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                                    <SelectTrigger className="h-9">
+                                        <SelectValue placeholder="Mitarbeiter" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">Alle Mitarbeiter</SelectItem>
+                                        <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
+                                        {employees.map(emp => (
+                                            <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={fetchOrders}
+                                disabled={loading}
+                                className="shrink-0 bg-background hover:bg-muted/50"
+                            >
+                                {loading ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" /> : <Filter className="mr-2 h-4 w-4" />}
+                                {loading ? "Lädt..." : "Aktualisieren"}
+                            </Button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>

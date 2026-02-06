@@ -88,10 +88,10 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     }
 
     return (
-        <Card {...props} className="bg-zinc-900/80 border-zinc-800/50 backdrop-blur-sm shadow-2xl">
+        <Card {...props} className="bg-card/80 border-border/50 backdrop-blur-sm shadow-2xl">
             <CardHeader>
-                <CardTitle className="text-zinc-100">Konto erstellen</CardTitle>
-                <CardDescription className="text-zinc-400">
+                <CardTitle className="text-card-foreground">Konto erstellen</CardTitle>
+                <CardDescription className="text-muted-foreground">
                     Geben Sie Ihre Daten ein, um Ihr Konto zu erstellen
                 </CardDescription>
             </CardHeader>
@@ -109,7 +109,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                             </div>
                         )}
                         <Field>
-                            <FieldLabel htmlFor="name" className="text-zinc-300">Vollständiger Name</FieldLabel>
+                            <FieldLabel htmlFor="name" className="text-foreground">Vollständiger Name</FieldLabel>
                             <Input
                                 id="name"
                                 type="text"
@@ -118,11 +118,11 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                                 onChange={(e) => setName(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="bg-zinc-800/50 border-zinc-700/50 text-zinc-100 placeholder:text-zinc-500"
+                                className="bg-background/50 border-input text-foreground placeholder:text-muted-foreground"
                             />
                         </Field>
                         <Field>
-                            <FieldLabel htmlFor="email" className="text-zinc-300">E-Mail</FieldLabel>
+                            <FieldLabel htmlFor="email" className="text-foreground">E-Mail</FieldLabel>
                             <Input
                                 id="email"
                                 type="email"
@@ -131,14 +131,14 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="bg-zinc-800/50 border-zinc-700/50 text-zinc-100 placeholder:text-zinc-500"
+                                className="bg-background/50 border-input text-foreground placeholder:text-muted-foreground"
                             />
-                            <FieldDescription className="text-zinc-500">
+                            <FieldDescription className="text-muted-foreground">
                                 Wir verwenden diese E-Mail-Adresse, um Sie zu kontaktieren.
                             </FieldDescription>
                         </Field>
                         <Field>
-                            <FieldLabel htmlFor="password" className="text-zinc-300">Passwort</FieldLabel>
+                            <FieldLabel htmlFor="password" className="text-foreground">Passwort</FieldLabel>
                             <Input
                                 id="password"
                                 type="password"
@@ -146,14 +146,14 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="bg-zinc-800/50 border-zinc-700/50 text-zinc-100"
+                                className="bg-background/50 border-input text-foreground"
                             />
-                            <FieldDescription className="text-zinc-500">
+                            <FieldDescription className="text-muted-foreground">
                                 Muss mindestens 8 Zeichen lang sein.
                             </FieldDescription>
                         </Field>
                         <Field>
-                            <FieldLabel htmlFor="confirm-password" className="text-zinc-300">
+                            <FieldLabel htmlFor="confirm-password" className="text-foreground">
                                 Passwort bestätigen
                             </FieldLabel>
                             <Input
@@ -163,16 +163,16 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 required
                                 disabled={loading}
-                                className="bg-zinc-800/50 border-zinc-700/50 text-zinc-100"
+                                className="bg-background/50 border-input text-foreground"
                             />
-                            <FieldDescription className="text-zinc-500">Bitte bestätigen Sie Ihr Passwort.</FieldDescription>
+                            <FieldDescription className="text-muted-foreground">Bitte bestätigen Sie Ihr Passwort.</FieldDescription>
                         </Field>
                         <Field>
-                            <Button type="submit" className="w-full bg-zinc-100 text-zinc-900 hover:bg-zinc-200" disabled={loading}>
+                            <Button type="submit" className="w-full" disabled={loading}>
                                 {loading ? "Wird erstellt..." : "Konto erstellen"}
                             </Button>
-                            <FieldDescription className="px-6 text-center text-zinc-500">
-                                Bereits ein Konto? <a href="/login" className="text-zinc-300 hover:underline">Anmelden</a>
+                            <FieldDescription className="px-6 text-center text-muted-foreground">
+                                Bereits ein Konto? <a href="/login" className="text-foreground hover:underline">Anmelden</a>
                             </FieldDescription>
                         </Field>
                     </FieldGroup>

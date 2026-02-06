@@ -1,6 +1,6 @@
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { PageTransition } from "@/components/PageTransition"
-import { BikeBuildsTable } from "@/components/BikeBuildsTable"
+import { BikeAssemblyTable } from "@/components/BikeAssemblyTable"
 import { CreateBikeBuildModal } from "@/components/CreateBikeBuildModal"
 
 export default function BikeBuildsPage() {
@@ -22,7 +22,7 @@ export default function BikeBuildsPage() {
                 </div>
 
                 <div className="mt-12">
-                    <BikeBuildsTable />
+                    <BikeAssemblyTable />
                 </div>
             </DashboardLayout>
         </PageTransition>

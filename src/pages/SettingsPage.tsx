@@ -18,6 +18,8 @@ import { NotificationSettings } from '@/components/NotificationSettings'
 import { SecuritySettings } from '@/components/SecuritySettings'
 import { DisplaySettings } from '@/components/DisplaySettings'
 import { DataExport } from '@/components/DataExport'
+import { DataManagementSettings } from '@/components/DataManagementSettings'
+import { NeuradSettings } from '@/components/NeuradSettings'
 import {
     User,
     Building2,
@@ -29,7 +31,9 @@ import {
     Shield,
     Palette,
     ChevronRight,
-    FileSpreadsheet
+    FileSpreadsheet,
+    Database as DatabaseIcon,
+    Wrench
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/supabase'
@@ -41,11 +45,14 @@ type SettingsSection =
     | 'workshop'
     | 'employees'
     | 'checklists'
+    | 'neurad'
     | 'intake'
     | 'leasing'
     | 'notifications'
     | 'security'
     | 'display'
+    | 'display'
+    | 'data'
     | 'export'
 
 interface NavItem {
@@ -60,8 +67,10 @@ const navItems: NavItem[] = [
     { id: 'workshop', label: 'Werkstatt', icon: Building2, adminOnly: true },
     { id: 'employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
     { id: 'checklists', label: 'Checklisten', icon: ListChecks, adminOnly: true },
+    { id: 'neurad', label: 'Neurad Konfig', icon: Wrench, adminOnly: true },
     { id: 'intake', label: 'Annahme', icon: ClipboardList, adminOnly: true },
     { id: 'leasing', label: 'Leasing', icon: CreditCard, adminOnly: true },
+    { id: 'data', label: 'Datenverwaltung', icon: DatabaseIcon, adminOnly: true },
     { id: 'export', label: 'Datenexport', icon: FileSpreadsheet, adminOnly: true },
     { id: 'notifications', label: 'Benachrichtigungen', icon: Bell },
     { id: 'security', label: 'Sicherheit', icon: Shield },
@@ -74,6 +83,14 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [activeSection, setActiveSection] = useState<SettingsSection>('profile')
+    const [fullName, setFullName] = useState('')
+
+    // Initialize full name from user metadata
+    useEffect(() => {
+        if (user?.user_metadata?.full_name) {
+            setFullName(user.user_metadata.full_name)
+        }
+    }, [user])
 
     const [workshopForm, setWorkshopForm] = useState({
         name: '',
@@ -148,6 +165,22 @@ export default function SettingsPage() {
         setSaving(false)
     }
 
+    const handleUpdateProfile = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setSaving(true)
+        try {
+            const { error } = await supabase.auth.updateUser({
+                data: { full_name: fullName }
+            })
+            if (error) throw error
+            toast.success("Profil aktualisiert")
+        } catch (error: any) {
+            toast.error("Fehler beim Aktualisieren", { description: error.message })
+        } finally {
+            setSaving(false)
+        }
+    }
+
     const initials = user?.user_metadata?.full_name
         ?.split(' ')
         .map((n: string) => n[0])
@@ -180,46 +213,50 @@ export default function SettingsPage() {
                             <CardHeader>
                                 <CardTitle>Benutzerprofil</CardTitle>
                                 <CardDescription>
-                                    Ihre persönlichen Informationen
+                                    Bearbeiten Sie Ihre persönlichen Informationen.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="flex items-center gap-6">
-                                    <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
-                                        <AvatarImage src="" />
-                                        <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/80 to-primary text-primary-foreground">
-                                            {initials}
-                                        </AvatarFallback>
-                                    </Avatar>
-                                    <div className="space-y-1">
-                                        <h3 className="text-xl font-semibold">
-                                            {user?.user_metadata?.full_name || 'Benutzer'}
-                                        </h3>
-                                        <p className="text-muted-foreground">{user?.email}</p>
-                                        <p className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded inline-block">
-                                            {userRole === 'admin' ? 'Administrator' : 'Mitarbeiter'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="pt-6 border-t space-y-4">
-                                    <div className="grid sm:grid-cols-2 gap-4">
+                                <form onSubmit={handleUpdateProfile} className="space-y-6">
+                                    <div className="flex items-center gap-6">
+                                        <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
+                                            <AvatarImage src="" />
+                                            <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/80 to-primary text-primary-foreground">
+                                                {initials}
+                                            </AvatarFallback>
+                                        </Avatar>
                                         <div className="space-y-1">
-                                            <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                                                Name
-                                            </Label>
-                                            <p className="font-medium">
-                                                {user?.user_metadata?.full_name || 'Nicht angegeben'}
+                                            <h3 className="text-xl font-semibold">
+                                                {user?.user_metadata?.full_name || 'Benutzer'}
+                                            </h3>
+                                            <p className="text-muted-foreground">{user?.email}</p>
+                                            <p className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded inline-block">
+                                                {userRole === 'admin' ? 'Administrator' : 'Mitarbeiter'}
                                             </p>
                                         </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs text-muted-foreground uppercase tracking-wide">
-                                                E-Mail
-                                            </Label>
-                                            <p className="font-medium">{user?.email}</p>
+                                    </div>
+
+                                    <div className="grid sm:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="fullname">Name</Label>
+                                            <Input
+                                                id="fullname"
+                                                value={fullName}
+                                                onChange={(e) => setFullName(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>E-Mail</Label>
+                                            <Input value={user?.email || ''} disabled className="bg-muted text-muted-foreground" />
                                         </div>
                                     </div>
-                                </div>
+
+                                    <div className="flex justify-end">
+                                        <Button type="submit" disabled={saving}>
+                                            {saving ? "Speichert..." : "Profil speichern"}
+                                        </Button>
+                                    </div>
+                                </form>
                             </CardContent>
                         </Card>
                     </div>
@@ -327,6 +364,12 @@ export default function SettingsPage() {
 
             case 'display':
                 return <DisplaySettings />
+
+            case 'data':
+                return <DataManagementSettings />
+
+            case 'neurad':
+                return <NeuradSettings />
 
             case 'export':
                 return <DataExport />

@@ -7,6 +7,7 @@ import {
     Bike,
     CreditCard,
     Trash2,
+    Star,
 } from "lucide-react"
 import {
     Sidebar,
@@ -58,6 +59,11 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
             title: "Neuradaufbau",
             icon: Bike,
             href: "/dashboard/bike-builds",
+        },
+        {
+            title: "Feedback",
+            icon: Star,
+            href: "/dashboard/feedback",
         },
         {
             title: "Leasing Abrechnung",

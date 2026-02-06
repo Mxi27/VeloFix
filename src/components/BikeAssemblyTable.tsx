@@ -1,4 +1,5 @@
 import useSWR from "swr"
+import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { STATUS_COLORS } from "@/lib/constants"
@@ -14,53 +15,127 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, Eye, Wrench } from "lucide-react"
+import { Search, Filter, Eye, Wrench, UserPlus, Users, X, Check, Plus } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
+import { useEmployee } from "@/contexts/EmployeeContext"
 import { OrdersTableSkeleton } from "@/components/skeletons/OrdersTableSkeleton"
-import { OrderCard } from "@/components/OrderCard"
+import { StartAssemblyDialog } from "@/components/StartAssemblyDialog"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
-interface Order {
+interface BikeBuild {
     id: string
-    order_number: string
-    customer_name: string
+    internal_number: string // Mapped to 'order_number' for display if needed, or treated as independent
+    brand: string
+    model: string
+    color: string
+    frame_size: string
+    customer_name: string | null
     customer_email: string | null
-    bike_model: string | null
-    is_leasing: boolean
     status: string
     created_at: string
-    estimated_price: number | null
+    assigned_employee_id: string | null
+    assembly_progress: any
 }
 
 export function BikeAssemblyTable() {
     const { workshopId } = useAuth()
+    const { employees } = useEmployee()
     const navigate = useNavigate()
     const [searchTerm, setSearchTerm] = useState("")
+    const [filterEmployee, setFilterEmployee] = useState<string>("all")
+    const [columns, setColumns] = useState<any[]>([])
+    const [startDialogOpen, setStartDialogOpen] = useState(false)
 
-    const fetchOrders = async () => {
+    // Fetch dynamic columns config
+    const { data: configData } = useSWR(
+        workshopId ? ['neurad_configs', workshopId, 'neurad_table_columns'] : null,
+        async () => {
+            const { data, error } = await supabase
+                .from('neurad_configs')
+                .select('config_value')
+                .eq('workshop_id', workshopId)
+                .eq('config_key', 'neurad_table_columns')
+                .maybeSingle()
+
+            if (error) return null
+            return data?.config_value
+        }
+    )
+
+    // Update columns when config loads or set defaults
+    useSWR(
+        workshopId ? ['neurad_cols_init', workshopId, configData] : null,
+        () => {
+            if (configData && Array.isArray(configData)) {
+                setColumns(configData)
+            } else {
+                // Fallback defaults adapted for BikeBuilds
+                setColumns([
+                    { key: "internal_number", label: "Int. Nr.", visible: true },
+                    { key: "brand_model", label: "Modell", visible: true },
+                    { key: "customer_name", label: "Kunde", visible: true },
+                    { key: "assigned_employee_id", label: "Mechaniker", visible: true },
+                    { key: "status", label: "Status", visible: true },
+                    { key: "created_at", label: "Datum", visible: true },
+                    { key: "actions", label: "Aktion", visible: true }
+                ])
+            }
+        },
+        { revalidateOnFocus: false }
+    )
+
+    const handleAssignEmployee = async (buildId: string, employeeId: string | null) => {
+        // Optimistic update
+        const updatedBuilds = builds.map(b => b.id === buildId ? { ...b, assigned_employee_id: employeeId } : b)
+        mutate(updatedBuilds, false)
+
+        try {
+            const { error } = await supabase
+                .from('bike_builds')
+                .update({ assigned_employee_id: employeeId })
+                .eq('id', buildId)
+
+            if (error) throw error
+            toastSuccess('Zuweisung aktualisiert', employeeId ? 'Mechaniker zugewiesen.' : 'Zuweisung aufgehoben.')
+            mutate()
+        } catch (error) {
+            toastError('Fehler', 'Mechaniker konnte nicht zugewiesen werden.')
+            mutate()
+        }
+    }
+
+    const fetchBuilds = async () => {
         if (!workshopId) return []
 
-        // TODO: Define specific filter for "Neurad Aufbau".
-        // For now, we might assume they are identifiable by a specific status or type.
-        // Or maybe show all active orders that are NOT leasing?
-        // As a placeholder, I'm showing all active orders.
-        // Ideally, we'd add .eq('type', 'assembly') or similar if that column existed.
         const { data, error } = await supabase
-            .from('orders')
+            .from('bike_builds')
             .select('*')
-            .eq('workshopId', workshopId) // Typo in original file? original used 'workshop_id' but context uses 'workshopId'. Original query: .eq('workshop_id', workshopId).
             .eq('workshop_id', workshopId)
-            .neq('status', 'abgeschlossen')
-            .neq('status', 'abgeholt')
+            // .neq('status', 'abgeschlossen') // TODO: Decide on status filtering for builds
             .order('created_at', { ascending: false })
 
         if (error) throw error
-        return data as Order[]
+        return data as BikeBuild[]
     }
 
-    const { data: orders = [], isLoading } = useSWR(
-        workshopId ? ['orders', workshopId, 'neurad-aufbau'] : null,
-        fetchOrders,
+    const { data: builds = [], isLoading, mutate } = useSWR(
+        workshopId ? ['bike_builds', workshopId] : null,
+        fetchBuilds,
         {
             refreshInterval: 30000,
             revalidateOnFocus: true
@@ -69,51 +144,52 @@ export function BikeAssemblyTable() {
 
     const loading = isLoading
 
-    const filteredOrders = orders.filter(order => {
+    const filteredBuilds = builds.filter(build => {
         const matchesSearch =
-            order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (order.bike_model && order.bike_model.toLowerCase().includes(searchTerm.toLowerCase()))
+            (build.customer_name && build.customer_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (build.internal_number && build.internal_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (build.model && build.model.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (build.brand && build.brand.toLowerCase().includes(searchTerm.toLowerCase()))
 
-        return matchesSearch
+        const matchesEmployee =
+            filterEmployee === 'all'
+                ? true
+                : filterEmployee === 'unassigned'
+                    ? build.assigned_employee_id === null
+                    : build.assigned_employee_id === filterEmployee
+
+        return matchesSearch && matchesEmployee
     })
 
-    const handleViewOrder = (orderId: string) => {
-        navigate(`/dashboard/orders/${orderId}`, { state: { from: '/dashboard/bike-assembly' } })
+    const handleViewBuild = (buildId: string) => {
+        navigate(`/dashboard/bike-builds/${buildId}`, { state: { from: '/dashboard/bike-builds' } })
     }
 
-    const renderCards = (ordersToRender: Order[]) => (
-        <div className="grid grid-cols-1 gap-4 md:hidden">
-            {ordersToRender.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-                    <Search className="h-8 w-8 opacity-20" />
-                    <p className="text-muted-foreground">Keine Neurad-Aufbauten gefunden</p>
-                </div>
-            ) : (
-                ordersToRender.map((order) => (
-                    <OrderCard key={order.id} order={order} onViewOrder={handleViewOrder} />
-                ))
-            )}
-        </div>
-    )
+    const getEmployeeName = (id: string | null) => {
+        if (!id) return null
+        return employees.find(e => e.id === id)?.name || "Unbekannt"
+    }
 
-    const renderTable = (ordersToRender: Order[]) => (
+    // Reuse OrderCard style but adapted for BikeBuild? 
+    // For now we only render table on desktop, mobile cards we skip or use simple list
+    // To keep it simple, I'll focus on the table first. Mobile view might need a specific BikeBuildCard.
+
+    const renderTable = (buildsToRender: BikeBuild[]) => (
         <div className="hidden md:block rounded-xl border border-glass-border bg-glass-bg overflow-x-auto backdrop-blur-md">
             <Table>
                 <TableHeader>
                     <TableRow className="hover:bg-transparent bg-muted/40">
-                        <TableHead className="w-[110px] pl-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Kunde</TableHead>
-                        <TableHead className="hidden md:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Modell</TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                        <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Datum</TableHead>
-                        <TableHead className="text-right pr-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Aktion</TableHead>
+                        {columns.filter(c => c.visible).map((col: any) => (
+                            <TableHead key={col.key} className="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3 px-4">
+                                {col.label}
+                            </TableHead>
+                        ))}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {ordersToRender.length === 0 ? (
+                    {buildsToRender.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                            <TableCell colSpan={columns.filter(c => c.visible).length} className="h-32 text-center text-muted-foreground">
                                 <div className="flex flex-col items-center justify-center gap-2">
                                     <Wrench className="h-8 w-8 opacity-20" />
                                     <p>Keine Aufbauten gefunden</p>
@@ -121,50 +197,129 @@ export function BikeAssemblyTable() {
                             </TableCell>
                         </TableRow>
                     ) : (
-                        ordersToRender.map((order) => (
+                        buildsToRender.map((build) => (
                             <TableRow
-                                key={order.id}
+                                key={build.id}
                                 className="hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
-                                onClick={() => handleViewOrder(order.id)}
+                                onClick={() => handleViewBuild(build.id)}
                             >
-                                <TableCell className="pl-4 py-4 font-mono text-sm font-medium text-primary">
-                                    {order.order_number}
-                                </TableCell>
-                                <TableCell className="py-4">
-                                    <div className="flex flex-col">
-                                        <span className="font-medium text-sm text-foreground">{order.customer_name}</span>
-                                        <span className="text-xs text-muted-foreground/80 truncate max-w-[120px]">
-                                            {order.customer_email || '—'}
-                                        </span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="hidden md:table-cell py-4 text-sm text-muted-foreground">
-                                    {order.bike_model || '—'}
-                                </TableCell>
-                                <TableCell className="py-4">
-                                    <Badge
-                                        variant="secondary"
-                                        className={`capitalize font-normal border ${STATUS_COLORS[order.status] || "bg-muted text-foreground border-border/60"}`}
-                                    >
-                                        {order.status.replace(/_/g, ' ')}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="hidden lg:table-cell py-4 text-xs text-muted-foreground font-mono">
-                                    {new Date(order.created_at).toLocaleDateString('de-DE')}
-                                </TableCell>
-                                <TableCell className="text-right pr-4 py-4">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleViewOrder(order.id)
-                                        }}
-                                    >
-                                        <Eye className="h-4 w-4" />
-                                    </Button>
-                                </TableCell>
+                                {columns.filter(c => c.visible).map((col: any) => {
+                                    if (col.key === 'internal_number') {
+                                        return (
+                                            <TableCell key={col.key} className="pl-4 py-4 font-mono text-sm font-medium text-primary">
+                                                {build.internal_number}
+                                            </TableCell>
+                                        )
+                                    }
+                                    if (col.key === 'customer_name') {
+                                        return (
+                                            <TableCell key={col.key} className="py-4">
+                                                <div className="flex flex-col">
+                                                    <span className="font-medium text-sm text-foreground">{build.customer_name || '—'}</span>
+                                                    <span className="text-xs text-muted-foreground/80 truncate max-w-[120px]">
+                                                        {build.customer_email || ''}
+                                                    </span>
+                                                </div>
+                                            </TableCell>
+                                        )
+                                    }
+                                    if (col.key === 'brand_model' || col.key === 'bike_model') {
+                                        return (
+                                            <TableCell key={col.key} className="py-4 text-sm text-muted-foreground">
+                                                <span className="font-medium text-foreground">{build.brand}</span> {build.model}
+                                            </TableCell>
+                                        )
+                                    }
+                                    if (col.key === 'assigned_employee_id') {
+                                        return (
+                                            <TableCell key={col.key} className="py-4" onClick={(e) => e.stopPropagation()}>
+                                                {build.assigned_employee_id ? (
+                                                    <Badge variant="outline" className="bg-background">
+                                                        {getEmployeeName(build.assigned_employee_id)}
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground italic">—</span>
+                                                )}
+                                            </TableCell>
+                                        )
+                                    }
+                                    if (col.key === 'status') {
+                                        return (
+                                            <TableCell key={col.key} className="py-4">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={`capitalize font-normal border ${STATUS_COLORS[build.status] || "bg-muted text-foreground border-border/60"}`}
+                                                >
+                                                    {(build.status || 'offen').replace(/_/g, ' ')}
+                                                </Badge>
+                                            </TableCell>
+                                        )
+                                    }
+                                    if (col.key === 'created_at') {
+                                        return (
+                                            <TableCell key={col.key} className="py-4 text-xs text-muted-foreground font-mono">
+                                                {new Date(build.created_at).toLocaleDateString('de-DE')}
+                                            </TableCell>
+                                        )
+                                    }
+                                    if (col.key === 'actions') {
+                                        return (
+                                            <TableCell key={col.key} className="text-right pr-4 py-4">
+                                                <div className="flex justify-end gap-2">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <UserPlus className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuLabel>Mechaniker zuweisen</DropdownMenuLabel>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleAssignEmployee(build.id, null)
+                                                            }}>
+                                                                <X className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                                <span>Keine Zuweisung</span>
+                                                            </DropdownMenuItem>
+                                                            {employees.map(emp => (
+                                                                <DropdownMenuItem
+                                                                    key={emp.id}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        handleAssignEmployee(build.id, emp.id)
+                                                                    }}
+                                                                >
+                                                                    <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                                    <span>{emp.name}</span>
+                                                                    {build.assigned_employee_id === emp.id && <Check className="ml-auto h-4 w-4" />}
+                                                                </DropdownMenuItem>
+                                                            ))}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleViewBuild(build.id)
+                                                        }}
+                                                    >
+                                                        <Eye className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        )
+                                    }
+                                    return <TableCell key={col.key} />
+                                })}
                             </TableRow>
                         ))
                     )}
@@ -186,16 +341,44 @@ export function BikeAssemblyTable() {
                             Neurad Aufbau Übersicht
                         </CardTitle>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={fetchOrders}
-                        disabled={loading}
-                        className="shrink-0 bg-background/50 hover:bg-muted/50 backdrop-blur-sm"
-                    >
-                        {loading ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" /> : <Filter className="mr-2 h-4 w-4" />}
-                        {loading ? "Lädt..." : "Aktualisieren"}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <div className="w-40 sm:w-56">
+                            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                                <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Mitarbeiter" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Alle Mitarbeiter</SelectItem>
+                                    <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
+                                    {employees.map(emp => (
+                                        <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={fetchBuilds}
+                            disabled={loading}
+                            className="shrink-0 bg-background/50 hover:bg-muted/50 backdrop-blur-sm"
+                        >
+                            {loading ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" /> : <Filter className="mr-2 h-4 w-4" />}
+                            {loading ? "Lädt..." : "Aktualisieren"}
+                        </Button>
+                        <Button
+                            className="shrink-0"
+                            onClick={() => setStartDialogOpen(true)}
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Neuen Aufbau starten
+                        </Button>
+                        <StartAssemblyDialog
+                            open={startDialogOpen}
+                            onOpenChange={setStartDialogOpen}
+                            onSuccess={() => mutate()}
+                        />
+                    </div>
                 </div>
             </CardHeader>
             <CardContent>
@@ -203,15 +386,14 @@ export function BikeAssemblyTable() {
                     <div className="flex items-center gap-2 max-w-sm relative">
                         <Search className="h-4 w-4 absolute left-3 text-muted-foreground" />
                         <Input
-                            placeholder="Suche nach Kunde, Modell..."
+                            placeholder="Suche nach Modell, Int. Nr..."
                             className="pl-9 bg-background"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
 
-                    {renderCards(filteredOrders)}
-                    {renderTable(filteredOrders)}
+                    {renderTable(filteredBuilds)}
                 </div>
             </CardContent>
         </Card>

@@ -9,6 +9,16 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
@@ -759,24 +769,29 @@ export default function ServiceModePage() {
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
-            <Dialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Schritt löschen</DialogTitle>
-                        <DialogDescription>
+            <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Schritt löschen</AlertDialogTitle>
+                        <AlertDialogDescription>
                             Möchten Sie den Schritt "{currentItem?.text}" wirklich löschen? Dies kann nicht rückgängig gemacht werden.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
-                            Abbrechen
-                        </Button>
-                        <Button variant="destructive" onClick={confirmDeleteStep} disabled={isSaving}>
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isSaving}>Abbrechen</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={(e) => {
+                                e.preventDefault()
+                                confirmDeleteStep()
+                            }}
+                            disabled={isSaving}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
                             Löschen
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
             {/* Kiosk Employee Selection */}
             <EmployeeSelectionModal
                 open={showEmployeeSelect}
