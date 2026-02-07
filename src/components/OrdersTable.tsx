@@ -25,7 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, Eye, Trash2, RotateCcw, UserPlus, Users, X, Check } from "lucide-react"
+import { Search, Filter, Eye, UserPlus, Users, X, Check } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -69,7 +69,7 @@ interface OrdersTableProps {
 }
 
 export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps) {
-    const { workshopId, userRole } = useAuth()
+    const { workshopId } = useAuth()
     const { employees } = useEmployee()
     const navigate = useNavigate()
     const [searchTerm, setSearchTerm] = useState("")
@@ -105,21 +105,6 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
             toastError('Fehler beim Löschen', 'Der Auftrag konnte nicht gelöscht werden.')
         } finally {
             setOrderToDelete(null)
-        }
-    }
-
-    const handleRestoreOrder = async (orderId: string) => {
-        try {
-            const { error } = await supabase
-                .from('orders')
-                .update({ status: 'eingegangen', trash_date: null }) // Restore to default status
-                .eq('id', orderId)
-
-            if (error) throw error
-            mutate()
-            toastSuccess('Wiederhergestellt', 'Der Auftrag wurde erfolgreich wiederhergestellt.')
-        } catch (error) {
-            toastError('Fehler beim Wiederherstellen', 'Der Auftrag konnte nicht wiederhergestellt werden.')
         }
     }
 
@@ -334,34 +319,6 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                         >
                                             <Eye className="h-4 w-4" />
                                         </Button>
-                                        {userRole === 'admin' && effectiveMode === 'trash' && (
-                                            <>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-green-600 hover:bg-green-50 rounded-full"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        handleRestoreOrder(order.id)
-                                                    }}
-                                                    title="Wiederherstellen"
-                                                >
-                                                    <RotateCcw className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setOrderToDelete(order.id)
-                                                    }}
-                                                    title="Endgültig löschen"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </>
-                                        )}
                                     </div>
                                 </TableCell>
                             </TableRow>

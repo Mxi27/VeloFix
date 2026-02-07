@@ -222,6 +222,7 @@ export function BikeBuildsTable() {
                     </div>
                 </div>
             </CardContent>
+
         </Card>
     )
 }

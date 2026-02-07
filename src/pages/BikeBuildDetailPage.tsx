@@ -50,6 +50,24 @@ export default function BikeBuildDetailPage() {
         if (data) setBuild(data)
     }
 
+    const handleDelete = async () => {
+        if (!id) return
+        try {
+            const { error } = await supabase
+                .from('bike_builds')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+
+            toast.success("Neurad-Montage gelöscht")
+            navigate("/dashboard/bike-builds")
+        } catch (error) {
+            console.error(error)
+            toast.error("Fehler beim Löschen")
+        }
+    }
+
     if (loading) {
         return (
             <div className="h-screen w-full flex items-center justify-center bg-background">
@@ -92,6 +110,7 @@ export default function BikeBuildDetailPage() {
                         build={build}
                         onStartWorkshop={() => setViewMode('workshop')}
                         onStartControl={() => setViewMode('control')}
+                        onDelete={handleDelete}
                     />
                 )}
             </DashboardLayout>

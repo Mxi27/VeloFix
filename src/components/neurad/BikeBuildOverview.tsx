@@ -1,18 +1,33 @@
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Wrench, User, Bike, FileText, ShieldCheck } from "lucide-react"
+import { ArrowLeft, Wrench, User, Bike, FileText, ShieldCheck, Trash2 } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface BikeBuildOverviewProps {
     build: any
     onStartWorkshop: () => void
     onStartControl: () => void
+    onDelete: () => void
 }
 
-export function BikeBuildOverview({ build, onStartWorkshop, onStartControl }: BikeBuildOverviewProps) {
+export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDelete }: BikeBuildOverviewProps) {
     const navigate = useNavigate()
+    const { userRole } = useAuth()
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
@@ -160,6 +175,48 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl }: Bi
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Danger Zone */}
+            {(userRole === 'admin' || userRole === 'owner') && (
+                <div className="mt-12 pt-8 border-t border-dashed border-muted-foreground/20">
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider">Gefahrenzone</p>
+                            <p className="text-sm text-muted-foreground">Diesem Neurad-Aufbau unwiderruflich löschen</p>
+                        </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                        >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Löschen
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Montage löschen?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Möchten Sie diese Neurad-Montage wirklich unwiderruflich löschen?
+                            Alle Fortschritte und Daten gehen verloren.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={onDelete}
+                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                        >
+                            Löschen
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

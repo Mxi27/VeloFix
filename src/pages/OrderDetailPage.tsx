@@ -1203,7 +1203,7 @@ export default function OrderDetailPage() {
                     </div>
 
                     {/* Danger Zone - Subtle at bottom */}
-                    {userRole === 'admin' && (
+                    {(userRole === 'admin' || userRole === 'owner') && (
                         <div className="mt-12 pt-8 border-t border-dashed border-muted-foreground/20">
                             <div className="flex items-center justify-between">
                                 <div className="space-y-1">
