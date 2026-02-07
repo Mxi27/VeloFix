@@ -11,16 +11,14 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, Eye, Wrench, UserPlus, Users, X, Check, Plus } from "lucide-react"
+import { Search, Filter, Eye, Wrench, UserPlus, Users, X, Check } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { OrdersTableSkeleton } from "@/components/skeletons/OrdersTableSkeleton"
-import { StartAssemblyDialog } from "@/components/StartAssemblyDialog"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -36,6 +34,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+
 
 interface BikeBuild {
     id: string
@@ -58,8 +57,8 @@ export function BikeAssemblyTable() {
     const navigate = useNavigate()
     const [searchTerm, setSearchTerm] = useState("")
     const [filterEmployee, setFilterEmployee] = useState<string>("all")
+    const [filterStatus, setFilterStatus] = useState<string>("all")
     const [columns, setColumns] = useState<any[]>([])
-    const [startDialogOpen, setStartDialogOpen] = useState(false)
 
     // Fetch dynamic columns config
     const { data: configData } = useSWR(
@@ -158,8 +157,15 @@ export function BikeAssemblyTable() {
                     ? build.assigned_employee_id === null
                     : build.assigned_employee_id === filterEmployee
 
-        return matchesSearch && matchesEmployee
+        const matchesStatus =
+            filterStatus === 'all'
+                ? true
+                : build.status === filterStatus
+
+        return matchesSearch && matchesEmployee && matchesStatus
     })
+
+
 
     const handleViewBuild = (buildId: string) => {
         navigate(`/dashboard/bike-builds/${buildId}`, { state: { from: '/dashboard/bike-builds' } })
@@ -175,12 +181,12 @@ export function BikeAssemblyTable() {
     // To keep it simple, I'll focus on the table first. Mobile view might need a specific BikeBuildCard.
 
     const renderTable = (buildsToRender: BikeBuild[]) => (
-        <div className="hidden md:block rounded-xl border border-glass-border bg-glass-bg overflow-x-auto backdrop-blur-md">
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
             <Table>
                 <TableHeader>
-                    <TableRow className="hover:bg-transparent bg-muted/40">
+                    <TableRow className="hover:bg-transparent bg-muted/30 border-b">
                         {columns.filter(c => c.visible).map((col: any) => (
-                            <TableHead key={col.key} className="font-semibold text-xs uppercase tracking-wider text-muted-foreground py-3 px-4">
+                            <TableHead key={col.key} className="font-medium text-[11px] uppercase tracking-wider text-muted-foreground h-11 px-4 first:pl-5 last:pr-5">
                                 {col.label}
                             </TableHead>
                         ))}
@@ -189,10 +195,15 @@ export function BikeAssemblyTable() {
                 <TableBody>
                     {buildsToRender.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={columns.filter(c => c.visible).length} className="h-32 text-center text-muted-foreground">
-                                <div className="flex flex-col items-center justify-center gap-2">
-                                    <Wrench className="h-8 w-8 opacity-20" />
-                                    <p>Keine Aufbauten gefunden</p>
+                            <TableCell colSpan={columns.filter(c => c.visible).length} className="h-40 text-center">
+                                <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                                    <div className="p-4 rounded-full bg-muted/50">
+                                        <Wrench className="h-8 w-8 opacity-40" />
+                                    </div>
+                                    <div>
+                                        <p className="font-medium">Keine Neuräder gefunden</p>
+                                        <p className="text-sm opacity-70">Erstelle einen neuen Aufbau um zu starten</p>
+                                    </div>
                                 </div>
                             </TableCell>
                         </TableRow>
@@ -200,7 +211,7 @@ export function BikeAssemblyTable() {
                         buildsToRender.map((build) => (
                             <TableRow
                                 key={build.id}
-                                className="hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
+                                className="group cursor-pointer transition-colors hover:bg-muted/40 border-b last:border-0"
                                 onClick={() => handleViewBuild(build.id)}
                             >
                                 {columns.filter(c => c.visible).map((col: any) => {
@@ -333,69 +344,56 @@ export function BikeAssemblyTable() {
     }
 
     return (
-        <Card >
-            <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="space-y-1 text-center sm:text-left">
-                        <CardTitle className="text-xl font-bold tracking-tight">
-                            Neurad Aufbau Übersicht
-                        </CardTitle>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-40 sm:w-56">
-                            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-                                <SelectTrigger className="h-9">
-                                    <SelectValue placeholder="Mitarbeiter" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Alle Mitarbeiter</SelectItem>
-                                    <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                                    {employees.map(emp => (
-                                        <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={fetchBuilds}
-                            disabled={loading}
-                            className="shrink-0 bg-background/50 hover:bg-muted/50 backdrop-blur-sm"
-                        >
-                            {loading ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" /> : <Filter className="mr-2 h-4 w-4" />}
-                            {loading ? "Lädt..." : "Aktualisieren"}
-                        </Button>
-                        <Button
-                            className="shrink-0"
-                            onClick={() => setStartDialogOpen(true)}
-                        >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Neuen Aufbau starten
-                        </Button>
-                        <StartAssemblyDialog
-                            open={startDialogOpen}
-                            onOpenChange={setStartDialogOpen}
-                            onSuccess={() => mutate()}
-                        />
-                    </div>
+        <div className="space-y-4">
+            {/* Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="flex items-center gap-2 flex-1 relative">
+                    <Search className="h-4 w-4 absolute left-3 text-muted-foreground pointer-events-none" />
+                    <Input
+                        placeholder="Suche nach Modell, Int. Nr..."
+                        className="pl-9 h-10 bg-background"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
                 </div>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-6">
-                    <div className="flex items-center gap-2 max-w-sm relative">
-                        <Search className="h-4 w-4 absolute left-3 text-muted-foreground" />
-                        <Input
-                            placeholder="Suche nach Modell, Int. Nr..."
-                            className="pl-9 bg-background"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                <div className="flex items-center gap-2">
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="h-10 w-[130px] bg-background">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Alle Status</SelectItem>
+                            <SelectItem value="offen">Offen</SelectItem>
+                            <SelectItem value="active">Aktiv</SelectItem>
+                            <SelectItem value="fertig">Fertig</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                        <SelectTrigger className="h-10 w-[150px] bg-background">
+                            <SelectValue placeholder="Mitarbeiter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Alle</SelectItem>
+                            <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
+                            {employees.map(emp => (
+                                <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => mutate()}
+                        disabled={loading}
+                        className="h-10 w-10 bg-background"
+                    >
+                        {loading ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" /> : <Filter className="h-4 w-4" />}
+                    </Button>
+                </div>
+            </div>
 
-                    {renderTable(filteredBuilds)}
-                </div>
-            </CardContent>
-        </Card>
+            {/* Table */}
+            {renderTable(filteredBuilds)}
+        </div>
     )
 }

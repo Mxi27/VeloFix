@@ -4,6 +4,7 @@ import { OrdersTable } from "@/components/OrdersTable"
 import { PageTransition } from "@/components/PageTransition"
 import { useAuth } from "@/contexts/AuthContext"
 import { useState } from "react"
+import { Sparkles } from "lucide-react"
 
 export default function DashboardPage() {
     const { user } = useAuth()
@@ -31,14 +32,23 @@ export default function DashboardPage() {
     return (
         <PageTransition>
             <DashboardLayout onOrderCreated={handleOrderCreated}>
-                {/* Header */}
-                <div className="mb-6">
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        {getGreeting()}, {firstName}
-                    </h1>
-                    <p className="text-muted-foreground text-sm mt-0.5">
-                        {today}
-                    </p>
+                {/* Premium Header */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-primary/3 border border-primary/10 p-6 mb-6">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+
+                    <div className="relative flex items-center gap-4">
+                        <div className="hidden sm:flex p-3 rounded-xl bg-primary/10 border border-primary/20">
+                            <Sparkles className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight">
+                                {getGreeting()}, <span className="text-gradient">{firstName}</span>
+                            </h1>
+                            <p className="text-muted-foreground text-sm mt-0.5">
+                                {today} — Alles bereit für einen produktiven Tag
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Stats */}
@@ -46,7 +56,7 @@ export default function DashboardPage() {
 
                 {/* Orders */}
                 <div className="mt-8">
-                    <h2 className="text-lg font-medium mb-4">Aktuelle Aufträge</h2>
+                    <h2 className="text-lg font-semibold mb-4">Aktuelle Aufträge</h2>
                     <OrdersTable key={refreshKey} />
                 </div>
             </DashboardLayout>

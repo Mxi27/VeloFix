@@ -200,18 +200,31 @@
     background-clip: text;
   }
 
-  /* Card Hover - Subtle */
+  /* Card Hover - Premium */
   .card-hover {
-    transition: all 0.2s ease-out;
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
   }
 
   .card-hover:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.12);
   }
 
   .dark .card-hover:hover {
-    box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Interactive Scale */
+  .interactive {
+    transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+  }
+
+  .interactive:hover {
+    transform: scale(1.02);
+  }
+
+  .interactive:active {
+    transform: scale(0.98);
   }
 
   /* Subtle Background */
@@ -220,6 +233,26 @@
         oklch(0.50 0.14 250 / 0.03) 0%,
         oklch(0.55 0.12 280 / 0.05) 50%,
         oklch(0.55 0.14 145 / 0.03) 100%);
+  }
+
+  /* Animated Shimmer */
+  .shimmer {
+    background: linear-gradient(90deg,
+        transparent 0%,
+        oklch(1 0 0 / 0.05) 50%,
+        transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
   }
 }
 

@@ -89,22 +89,28 @@ export function StatsCards() {
             title: "Offene Aufträge",
             value: stats.openOrders,
             icon: Wrench,
-            color: "text-amber-600",
-            bgColor: "bg-amber-50 dark:bg-amber-950/30",
+            color: "text-amber-600 dark:text-amber-400",
+            bgColor: "bg-amber-100 dark:bg-amber-950/50",
+            gradient: "bg-gradient-to-br from-amber-500/5 to-orange-500/10",
+            borderColor: "border-amber-200/50 dark:border-amber-800/30",
         },
         {
             title: "Heute fertig",
             value: stats.completedToday,
             icon: CheckCircle,
-            color: "text-emerald-600",
-            bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
+            color: "text-emerald-600 dark:text-emerald-400",
+            bgColor: "bg-emerald-100 dark:bg-emerald-950/50",
+            gradient: "bg-gradient-to-br from-emerald-500/5 to-green-500/10",
+            borderColor: "border-emerald-200/50 dark:border-emerald-800/30",
         },
         {
             title: "Leasing offen",
             value: stats.leasingPending,
             icon: Receipt,
-            color: "text-blue-600",
-            bgColor: "bg-blue-50 dark:bg-blue-950/30",
+            color: "text-blue-600 dark:text-blue-400",
+            bgColor: "bg-blue-100 dark:bg-blue-950/50",
+            gradient: "bg-gradient-to-br from-blue-500/5 to-cyan-500/10",
+            borderColor: "border-blue-200/50 dark:border-blue-800/30",
         },
     ]
 
@@ -115,24 +121,29 @@ export function StatsCards() {
                 return (
                     <Card
                         key={card.title}
-                        className="border-0 shadow-sm hover:shadow-md transition-shadow duration-200"
+                        className={cn(
+                            "group relative overflow-hidden border transition-all duration-300",
+                            "hover:shadow-lg hover:-translate-y-0.5",
+                            card.borderColor
+                        )}
                     >
-                        <CardContent className="py-4 px-5">
+                        <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity", card.gradient)} />
+                        <CardContent className="relative py-5 px-5">
                             <div className="flex items-center justify-between">
                                 <div className="space-y-1">
-                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                                         {card.title}
                                     </p>
-                                    <p className="text-2xl font-semibold tracking-tight">
+                                    <p className="text-3xl font-bold tracking-tight tabular-nums">
                                         {card.value}
                                     </p>
                                 </div>
 
                                 <div className={cn(
-                                    "flex items-center justify-center h-9 w-9 rounded-lg",
+                                    "flex items-center justify-center h-11 w-11 rounded-xl transition-transform group-hover:scale-110",
                                     card.bgColor
                                 )}>
-                                    <Icon className={cn("h-4 w-4", card.color)} />
+                                    <Icon className={cn("h-5 w-5", card.color)} />
                                 </div>
                             </div>
                         </CardContent>

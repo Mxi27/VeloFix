@@ -382,19 +382,23 @@ export default function SettingsPage() {
     return (
         <PageTransition>
             <DashboardLayout>
-                <div className="flex flex-col gap-2 mb-8">
-                    <h1 className="text-3xl font-bold tracking-tight">Einstellungen</h1>
-                    <p className="text-muted-foreground">
-                        {(userRole === 'admin' || userRole === 'owner')
-                            ? 'Verwalten Sie Ihr Profil, Werkstatt-Details und Mitarbeiter'
-                            : 'Verwalten Sie Ihr Benutzerprofil und Präferenzen'}
-                    </p>
+                {/* Premium Header */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-purple-500/5 border border-primary/10 p-6 mb-8">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+                    <div className="relative">
+                        <h1 className="text-2xl font-bold tracking-tight">Einstellungen</h1>
+                        <p className="text-muted-foreground text-sm mt-1">
+                            {(userRole === 'admin' || userRole === 'owner')
+                                ? 'Profil, Werkstatt und Mitarbeiter verwalten'
+                                : 'Profil und Präferenzen anpassen'}
+                        </p>
+                    </div>
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-8">
-                    {/* Sidebar Navigation */}
+                    {/* Premium Sidebar Navigation */}
                     <div className="lg:w-64 shrink-0">
-                        <nav className="space-y-1 sticky top-4">
+                        <nav className="space-y-1 sticky top-4 p-2 rounded-xl bg-muted/30 border">
                             {filteredNavItems.map((item) => {
                                 const Icon = item.icon
                                 const isActive = activeSection === item.id
@@ -404,16 +408,21 @@ export default function SettingsPage() {
                                         key={item.id}
                                         onClick={() => setActiveSection(item.id)}
                                         className={cn(
-                                            "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all",
+                                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200",
                                             isActive
-                                                ? "bg-primary text-primary-foreground shadow-md"
-                                                : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                                                ? "bg-background shadow-sm border text-foreground"
+                                                : "hover:bg-background/50 text-muted-foreground hover:text-foreground"
                                         )}
                                     >
-                                        <Icon className="h-5 w-5 shrink-0" />
-                                        <span className="font-medium">{item.label}</span>
+                                        <div className={cn(
+                                            "p-1.5 rounded-md transition-colors",
+                                            isActive ? "bg-primary/10 text-primary" : "bg-muted"
+                                        )}>
+                                            <Icon className="h-4 w-4" />
+                                        </div>
+                                        <span className="font-medium text-sm">{item.label}</span>
                                         {isActive && (
-                                            <ChevronRight className="h-4 w-4 ml-auto" />
+                                            <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
                                         )}
                                     </button>
                                 )
