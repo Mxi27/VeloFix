@@ -37,7 +37,7 @@ interface CreateOrderModalProps {
 export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated }: CreateOrderModalProps) {
     const { user, workshopId } = useAuth()
 
-    const { activeEmployee, isKioskMode } = useEmployee()
+    const { activeEmployee, isKioskMode, employees } = useEmployee()
     const [kioskSelectedEmployeeId, setKioskSelectedEmployeeId] = useState<string | null>(null)
 
     // Kiosk State
@@ -87,6 +87,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const [internalNote, setInternalNote] = useState("")
     const [leasingDetails, setLeasingDetails] = useState<any>(null)
     const [leasingPortalEmail, setLeasingPortalEmail] = useState("")
+    const [assignedMechanicId, setAssignedMechanicId] = useState<string>("")
 
     // Intake Requests State
     const [intakeRequests, setIntakeRequests] = useState<any[]>([])
@@ -157,6 +158,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setLeasingPortalEmail("")
             setSelectedTemplateId(null)
             setKioskSelectedEmployeeId(null)
+            setAssignedMechanicId("")
             setShowIntakeSelection(false)
         }
         onOpenChange?.(newOpen)
@@ -212,7 +214,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             })
 
         setShowIntakeSelection(false)
-        setStep(3) // Jump to Date Step (skip type selection as we set it, skip leasing if set?) 
+        setStep(3) // Jump to Date Step (skip type selection as we set it, skip leasing if set?)
 
         // Logic fix: If leasing, we might want to review leasing step (Step 2)
         // If standard, we go to Step 3.
@@ -370,7 +372,9 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     inspection_code: orderType === 'leasing' && leasingDetails ? leasingDetails.inspection_code : null,
                     pickup_code: orderType === 'leasing' && leasingDetails ? leasingDetails.pickup_code : null,
                     notes: [], // Legacy field, kept empty for now
-                    history: initialHistory // Add history immediately
+                    history: initialHistory, // Add history immediately
+                    mechanic_id: assignedMechanicId && assignedMechanicId !== 'none' ? assignedMechanicId : null,
+                    qc_mechanic_id: null // Explicitly null for now
                 })
 
             if (error) throw error
@@ -427,7 +431,12 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         <>
             <Dialog open={open} onOpenChange={handleOpenChange}>
                 {children && <DialogTrigger asChild>{children}</DialogTrigger>}
-                <DialogContent className="sm:max-w-[650px] p-0 overflow-hidden bg-card text-card-foreground border-border gap-0">
+                <DialogContent
+                    className="sm:max-w-[650px] p-0 overflow-hidden bg-card text-card-foreground border-border gap-0"
+                    onInteractOutside={(e) => {
+                        e.preventDefault()
+                    }}
+                >
                     <div className="p-6 pb-4 border-b border-border/50">
                         <DialogHeader>
                             <DialogTitle className="text-xl font-semibold">{getStepTitle()}</DialogTitle>
@@ -673,6 +682,28 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                                 </SelectContent>
                                             </Select>
                                         </div>
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="mechanic">Mechaniker zuweisen (Optional)</Label>
+                                        <Select value={assignedMechanicId} onValueChange={setAssignedMechanicId}>
+                                            <SelectTrigger className="bg-muted/50">
+                                                <SelectValue placeholder="Mitarbeiter auswählen" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="none">Keine Zuweisung</SelectItem>
+                                                {/* Filter out current user if needed, or show all */}
+                                                {(activeEmployee && employees ? employees : []).map(emp => (
+                                                    <SelectItem key={emp.id} value={emp.id}>
+                                                        {emp.name}
+                                                    </SelectItem>
+                                                ))}
+                                                {/* Fallback if employees context is empty or loading, though unlikely here due to useEmployee */}
+                                                {(!employees || employees.length === 0) && (
+                                                    <SelectItem value="loading" disabled>Laden...</SelectItem>
+                                                )}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     {/* Price moved to Summary step */}

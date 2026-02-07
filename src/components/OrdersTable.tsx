@@ -56,7 +56,7 @@ interface Order {
     status: string
     created_at: string
     estimated_price: number | null
-    assigned_employee_id: string | null
+    mechanic_id: string | null
 }
 
 
@@ -110,13 +110,13 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
     const handleAssignEmployee = async (orderId: string, employeeId: string | null) => {
         // Optimistic update
-        const updatedOrders = orders.map(o => o.id === orderId ? { ...o, assigned_employee_id: employeeId } : o)
+        const updatedOrders = orders.map(o => o.id === orderId ? { ...o, mechanic_id: employeeId } : o)
         mutate(updatedOrders, false)
 
         try {
             const { error } = await supabase
                 .from('orders')
-                .update({ assigned_employee_id: employeeId })
+                .update({ mechanic_id: employeeId })
                 .eq('id', orderId)
 
             if (error) throw error
@@ -185,8 +185,8 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
             filterEmployee === 'all'
                 ? true
                 : filterEmployee === 'unassigned'
-                    ? order.assigned_employee_id === null
-                    : order.assigned_employee_id === filterEmployee
+                    ? order.mechanic_id === null
+                    : order.mechanic_id === filterEmployee
 
         return matchesSearch && matchesStatus && matchesEmployee
     })
@@ -250,9 +250,9 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     {order.bike_model || '—'}
                                 </TableCell>
                                 <TableCell className="hidden sm:table-cell py-4" onClick={(e) => e.stopPropagation()}>
-                                    {order.assigned_employee_id ? (
+                                    {order.mechanic_id ? (
                                         <Badge variant="outline" className="bg-background">
-                                            {getEmployeeName(order.assigned_employee_id)}
+                                            {getEmployeeName(order.mechanic_id)}
                                         </Badge>
                                     ) : (
                                         <span className="text-xs text-muted-foreground italic">—</span>
@@ -302,7 +302,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                     >
                                                         <Users className="mr-2 h-4 w-4 text-muted-foreground" />
                                                         <span>{emp.name}</span>
-                                                        {order.assigned_employee_id === emp.id && <Check className="ml-auto h-4 w-4" />}
+                                                        {order.mechanic_id === emp.id && <Check className="ml-auto h-4 w-4" />}
                                                     </DropdownMenuItem>
                                                 ))}
                                             </DropdownMenuContent>

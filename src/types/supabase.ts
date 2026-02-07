@@ -292,5 +292,74 @@ export interface Database {
                 }
             }
         }
+        bike_builds: {
+            Row: {
+                id: string
+                workshop_id: string
+                created_at: string
+                updated_at: string | null
+                status: string
+                brand: string
+                model: string
+                color: string
+                frame_size: string
+                internal_number: string
+                battery_serial: string | null
+                notes: string | null
+                customer_name: string | null
+                customer_email: string | null
+                mechanic_name: string | null
+                assigned_employee_id: string | null
+                qc_mechanic_id: string | null
+                assembly_progress: Json | null
+                checklist_template: string | null
+                control_data: Json | null
+            }
+            Insert: {
+                id?: string
+                workshop_id: string
+                created_at?: string
+                updated_at?: string | null
+                status?: string
+                brand: string
+                model: string
+                color: string
+                frame_size: string
+                internal_number: string
+                battery_serial?: string | null
+                notes?: string | null
+                customer_name?: string | null
+                customer_email?: string | null
+                mechanic_name?: string | null
+                assigned_employee_id?: string | null
+                qc_mechanic_id?: string | null
+                assembly_progress?: Json | null
+                checklist_template?: string | null
+                control_data?: Json | null
+            }
+            Update: {
+                id?: string
+                workshop_id?: string
+                created_at?: string
+                updated_at?: string | null
+                status?: string
+                brand?: string
+                model?: string
+                color?: string
+                frame_size?: string
+                internal_number?: string
+                battery_serial?: string | null
+                notes?: string | null
+                customer_name?: string | null
+                customer_email?: string | null
+                mechanic_name?: string | null
+                assigned_employee_id?: string | null
+                qc_mechanic_id?: string | null
+                assembly_progress?: Json | null
+                checklist_template?: string | null
+                control_data?: Json | null
+            }
+        }
     }
 }
+

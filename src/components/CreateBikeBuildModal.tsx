@@ -10,12 +10,16 @@ import { Loader2, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { mutate } from "swr"
 
+import { useEmployee } from "@/contexts/EmployeeContext"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 interface CreateBikeBuildModalProps {
     children?: React.ReactNode
 }
 
 export function CreateBikeBuildModal({ children }: CreateBikeBuildModalProps) {
     const { workshopId, user } = useAuth()
+    const { employees } = useEmployee()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
 
@@ -27,6 +31,7 @@ export function CreateBikeBuildModal({ children }: CreateBikeBuildModalProps) {
         internal_number: "",
         battery_serial: "",
         notes: "",
+        mechanicId: "",
     })
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -44,7 +49,8 @@ export function CreateBikeBuildModal({ children }: CreateBikeBuildModalProps) {
                 internal_number: formData.internal_number,
                 battery_serial: formData.battery_serial || null,
                 notes: formData.notes || null,
-                mechanic_name: user?.user_metadata?.full_name || "Unbekannt"
+                mechanic_name: user?.user_metadata?.full_name || "Unbekannt", // Legacy fallback
+                assigned_employee_id: formData.mechanicId && formData.mechanicId !== 'none' ? formData.mechanicId : null
             })
 
             if (error) throw error
@@ -59,6 +65,7 @@ export function CreateBikeBuildModal({ children }: CreateBikeBuildModalProps) {
                 internal_number: "",
                 battery_serial: "",
                 notes: "",
+                mechanicId: "",
             })
             // Trigger refresh of the table
             mutate(['bike_builds', workshopId])
@@ -167,6 +174,26 @@ export function CreateBikeBuildModal({ children }: CreateBikeBuildModalProps) {
                             placeholder="Optionale Anmerkungen..."
                             className="bg-muted/50 resize-none h-20"
                         />
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="mechanic">Mechaniker (Aufbau)</Label>
+                        <Select
+                            value={formData.mechanicId}
+                            onValueChange={(val) => setFormData({ ...formData, mechanicId: val })}
+                        >
+                            <SelectTrigger className="bg-muted/50">
+                                <SelectValue placeholder="Mitarbeiter auswählen" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">Keine Zuweisung</SelectItem>
+                                {employees.map((emp) => (
+                                    <SelectItem key={emp.id} value={emp.id}>
+                                        {emp.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
 
                     <div className="flex justify-end pt-4">

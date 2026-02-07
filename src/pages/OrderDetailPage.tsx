@@ -10,6 +10,7 @@ import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -116,6 +117,8 @@ interface Order {
         rating?: number
         feedback?: string
     } | null
+    mechanic_id: string | null
+    qc_mechanic_id: string | null
 }
 
 const BIKE_TYPE_LABELS: Record<string, string> = {
@@ -147,6 +150,50 @@ export default function OrderDetailPage() {
     // Leasing dialog state
     const [isLeasingDialogOpen, setIsLeasingDialogOpen] = useState(false)
     const [leasingCodeInput, setLeasingCodeInput] = useState("")
+
+    // Assignment State
+    const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
+    const [assignmentType, setAssignmentType] = useState<'mechanic' | 'qc'>('mechanic')
+
+    const getEmployeeName = (id: string) => {
+        if (!employees) return "Lade..."
+        return employees.find(e => e.id === id)?.name || "Unbekannt"
+    }
+
+    const handleAssignment = async (employeeId: string) => {
+        if (!order) return
+
+        const updateData = assignmentType === 'mechanic'
+            ? { mechanic_id: employeeId }
+            : { qc_mechanic_id: employeeId }
+
+        console.log("Assigning:", updateData) // DEBUG
+
+        const { error } = await supabase
+            .from('orders')
+            .update(updateData)
+            .eq('id', order.id)
+
+        if (error) {
+            console.error(error)
+            toastError("Fehler", "Zuweisung konnte nicht gespeichert werden.")
+        } else {
+            // Update local state
+            setOrder(prev => prev ? ({ ...prev, ...updateData }) : null)
+            setIsAssignmentModalOpen(false)
+            toastSuccess("Zuweisung aktualisiert", `Mitarbeiter wurde erfolgreich zugewiesen.`)
+
+            // Log Event
+            const empName = getEmployeeName(employeeId)
+            const fieldName = assignmentType === 'mechanic' ? 'Mechaniker' : 'Qualitätskontrolle'
+            logOrderEvent(order.id, {
+                type: 'info',
+                title: 'Zuweisung geändert',
+                description: `${fieldName} wurde ${empName} zugewiesen.`,
+                actor: user ? { id: user.id, name: user.email || 'User' } : undefined
+            }, user).catch(console.error)
+        }
+    }
 
     // Kiosk Interception
     const { isKioskMode, employees } = useEmployee()
@@ -1141,6 +1188,69 @@ export default function OrderDetailPage() {
                                 </CardContent>
                             </Card>
 
+                            {/* Assignments Card */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-base font-medium flex items-center gap-2">
+                                        <User className="h-4 w-4 text-primary" />
+                                        Zuständigkeiten
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {/* Mechanic */}
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <p className="text-sm font-medium text-muted-foreground">Mechaniker</p>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 text-xs text-primary hover:text-primary/80 px-2"
+                                                disabled={isReadOnly}
+                                                onClick={() => {
+                                                    setAssignmentType('mechanic')
+                                                    setIsAssignmentModalOpen(true)
+                                                }}
+                                            >
+                                                {order.mechanic_id ? 'Ändern' : 'Zuweisen'}
+                                            </Button>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Wrench className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-sm font-medium">
+                                                {order.mechanic_id ? getEmployeeName(order.mechanic_id) : <span className="text-muted-foreground italic">Nicht zugewiesen</span>}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <Separator />
+
+                                    {/* QC */}
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <p className="text-sm font-medium text-muted-foreground">Qualitätskontrolle</p>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 text-xs text-primary hover:text-primary/80 px-2"
+                                                disabled={isReadOnly}
+                                                onClick={() => {
+                                                    setAssignmentType('qc')
+                                                    setIsAssignmentModalOpen(true)
+                                                }}
+                                            >
+                                                {order.qc_mechanic_id ? 'Ändern' : 'Zuweisen'}
+                                            </Button>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                                            <span className="text-sm font-medium">
+                                                {order.qc_mechanic_id ? getEmployeeName(order.qc_mechanic_id) : <span className="text-muted-foreground italic">Ausstehend</span>}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+
                             {/* Status Change */}
                             <Card>
                                 <CardHeader>
@@ -1440,6 +1550,14 @@ export default function OrderDetailPage() {
                                             'Speichern'
                 }
                 onEmployeeSelected={handleEmployeeSelected}
+            />
+
+            {/* General Assignment Modal */}
+            <EmployeeSelectionModal
+                open={isAssignmentModalOpen}
+                onOpenChange={setIsAssignmentModalOpen}
+                triggerAction={assignmentType === 'mechanic' ? "Mechaniker zuweisen" : "QC Mitarbeiter zuweisen"}
+                onEmployeeSelected={handleAssignment}
             />
 
             <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>

@@ -6,6 +6,10 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, Wrench, User, Bike, FileText, ShieldCheck, Trash2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useEmployee } from "@/contexts/EmployeeContext"
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
+import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -22,12 +26,48 @@ interface BikeBuildOverviewProps {
     onStartWorkshop: () => void
     onStartControl: () => void
     onDelete: () => void
+    onUpdate?: () => void
 }
 
-export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDelete }: BikeBuildOverviewProps) {
+export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDelete, onUpdate }: BikeBuildOverviewProps) {
     const navigate = useNavigate()
     const { userRole } = useAuth()
+    const { employees } = useEmployee()
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+    // Assignment Logic
+    const [showSelectionModal, setShowSelectionModal] = useState(false)
+    const [assignmentType, setAssignmentType] = useState<'mechanic' | 'qc'>('mechanic')
+
+    const getEmployeeName = (id: string) => {
+        if (!employees) return "Lade..."
+        return employees.find(e => e.id === id)?.name || "Unbekannt"
+    }
+
+    const openSelectionModal = (type: 'mechanic' | 'qc') => {
+        setAssignmentType(type)
+        setShowSelectionModal(true)
+    }
+
+    const handleAssignment = async (employeeId: string) => {
+        const updateData = assignmentType === 'mechanic'
+            ? { assigned_employee_id: employeeId }
+            : { qc_mechanic_id: employeeId }
+
+        const { error } = await supabase
+            .from('bike_builds')
+            .update(updateData)
+            .eq('id', build.id)
+
+        if (error) {
+            console.error(error)
+            toast.error("Fehler bei der Zuweisung")
+        } else {
+            toast.success("Zuweisung aktualisiert")
+            setShowSelectionModal(false)
+            if (onUpdate) onUpdate()
+        }
+    }
 
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
@@ -158,7 +198,7 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
                                 <div className="flex-1 bg-secondary/50 rounded-full h-2">
                                     <div
                                         className="bg-primary h-2 rounded-full"
-                                        style={{ width: `${build.assembly_progress?.completed_steps?.length > 0 ? '50%' : '0%'}` }} // Rough estimate or pass steps count
+                                        style={{ width: `${build.assembly_progress?.completed_steps?.length > 0 ? '50%' : '0%'}` }}
                                     ></div>
                                 </div>
                                 <span className="text-xs text-muted-foreground">
@@ -166,15 +206,60 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
                                 </span>
                             </div>
                         </div>
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Mechaniker</p>
-                            <p className="text-base">
-                                {build.assigned_employee_id ? 'Zugewiesen' : 'Nicht zugewiesen'}
-                            </p>
+
+                        <Separator />
+
+                        <div className="space-y-3">
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <p className="text-sm font-medium text-muted-foreground">Mechaniker (Aufbau)</p>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 text-xs text-primary hover:text-primary/80 px-2"
+                                        onClick={() => openSelectionModal('mechanic')}
+                                    >
+                                        {build.assigned_employee_id ? 'Ändern' : 'Zuweisen'}
+                                    </Button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <User className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm font-medium">
+                                        {build.assigned_employee_id ? getEmployeeName(build.assigned_employee_id) : <span className="text-muted-foreground italic">Nicht zugewiesen</span>}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <p className="text-sm font-medium text-muted-foreground">Qualitätskontrolle</p>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 text-xs text-primary hover:text-primary/80 px-2"
+                                        onClick={() => openSelectionModal('qc')}
+                                    >
+                                        {build.qc_mechanic_id ? 'Ändern' : 'Zuweisen'}
+                                    </Button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm font-medium">
+                                        {build.qc_mechanic_id ? getEmployeeName(build.qc_mechanic_id) : <span className="text-muted-foreground italic">Ausstehend</span>}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
             </div>
+
+            <EmployeeSelectionModal
+                open={showSelectionModal}
+                onOpenChange={setShowSelectionModal}
+                triggerAction={assignmentType === 'mechanic' ? "Mechaniker zuweisen" : "QC Mitarbeiter zuweisen"}
+                onEmployeeSelected={handleAssignment}
+            />
 
             {/* Danger Zone */}
             {(userRole === 'admin' || userRole === 'owner') && (

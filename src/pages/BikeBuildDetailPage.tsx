@@ -111,6 +111,7 @@ export default function BikeBuildDetailPage() {
                         onStartWorkshop={() => setViewMode('workshop')}
                         onStartControl={() => setViewMode('control')}
                         onDelete={handleDelete}
+                        onUpdate={refreshBuild}
                     />
                 )}
             </DashboardLayout>

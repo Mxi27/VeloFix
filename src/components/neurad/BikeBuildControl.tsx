@@ -104,6 +104,7 @@ export function BikeBuildControl({ build, onBack, onComplete }: ComponentProps) 
             await supabase
                 .from('bike_builds')
                 .update({
+                    qc_mechanic_id: activeEmployee?.id || null,
                     control_data: {
                         ...newData,
                         last_updated: new Date().toISOString(),

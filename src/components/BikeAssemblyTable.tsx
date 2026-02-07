@@ -81,7 +81,13 @@ export function BikeAssemblyTable() {
         workshopId ? ['neurad_cols_init', workshopId, configData] : null,
         () => {
             if (configData && Array.isArray(configData)) {
-                setColumns(configData)
+                let loadedCols = [...configData]
+                // Ensure new columns exist if missing from saved config
+                if (!loadedCols.find((c: any) => c.key === 'assigned_employee_id')) {
+                    // Insert before status or at end
+                    loadedCols.splice(3, 0, { key: "assigned_employee_id", label: "Mechaniker", visible: true })
+                }
+                setColumns(loadedCols)
             } else {
                 // Fallback defaults adapted for BikeBuilds
                 setColumns([
