@@ -119,6 +119,7 @@ interface Order {
     } | null
     mechanic_id: string | null
     qc_mechanic_id: string | null
+    due_date: string | null
 }
 
 const BIKE_TYPE_LABELS: Record<string, string> = {
@@ -127,6 +128,16 @@ const BIKE_TYPE_LABELS: Record<string, string> = {
     city: 'Citybike',
     ebike: 'E-Bike'
 }
+
+import { Calendar } from "@/components/ui/calendar"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
+import { de } from "date-fns/locale"
 
 export default function OrderDetailPage() {
     const { orderId } = useParams<{ orderId: string }>()
@@ -336,6 +347,36 @@ export default function OrderDetailPage() {
             supabase.removeChannel(channel)
         }
     }, [workshopId, orderId])
+
+    const handleSaveDueDate = async (date: Date | undefined) => {
+        if (!order) return
+
+        // Optimistic update
+        const oldDate = order.due_date
+        const newDateStr = date ? date.toISOString() : null
+
+        setOrder({ ...order, due_date: newDateStr })
+
+        const { error } = await supabase
+            .from('orders')
+            .update({ due_date: newDateStr })
+            .eq('id', order.id)
+
+        if (error) {
+            setOrder({ ...order, due_date: oldDate })
+            toastError("Fehler", "Datum konnte nicht gespeichert werden.")
+        } else {
+            const dateFormatted = date ? format(date, 'dd.MM.yyyy', { locale: de }) : 'Entfernt'
+            toastSuccess("Termin aktualisiert", `Fertigstellungstermin: ${dateFormatted}`)
+
+            logOrderEvent(order.id, {
+                type: 'info',
+                title: 'Fertigstellungstermin geändert',
+                description: date ? `Termin auf ${dateFormatted} gesetzt.` : 'Termin entfernt.',
+                actor: user ? { id: user.id, name: user.email || 'User' } : undefined
+            }, user).catch(console.error)
+        }
+    }
 
     // Handler for Kiosk selection
     const handleEmployeeSelected = (employeeId: string) => {
@@ -753,6 +794,33 @@ export default function OrderDetailPage() {
                                         year: 'numeric'
                                     })}
                                 </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className={cn(
+                                                    "h-7 gap-2 px-2 font-normal",
+                                                    !order.due_date && "text-muted-foreground border-dashed",
+                                                    order.due_date && new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' && "text-red-600 border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 hover:border-red-300"
+                                                )}
+                                            >
+                                                <CalendarIcon className="h-3.5 w-3.5" />
+                                                {order.due_date ? format(new Date(order.due_date), "PPP", { locale: de }) : "Fertigstellungstermin setzen"}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start">
+                                            <Calendar
+                                                mode="single"
+                                                selected={order.due_date ? new Date(order.due_date) : undefined}
+                                                onSelect={handleSaveDueDate}
+                                                initialFocus
+                                                locale={de}
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
+                                </div>
                             </div>
                         </div>
                         <div className="flex gap-2 self-start sm:self-center ml-12 sm:ml-0 items-center">

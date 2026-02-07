@@ -6,9 +6,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { CheckCircle2, AlertCircle, Wrench, CreditCard, Bike, MountainSnow, Component } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Wrench, CreditCard, Bike, MountainSnow, Component, CalendarIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format } from "date-fns"
+import { de } from "date-fns/locale"
 
 export default function IntakePage() {
     const { workshopId } = useParams()
@@ -33,6 +37,7 @@ export default function IntakePage() {
         // Bike Data
         bike_model: '',
         bike_type: '' as 'road' | 'mtb' | 'city' | 'ebike' | '',
+        due_date: undefined as Date | undefined,
         // Leasing specific
         leasing_provider: '',
         contract_id: '',
@@ -106,6 +111,7 @@ export default function IntakePage() {
             service_package: portalType === 'leasing' ? (form.service_package || null) : null,
             inspection_code: portalType === 'leasing' ? (form.inspection_code || null) : null,
             pickup_code: portalType === 'leasing' ? (form.pickup_code || null) : null,
+            due_date: form.due_date ? form.due_date.toISOString() : null,
         }
 
         const { error: submitError } = await supabase
@@ -416,9 +422,45 @@ export default function IntakePage() {
                                     </div>
                                 )}
 
-                                {/* 4. Description */}
+                                {/* 4. Description & Timeline */}
                                 <div className="space-y-4">
-                                    <h3 className="font-semibold border-b pb-2">Auftrag</h3>
+                                    <h3 className="font-semibold border-b pb-2">Auftrag & Termin</h3>
+
+                                    <div className="space-y-2">
+                                        <Label>Wunschtermin / Fertig bis (optional)</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button
+                                                    variant={"outline"}
+                                                    className={cn(
+                                                        "w-full justify-start text-left font-normal",
+                                                        !form.due_date && "text-muted-foreground"
+                                                    )}
+                                                >
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {form.due_date ? (
+                                                        format(form.due_date, "PPP", { locale: de })
+                                                    ) : (
+                                                        <span>Datum wählen</span>
+                                                    )}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={form.due_date}
+                                                    onSelect={(date) => setForm({ ...form, due_date: date })}
+                                                    initialFocus
+                                                    locale={de}
+                                                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <p className="text-xs text-muted-foreground">
+                                            Wann benötigen Sie das Rad zurück? Wir versuchen diesen Termin einzuhalten.
+                                        </p>
+                                    </div>
+
                                     <div className="space-y-2">
                                         <Label htmlFor="description">Beschreibung / Reparaturwunsch *</Label>
                                         <Textarea

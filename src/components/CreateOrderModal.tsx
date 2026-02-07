@@ -19,13 +19,17 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Wrench, CreditCard, ChevronRight, ChevronLeft, Check, ClipboardList } from "lucide-react"
+import { Wrench, CreditCard, ChevronRight, ChevronLeft, Check, ClipboardList, CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { EmployeeSelector } from "@/components/EmployeeSelector"
 import { UserCheck } from "lucide-react"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format } from "date-fns"
+import { de } from "date-fns/locale"
 
 interface CreateOrderModalProps {
     children?: React.ReactNode
@@ -88,6 +92,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const [leasingDetails, setLeasingDetails] = useState<any>(null)
     const [leasingPortalEmail, setLeasingPortalEmail] = useState("")
     const [assignedMechanicId, setAssignedMechanicId] = useState<string>("")
+    const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
 
     // Intake Requests State
     const [intakeRequests, setIntakeRequests] = useState<any[]>([])
@@ -159,6 +164,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setSelectedTemplateId(null)
             setKioskSelectedEmployeeId(null)
             setAssignedMechanicId("")
+            setDueDate(undefined)
             setShowIntakeSelection(false)
         }
         onOpenChange?.(newOpen)
@@ -175,7 +181,13 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         setCustomerBikeType(request.bike_type || "")
 
         // Base notes from description
+        // Base notes from description
         setCustomerNote(request.description || "")
+
+        // Map Due Date if present
+        if (request.due_date) {
+            setDueDate(new Date(request.due_date))
+        }
 
         // Handle Leasing Specifics
         if (request.intake_type === 'leasing') {
@@ -374,7 +386,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     notes: [], // Legacy field, kept empty for now
                     history: initialHistory, // Add history immediately
                     mechanic_id: assignedMechanicId && assignedMechanicId !== 'none' ? assignedMechanicId : null,
-                    qc_mechanic_id: null // Explicitly null for now
+                    qc_mechanic_id: null, // Explicitly null for now
+                    due_date: dueDate ? dueDate.toISOString() : null
                 })
 
             if (error) throw error
@@ -750,6 +763,34 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         value={customerNote}
                                         onChange={e => setCustomerNote(e.target.value)}
                                     />
+                                </div>
+
+                                <div className="space-y-2 pt-2">
+                                    <Label>Wunschtermin / Fertig bis</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button
+                                                variant={"outline"}
+                                                className={cn(
+                                                    "w-full justify-start text-left font-normal",
+                                                    !dueDate && "text-muted-foreground"
+                                                )}
+                                            >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {dueDate ? format(dueDate, "PPP", { locale: de }) : <span>Datum wählen</span>}
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0">
+                                            <Calendar
+                                                mode="single"
+                                                selected={dueDate}
+                                                onSelect={setDueDate}
+                                                initialFocus
+                                                locale={de}
+                                                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                            />
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
 
                                 <div className="space-y-4 pt-2">

@@ -57,6 +57,7 @@ interface Order {
     created_at: string
     estimated_price: number | null
     mechanic_id: string | null
+    due_date: string | null
 }
 
 
@@ -213,15 +214,16 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                         <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Kunde</TableHead>
                         <TableHead className="hidden md:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fahrrad</TableHead>
                         <TableHead className="hidden sm:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Mitarbeiter</TableHead>
+                        <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fertig bis</TableHead>
                         <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                        <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Datum</TableHead>
+                        <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Erstellt</TableHead>
                         <TableHead className="text-right pr-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Aktion</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {ordersToRender.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                            <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
                                 <div className="flex flex-col items-center justify-center gap-2">
                                     <Search className="h-8 w-8 opacity-20" />
                                     <p>Keine Aufträge gefunden</p>
@@ -256,6 +258,15 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                         </Badge>
                                     ) : (
                                         <span className="text-xs text-muted-foreground italic">—</span>
+                                    )}
+                                </TableCell>
+                                <TableCell className="hidden lg:table-cell py-4 text-xs font-medium">
+                                    {order.due_date ? (
+                                        <span className={new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' ? "text-red-500 font-bold" : "text-foreground"}>
+                                            {new Date(order.due_date).toLocaleDateString('de-DE')}
+                                        </span>
+                                    ) : (
+                                        <span className="text-muted-foreground/50">—</span>
                                     )}
                                 </TableCell>
                                 <TableCell className="py-4">
