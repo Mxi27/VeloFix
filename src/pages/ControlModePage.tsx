@@ -59,8 +59,32 @@ export default function ControlModePage() {
     const [isFinished, setIsFinished] = useState(false)
     const [saveError, setSaveError] = useState<string | null>(null)
 
+    // Credited Mechanics State (for Feedback)
+    const [creditedMechanics, setCreditedMechanics] = useState<string[]>([])
+    const [isAddingMechanic, setIsAddingMechanic] = useState(false)
+
     // Dialog State
     const [showExitDialog, setShowExitDialog] = useState(false)
+    const [showSelfControlWarning, setShowSelfControlWarning] = useState(false)
+    const warningShownRef = useRef(false)
+
+    // Self-Control Safety Check
+    useEffect(() => {
+        if (!order || !activeEmployee || showEmployeeSelect || isReadOnly || warningShownRef.current) return
+
+        if (order.history && Array.isArray(order.history)) {
+            // Check if current employee appears in history as a worker
+            const hasWorkedOnOrder = order.history.some((h: any) =>
+                h.actor?.id === activeEmployee.id &&
+                (h.type === 'service_step' || h.type === 'checklist_update' || h.type === 'service')
+            )
+
+            if (hasWorkedOnOrder) {
+                setShowSelfControlWarning(true)
+                warningShownRef.current = true
+            }
+        }
+    }, [order, activeEmployee, showEmployeeSelect, isReadOnly])
 
     // Final Feedback State
     const [rating, setRating] = useState(0)
@@ -124,6 +148,21 @@ export default function ControlModePage() {
                 if (controlData.feedback) setFeedback(controlData.feedback)
                 if (controlData.completed) setIsFinished(true)
 
+                // Initialize credited mechanics from order or existing control data
+                let initialMechanics = controlData.mechanic_ids || data.mechanic_ids || []
+
+                // Auto-detect contributors from history if not already explicitly set in end_control
+                if (!controlData.mechanic_ids && data.history && Array.isArray(data.history)) {
+                    const historyContributors = data.history
+                        .filter((h: any) => h.actor && h.actor.id && (h.type === 'service_step' || h.type === 'checklist_update'))
+                        .map((h: any) => h.actor.id)
+
+                    // Merge and unique
+                    initialMechanics = Array.from(new Set([...initialMechanics, ...historyContributors]))
+                }
+
+                setCreditedMechanics(initialMechanics)
+
             } catch (err: any) {
                 console.error("Error loading order:", err)
                 toast.error("Fehler", "Auftrag konnte nicht geladen werden.")
@@ -154,7 +193,7 @@ export default function ControlModePage() {
             rating: rating,
             feedback: feedback,
             completed: isFinal,
-            mechanic_ids: order.mechanic_ids || [], // Snapshot mechanics
+            mechanic_ids: creditedMechanics, // Use the edited list
             last_updated: new Date().toISOString()
         }
 
@@ -318,14 +357,49 @@ export default function ControlModePage() {
                     </div>
                 </header>
 
-                <main className="flex-1 flex items-center justify-center p-4">
-                    <Card className="w-full max-w-md p-6 sm:p-8 space-y-6">
+                <main className="flex-1 flex items-center justify-center p-4 overflow-y-auto">
+                    <Card className="w-full max-w-md p-6 sm:p-8 space-y-6 my-auto">
                         <div className="text-center space-y-2">
                             <ShieldCheck className="h-12 w-12 mx-auto text-green-500 mb-2" />
                             <h2 className="text-2xl font-bold">Kontrolle Abschluss</h2>
                             <p className="text-muted-foreground">
                                 Alle Schritte wurden durchgesehen. Bitte geben Sie eine abschließende Bewertung ab.
                             </p>
+                        </div>
+
+                        {/* Credited Mechanics Selection */}
+                        <div className="space-y-3 p-4 bg-muted/30 rounded-lg border border-border/50">
+                            <label className="text-sm font-medium flex items-center justify-between">
+                                <span>Beteiligte Mechaniker (für Feedback)</span>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setIsAddingMechanic(true)}
+                                    className="h-6 px-2 text-xs text-primary hover:bg-primary/10"
+                                    disabled={isReadOnly}
+                                >
+                                    + Hinzufügen
+                                </Button>
+                            </label>
+
+                            {creditedMechanics.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {creditedMechanics.map(id => {
+                                        // We need to fetch names. useEmployee provides a list.
+                                        // We can access 'activeEmployee' context if we wrap this in a component or pass employees.
+                                        // Ideally ControlModePage has access to 'employees' via context or fetch.
+                                        // It seems 'useEmployee' provides 'employees' list in the updated context code I saw earlier? 
+                                        // Let's check imports. Yes, useEmployee is used. 
+                                        // Wait, the hook in this file is: const { activeEmployee, isKioskMode, selectEmployee, clearSelectedEmployee } = useEmployee()
+                                        // It doesn't seem to destructure 'employees'. I should add it.
+                                        return <MechanicBadge key={id} id={id} onRemove={() => {
+                                            if (!isReadOnly) setCreditedMechanics(prev => prev.filter(m => m !== id))
+                                        }} readOnly={isReadOnly} />
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-xs text-muted-foreground italic">Keine Mechaniker zugewiesen.</p>
+                            )}
                         </div>
 
                         <div className="space-y-4">
@@ -383,6 +457,74 @@ export default function ControlModePage() {
                         </Button>
                     </Card>
                 </main>
+
+                {/* Mechanic Selection Modal */}
+                <EmployeeSelectionModal
+                    open={isAddingMechanic}
+                    onOpenChange={setIsAddingMechanic}
+                    triggerAction="Mechaniker hinzufügen"
+                    onEmployeeSelected={(id) => {
+                        if (!creditedMechanics.includes(id)) {
+                            setCreditedMechanics(prev => [...prev, id])
+                        }
+                        setIsAddingMechanic(false)
+                    }}
+                />
+
+                {/* Exit Confirmation Dialog */}
+                <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Verlassen?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Sie haben ungespeicherte Änderungen. Möchten Sie den Fortschritt speichern bevor Sie gehen?
+                            </AlertDialogDescription>
+                            {saveError && (
+                                <div className="mt-2 p-3 bg-red-50 text-red-600 text-sm rounded-md border border-red-200">
+                                    <p className="font-bold">Speicher-Fehler:</p>
+                                    <p>{saveError}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">Bitte prüfen Sie, ob das SQL-Skript ausgeführt wurde (Spalte 'end_control' fehlt?).</p>
+                                </div>
+                            )}
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                            <AlertDialogCancel className="mt-0" onClick={() => setSaveError(null)}>Abbrechen</AlertDialogCancel>
+                            <Button variant="destructive" onClick={handleConfirmExitWithoutSave} className="bg-red-500 hover:bg-red-600 text-white">
+                                Nicht speichern
+                            </Button>
+                            <Button onClick={handleConfirmSaveAndExit} className="bg-green-600 hover:bg-green-700 text-white">
+                                Speichern & Beenden
+                            </Button>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                {/* Self-Control Warning Dialog */}
+                <AlertDialog open={showSelfControlWarning} onOpenChange={setShowSelfControlWarning}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+                                <AlertTriangle className="h-5 w-5" />
+                                Selbstkontrolle erkannt
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Du hast an diesem Auftrag bereits gearbeitet ({activeEmployee?.name}).
+                                <br /><br />
+                                <strong>Vier-Augen-Prinzip:</strong> Zur Qualitätssicherung sollte idealerweise ein anderer Mechaniker die Endkontrolle durchführen.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                            <AlertDialogCancel onClick={() => navigate(-1)} className="mt-0">Abbrechen</AlertDialogCancel>
+                            <Button
+                                variant="default"
+                                className="bg-amber-600 hover:bg-amber-700 text-white"
+                                onClick={() => setShowSelfControlWarning(false)}
+                            >
+                                Trotzdem kontrollieren
+                            </Button>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         )
     }
@@ -592,6 +734,33 @@ export default function ControlModePage() {
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* Self-Control Warning Dialog */}
+            <AlertDialog open={showSelfControlWarning} onOpenChange={setShowSelfControlWarning}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2 text-amber-600">
+                            <AlertTriangle className="h-5 w-5" />
+                            Selbstkontrolle erkannt
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Du hast an diesem Auftrag bereits gearbeitet ({activeEmployee?.name}).
+                            <br /><br />
+                            <strong>Vier-Augen-Prinzip:</strong> Zur Qualitätssicherung sollte idealerweise ein anderer Mechaniker die Endkontrolle durchführen.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                        <AlertDialogCancel onClick={() => navigate(-1)} className="mt-0">Abbrechen</AlertDialogCancel>
+                        <Button
+                            variant="default"
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                            onClick={() => setShowSelfControlWarning(false)}
+                        >
+                            Trotzdem kontrollieren
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             {/* Kiosk Employee Selection */}
             <EmployeeSelectionModal
                 open={showEmployeeSelect}
@@ -611,5 +780,27 @@ export default function ControlModePage() {
                 }}
             />
         </div>
+    )
+}
+
+// Helper Component for Badges
+function MechanicBadge({ id, onRemove, readOnly }: { id: string, onRemove: () => void, readOnly: boolean }) {
+    const { employees } = useEmployee()
+    const employee = employees.find(e => e.id === id)
+
+    if (!employee) return null
+
+    return (
+        <Badge variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+            <span>{employee.name}</span>
+            {!readOnly && (
+                <button
+                    onClick={onRemove}
+                    className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5 transition-colors"
+                >
+                    <X className="h-3 w-3" />
+                </button>
+            )}
+        </Badge>
     )
 }

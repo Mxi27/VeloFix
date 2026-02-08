@@ -803,9 +803,9 @@ export default function ServiceModePage() {
                         setShowEmployeeSelect(open)
                     }
                 }}
-                onSelect={(employee) => {
+                onEmployeeSelected={(id) => {
                     selectionMade.current = true
-                    selectEmployee(employee)
+                    selectEmployee(id)
                     setShowEmployeeSelect(false)
                 }}
             />

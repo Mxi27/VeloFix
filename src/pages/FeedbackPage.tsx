@@ -136,16 +136,24 @@ export default function FeedbackPage() {
                     .not('end_control', 'is', null)
                     .order('created_at', { ascending: false })
 
-                if (viewEmployeeId !== 'all') {
-                    ordersQuery = ordersQuery.contains('mechanic_ids', [viewEmployeeId])
-                }
+                // Filter is applied client-side to check both order.mechanic_ids AND end_control.mechanic_ids
+                // if (viewEmployeeId !== 'all') {
+                //    ordersQuery = ordersQuery.contains('mechanic_ids', [viewEmployeeId])
+                // }
 
                 const { data: orders, error: ordersError } = await ordersQuery
                 if (ordersError) throw ordersError
 
-                const validRepairs = orders.filter((o: any) =>
-                    o.end_control?.rating && o.end_control?.completed
-                ).map((o: any) => ({
+                const validRepairs = orders.filter((o: any) => {
+                    const hasRating = o.end_control?.rating && o.end_control?.completed
+                    if (!hasRating) return false
+
+                    if (viewEmployeeId !== 'all') {
+                        const credited = o.end_control?.mechanic_ids || o.mechanic_ids || []
+                        return credited.includes(viewEmployeeId)
+                    }
+                    return true
+                }).map((o: any) => ({
                     id: o.id,
                     title: o.order_number,
                     subtitle: o.bike_model,
