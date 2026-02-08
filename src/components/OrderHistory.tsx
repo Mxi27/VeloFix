@@ -20,11 +20,16 @@ interface OrderHistoryProps {
 
 // Helper to group consecutive granular events
 function groupEvents(events: OrderHistoryEvent[]) {
+    // 1. Sort Newest First (Desceding)
+    const sortedDetails = [...events].sort((a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    )
+
     const grouped: any[] = []
     let currentGroup: any = null
 
-    // Iterate (newest first)
-    events.forEach(event => {
+    // Iterate
+    sortedDetails.forEach(event => {
         const isServiceStep = event.type === 'service_step'
         const isControlStep = event.type === 'control_step'
         const isControlCompletion = event.type === 'control'
@@ -34,11 +39,19 @@ function groupEvents(events: OrderHistoryEvent[]) {
 
             // Check if we can add to current group
             if (currentGroup && currentGroup.type === groupType) {
+                // Check if actor matches, otherwise mark mixed
+                if (event.actor && currentGroup.actor && event.actor.id !== currentGroup.actor.id) {
+                    currentGroup.hasMixedActors = true
+                }
+
                 if (isControlCompletion) {
-                    // Start of group (chronologically end) shouldn't ideally happen in standard flow if completion is last,
-                    // but if it does, absorb metadata
                     if (event.metadata?.rating) currentGroup.metadata.rating = event.metadata.rating
                     if (event.metadata?.feedback) currentGroup.metadata.feedback = event.metadata.feedback
+                    // Control completion usually happens LAST in time, so it appears first in this sorted loop?
+                    // If Newest First: Control completion (Time 10:05) -> Step 5 (Time 10:04)...
+                    // So we met completion first.
+                    // If we meet completion first, `currentGroup` might have been started by completion?
+                    // wait. 
                 } else {
                     currentGroup.metadata.items.push({
                         text: event.title,
@@ -54,6 +67,7 @@ function groupEvents(events: OrderHistoryEvent[]) {
                     title: isServiceStep ? 'Service-Arbeiten' : 'Endkontrolle',
                     timestamp: event.timestamp,
                     actor: event.actor,
+                    hasMixedActors: false,
                     metadata: {
                         items: [],
                         checklist_count: 0
@@ -63,7 +77,7 @@ function groupEvents(events: OrderHistoryEvent[]) {
                 if (isControlCompletion) {
                     if (event.metadata?.rating) currentGroup.metadata.rating = event.metadata.rating
                     if (event.metadata?.feedback) currentGroup.metadata.feedback = event.metadata.feedback
-                    currentGroup.description = event.description // Capture description like "Bewertung: 5 Sterne"
+                    currentGroup.description = event.description
                 } else {
                     currentGroup.metadata.items.push({
                         text: event.title,
@@ -86,10 +100,14 @@ function groupEvents(events: OrderHistoryEvent[]) {
         }
     })
 
-    // Reverse items in groups to show chronological order inside the group
+    // Reverse items in groups to show chronological order inside the group (Oldest -> Newest inside the box)
     grouped.forEach(g => {
         if (g.metadata?.items) {
-            g.metadata.items.reverse()
+            // Since we iterated Newest->Oldest, the items were pushed Newest->Oldest?
+            // Item 5 (pushed 1st), Item 4 (pushed 2nd)...
+            // We want Item 1, Item 2, Item 3.
+            // So yes, reverse needed to get Oldest->Newest visual flow inside the expanded card.
+            g.metadata.items.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
         }
     })
 
@@ -115,7 +133,7 @@ export function OrderHistory({ history }: OrderHistoryProps) {
     )
 }
 
-function HistoryItem({ event }: { event: OrderHistoryEvent }) {
+function HistoryItem({ event }: { event: OrderHistoryEvent & { hasMixedActors?: boolean } }) {
     const [isExpanded, setIsExpanded] = useState(false)
 
     const getIcon = () => {
@@ -162,12 +180,20 @@ function HistoryItem({ event }: { event: OrderHistoryEvent }) {
 
                             {/* Metadata Row */}
                             <div className="flex items-center gap-2 text-xs text-muted-foreground/80">
-                                {event.actor && (
-                                    <div className="flex items-center gap-1.5">
-                                        <User className="w-3 h-3 opacity-70" />
-                                        <span>{event.actor.name}</span>
-                                    </div>
-                                )}
+                                {/* Metadata Row */}
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground/80">
+                                    {event.hasMixedActors ? (
+                                        <div className="flex items-center gap-1.5">
+                                            <User className="w-3 h-3 opacity-70" />
+                                            <span>Diverse Mitarbeiter</span>
+                                        </div>
+                                    ) : event.actor ? (
+                                        <div className="flex items-center gap-1.5">
+                                            <User className="w-3 h-3 opacity-70" />
+                                            <span>{event.actor.name}</span>
+                                        </div>
+                                    ) : null}
+                                </div>
                             </div>
                         </div>
 
@@ -231,12 +257,19 @@ function HistoryItem({ event }: { event: OrderHistoryEvent }) {
                                                                 <CheckCircle2 className="w-4 h-4" />
                                                             </div>
                                                             <div className="flex-1">
-                                                                <p className="text-foreground/90 leading-tight">{typeof item === 'string' ? item : item.text}</p>
+                                                                <div className="flex justify-between items-start gap-2">
+                                                                    <p className="text-foreground/90 leading-tight">{typeof item === 'string' ? item : item.text}</p>
+                                                                    {item.timestamp && (
+                                                                        <span className="text-[10px] text-muted-foreground whitespace-nowrap font-mono pt-0.5">
+                                                                            {format(new Date(item.timestamp), "dd.MM.yy HH:mm")}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                                 <div className="flex items-center gap-2 mt-1">
-                                                                    {event.actor && (
+                                                                    {item.actor && (
                                                                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                                                                             <User className="w-3 h-3 opacity-50" />
-                                                                            <span>{event.actor.name}</span>
+                                                                            <span>{item.actor.name}</span>
                                                                         </div>
                                                                     )}
                                                                 </div>

@@ -117,7 +117,7 @@ interface Order {
         rating?: number
         feedback?: string
     } | null
-    mechanic_id: string | null
+    mechanic_ids: string[] | null // Array of UUIDs
     qc_mechanic_id: string | null
     due_date: string | null
 }
@@ -164,7 +164,7 @@ export default function OrderDetailPage() {
 
     // Assignment State
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
-    const [assignmentType, setAssignmentType] = useState<'mechanic' | 'qc'>('mechanic')
+    const [assignmentType, setAssignmentType] = useState<'add_mechanic' | 'qc'>('add_mechanic')
 
     const getEmployeeName = (id: string) => {
         if (!employees) return "Lade..."
@@ -174,11 +174,21 @@ export default function OrderDetailPage() {
     const handleAssignment = async (employeeId: string) => {
         if (!order) return
 
-        const updateData = assignmentType === 'mechanic'
-            ? { mechanic_id: employeeId }
-            : { qc_mechanic_id: employeeId }
+        let updateData: any = {}
 
-        console.log("Assigning:", updateData) // DEBUG
+        if (assignmentType === 'add_mechanic') {
+            // Add to array, prevent duplicates
+            const currentIds = order.mechanic_ids || []
+            if (!currentIds.includes(employeeId)) {
+                updateData = { mechanic_ids: [...currentIds, employeeId] }
+            } else {
+                // Already assigned, just close modal
+                setIsAssignmentModalOpen(false)
+                return
+            }
+        } else {
+            updateData = { qc_mechanic_id: employeeId }
+        }
 
         const { error } = await supabase
             .from('orders')
@@ -196,13 +206,31 @@ export default function OrderDetailPage() {
 
             // Log Event
             const empName = getEmployeeName(employeeId)
-            const fieldName = assignmentType === 'mechanic' ? 'Mechaniker' : 'Qualitätskontrolle'
+            const fieldName = assignmentType === 'add_mechanic' ? 'Mechaniker' : 'Qualitätskontrolle'
             logOrderEvent(order.id, {
                 type: 'info',
                 title: 'Zuweisung geändert',
-                description: `${fieldName} wurde ${empName} zugewiesen.`,
+                description: `${empName} wurde als ${fieldName} zugewiesen.`,
                 actor: user ? { id: user.id, name: user.email || 'User' } : undefined
             }, user).catch(console.error)
+        }
+    }
+
+    const handleRemoveMechanic = async (employeeId: string) => {
+        if (!order || !order.mechanic_ids) return
+
+        const newIds = order.mechanic_ids.filter(id => id !== employeeId)
+
+        const { error } = await supabase
+            .from('orders')
+            .update({ mechanic_ids: newIds })
+            .eq('id', order.id)
+
+        if (error) {
+            toastError("Fehler", "Mitarbeiter konnte nicht entfernt werden.")
+        } else {
+            setOrder({ ...order, mechanic_ids: newIds })
+            toastSuccess("Entfernt", "Mitarbeiter wurde entfernt.")
         }
     }
 
@@ -1265,9 +1293,9 @@ export default function OrderDetailPage() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                    {/* Mechanic */}
+                                    {/* Mechanics List */}
                                     <div>
-                                        <div className="flex justify-between items-center mb-1">
+                                        <div className="flex justify-between items-center mb-2">
                                             <p className="text-sm font-medium text-muted-foreground">Mechaniker</p>
                                             <Button
                                                 variant="ghost"
@@ -1275,18 +1303,38 @@ export default function OrderDetailPage() {
                                                 className="h-6 text-xs text-primary hover:text-primary/80 px-2"
                                                 disabled={isReadOnly}
                                                 onClick={() => {
-                                                    setAssignmentType('mechanic')
+                                                    setAssignmentType('add_mechanic')
                                                     setIsAssignmentModalOpen(true)
                                                 }}
                                             >
-                                                {order.mechanic_id ? 'Ändern' : 'Zuweisen'}
+                                                + Hinzufügen
                                             </Button>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <Wrench className="h-4 w-4 text-muted-foreground" />
-                                            <span className="text-sm font-medium">
-                                                {order.mechanic_id ? getEmployeeName(order.mechanic_id) : <span className="text-muted-foreground italic">Nicht zugewiesen</span>}
-                                            </span>
+                                        <div className="space-y-2">
+                                            {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
+                                                order.mechanic_ids.map((mechId) => (
+                                                    <div key={mechId} className="flex items-center justify-between group/mech bg-muted/30 p-1.5 rounded-md">
+                                                        <div className="flex items-center gap-2">
+                                                            <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
+                                                            <span className="text-sm font-medium">
+                                                                {getEmployeeName(mechId)}
+                                                            </span>
+                                                        </div>
+                                                        {!isReadOnly && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-5 w-5 text-muted-foreground hover:text-destructive opacity-0 group-hover/mech:opacity-100 transition-opacity"
+                                                                onClick={() => handleRemoveMechanic(mechId)}
+                                                            >
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground italic pl-1">Keine Mechaniker zugewiesen</span>
+                                            )}
                                         </div>
                                     </div>
 
@@ -1403,9 +1451,8 @@ export default function OrderDetailPage() {
                 </div>
             </DashboardLayout>
 
-            {/* Edit Customer Dialog */}
             <Dialog open={isCustomerEditDialogOpen} onOpenChange={setIsCustomerEditDialogOpen}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                     <DialogHeader>
                         <DialogTitle>Kundendaten bearbeiten</DialogTitle>
                     </DialogHeader>
@@ -1450,7 +1497,7 @@ export default function OrderDetailPage() {
 
             {/* Edit Bike Dialog */}
             <Dialog open={isBikeEditDialogOpen} onOpenChange={setIsBikeEditDialogOpen}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                     <DialogHeader>
                         <DialogTitle>Fahrraddaten bearbeiten</DialogTitle>
                     </DialogHeader>
@@ -1492,9 +1539,8 @@ export default function OrderDetailPage() {
 
 
 
-            {/* Edit Price Dialog */}
             <Dialog open={isPriceEditDialogOpen} onOpenChange={setIsPriceEditDialogOpen}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                     <DialogHeader>
                         <DialogTitle>Preise bearbeiten</DialogTitle>
                     </DialogHeader>
@@ -1532,9 +1578,8 @@ export default function OrderDetailPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Edit Internal Note Dialog */}
             <Dialog open={isInternalNoteEditDialogOpen} onOpenChange={setIsInternalNoteEditDialogOpen}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                     <DialogHeader>
                         <DialogTitle>Interne Notiz bearbeiten</DialogTitle>
                     </DialogHeader>
@@ -1624,7 +1669,7 @@ export default function OrderDetailPage() {
             <EmployeeSelectionModal
                 open={isAssignmentModalOpen}
                 onOpenChange={setIsAssignmentModalOpen}
-                triggerAction={assignmentType === 'mechanic' ? "Mechaniker zuweisen" : "QC Mitarbeiter zuweisen"}
+                triggerAction={assignmentType === 'add_mechanic' ? "Mechaniker zuweisen" : "QC Mitarbeiter zuweisen"}
                 onEmployeeSelected={handleAssignment}
             />
 

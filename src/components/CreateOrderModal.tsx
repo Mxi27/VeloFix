@@ -350,7 +350,17 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 // The context DOES expose `employees`. I should destructure it.
             }
 
-            const creationActor = isKioskMode && kioskSelectedEmployeeId ? { id: kioskSelectedEmployeeId, name: 'Kiosk Selection', email: '' } : (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name, email: activeEmployee.email } : user ? { id: user.id, name: user.user_metadata?.full_name || user.email, email: user.email } : null)
+            let creationActor = null
+            if (isKioskMode && kioskSelectedEmployeeId) {
+                const selectedEmp = employees?.find(e => e.id === kioskSelectedEmployeeId)
+                creationActor = {
+                    id: kioskSelectedEmployeeId,
+                    name: selectedEmp?.name || 'Unbekannt (Kiosk)',
+                    email: selectedEmp?.email || ''
+                }
+            } else {
+                creationActor = activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name, email: activeEmployee.email } : user ? { id: user.id, name: user.user_metadata?.full_name || user.email, email: user.email } : null
+            }
 
             const initialHistory = [{
                 id: crypto.randomUUID(),
@@ -385,7 +395,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     pickup_code: orderType === 'leasing' && leasingDetails ? leasingDetails.pickup_code : null,
                     notes: [], // Legacy field, kept empty for now
                     history: initialHistory, // Add history immediately
-                    mechanic_id: assignedMechanicId && assignedMechanicId !== 'none' ? assignedMechanicId : null,
+                    mechanic_ids: assignedMechanicId && assignedMechanicId !== 'none' ? [assignedMechanicId] : [],
                     qc_mechanic_id: null, // Explicitly null for now
                     due_date: dueDate ? dueDate.toISOString() : null
                 })

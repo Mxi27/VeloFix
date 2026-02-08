@@ -137,7 +137,7 @@ export default function FeedbackPage() {
                     .order('created_at', { ascending: false })
 
                 if (viewEmployeeId !== 'all') {
-                    ordersQuery = ordersQuery.eq('assigned_employee_id', viewEmployeeId)
+                    ordersQuery = ordersQuery.contains('mechanic_ids', [viewEmployeeId])
                 }
 
                 const { data: orders, error: ordersError } = await ordersQuery
@@ -153,7 +153,7 @@ export default function FeedbackPage() {
                     rating: o.end_control.rating,
                     feedback: o.end_control.feedback,
                     type: 'repair',
-                    assigned_employee_id: o.assigned_employee_id
+                    mechanic_ids: o.end_control?.mechanic_ids || o.mechanic_ids || []
                 }))
                 setRepairFeedback(validRepairs)
 
@@ -458,7 +458,14 @@ export default function FeedbackPage() {
 
 function FeedbackCard({ item, navigate }: { item: any, navigate: any }) {
     const { employees } = useEmployee()
-    const employeeName = employees.find(e => e.id === item.assigned_employee_id)?.name || item.last_actor_name
+
+    const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name
+
+    const mechanicNames = item.mechanic_ids && item.mechanic_ids.length > 0
+        ? item.mechanic_ids.map(getEmployeeName).filter(Boolean)
+        : item.last_actor_name
+            ? [item.last_actor_name]
+            : []
 
     const handleClick = () => {
         if (item.type === 'repair') {
@@ -498,11 +505,11 @@ function FeedbackCard({ item, navigate }: { item: any, navigate: any }) {
                                     <Calendar className="w-3 h-3" />
                                     {item.date ? format(new Date(item.date), "d. MMM", { locale: de }) : '—'}
                                 </span>
-                                {employeeName && (
-                                    <Badge variant="secondary" className="text-[10px] font-normal">
-                                        {employeeName}
+                                {mechanicNames.map((name: string, i: number) => (
+                                    <Badge key={i} variant="secondary" className="text-[10px] font-normal">
+                                        {name}
                                     </Badge>
-                                )}
+                                ))}
                             </div>
                             <h3 className="font-medium text-sm group-hover:text-primary transition-colors truncate">
                                 {item.title}

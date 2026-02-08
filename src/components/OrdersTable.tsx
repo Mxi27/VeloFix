@@ -56,7 +56,7 @@ interface Order {
     status: string
     created_at: string
     estimated_price: number | null
-    mechanic_id: string | null
+    mechanic_ids: string[] | null
     due_date: string | null
 }
 
@@ -110,14 +110,41 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     }
 
     const handleAssignEmployee = async (orderId: string, employeeId: string | null) => {
-        // Optimistic update
-        const updatedOrders = orders.map(o => o.id === orderId ? { ...o, mechanic_id: employeeId } : o)
+        const order = orders.find(o => o.id === orderId)
+        if (!order) return
+
+        let newMechanicIds: string[] = []
+        if (employeeId) {
+            // If we are setting a single employee via dropdown, we might want to REPLACE the list or ADD to it?
+            // The dropdown currently implies "Assign this person".
+            // For simple table behavior, let's say selecting a mechanic REPLACES the list (single assignment mode for quick action),
+            // OR adds them if not present?
+            // Given the UI is a simple list selection, replacing is safer to avoid confusion, 
+            // BUT `OrderDetailPage` allows multiple.
+            // Let's make the table dropdown just ADD the employee if not there, or if "None" clears all.
+            // Wait, the dropdown has "Keine Zuweisung".
+
+            // Strategy: 
+            // "Keine Zuweisung" -> clears all mechanics
+            // Selecting a user -> Adds them if not present.  (Or should it replace? logic in `OrderDetailPage` is "Add").
+            // Let's stick to "Add" for consistency, but maybe the user expects "Assign this one person".
+            // Actually, looking at the previous logic `update({ mechanic_id: employeeId })`, it was a single assignment.
+            // If I change it to `mechanic_ids: [employeeId]`, it replaces everyone else. This might be what's expected from a simple dropdown.
+            // Let's go with REPLACING for the table quick-action to keep it simple and consistent with "Assign TO X".
+            // If they want advanced multiple assignment, they go to detail page.
+            newMechanicIds = [employeeId]
+        } else {
+            newMechanicIds = []
+        }
+
+        // Optimistic
+        const updatedOrders = orders.map(o => o.id === orderId ? { ...o, mechanic_ids: newMechanicIds } : o)
         mutate(updatedOrders, false)
 
         try {
             const { error } = await supabase
                 .from('orders')
-                .update({ mechanic_id: employeeId })
+                .update({ mechanic_ids: newMechanicIds })
                 .eq('id', orderId)
 
             if (error) throw error
@@ -186,8 +213,8 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
             filterEmployee === 'all'
                 ? true
                 : filterEmployee === 'unassigned'
-                    ? order.mechanic_id === null
-                    : order.mechanic_id === filterEmployee
+                    ? (order.mechanic_ids === null || order.mechanic_ids.length === 0)
+                    : (order.mechanic_ids && order.mechanic_ids.includes(filterEmployee))
 
         return matchesSearch && matchesStatus && matchesEmployee
     })
@@ -252,10 +279,14 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     {order.bike_model || '—'}
                                 </TableCell>
                                 <TableCell className="hidden sm:table-cell py-4" onClick={(e) => e.stopPropagation()}>
-                                    {order.mechanic_id ? (
-                                        <Badge variant="outline" className="bg-background">
-                                            {getEmployeeName(order.mechanic_id)}
-                                        </Badge>
+                                    {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {order.mechanic_ids.map(mid => (
+                                                <Badge key={mid} variant="outline" className="bg-background">
+                                                    {getEmployeeName(mid)}
+                                                </Badge>
+                                            ))}
+                                        </div>
                                     ) : (
                                         <span className="text-xs text-muted-foreground italic">—</span>
                                     )}
@@ -313,7 +344,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                     >
                                                         <Users className="mr-2 h-4 w-4 text-muted-foreground" />
                                                         <span>{emp.name}</span>
-                                                        {order.mechanic_id === emp.id && <Check className="ml-auto h-4 w-4" />}
+                                                        {order.mechanic_ids && order.mechanic_ids.includes(emp.id) && <Check className="ml-auto h-4 w-4" />}
                                                     </DropdownMenuItem>
                                                 ))}
                                             </DropdownMenuContent>

@@ -154,6 +154,7 @@ export default function ControlModePage() {
             rating: rating,
             feedback: feedback,
             completed: isFinal,
+            mechanic_ids: order.mechanic_ids || [], // Snapshot mechanics
             last_updated: new Date().toISOString()
         }
 

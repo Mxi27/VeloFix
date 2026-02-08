@@ -468,7 +468,7 @@ export default function ServiceModePage() {
 
     // Render Helpers
     const renderCompletionScreen = () => (
-        <main className="flex-1 px-4 pb-6 overflow-y-auto w-full max-w-5xl mx-auto flex items-center justify-center">
+        <main className="flex-1 px-4 pb-12 w-full max-w-5xl mx-auto flex items-center justify-center min-h-[50vh]">
             <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -513,7 +513,7 @@ export default function ServiceModePage() {
     )
 
     const renderActiveStep = () => (
-        <main className="flex-1 px-4 pb-6 overflow-y-auto w-full max-w-5xl mx-auto">
+        <main className="flex-1 px-4 pb-32 w-full max-w-5xl mx-auto flex flex-col">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={currentStepIndex}
@@ -521,9 +521,9 @@ export default function ServiceModePage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
                     transition={{ duration: 0.2 }}
-                    className="h-full flex flex-col"
+                    className="flex-1 flex flex-col"
                 >
-                    <Card className="flex-1 flex flex-col overflow-hidden bg-gradient-to-b from-card to-card/95 border-border/60 shadow-elevated-lg">
+                    <Card className="flex-1 flex flex-col bg-gradient-to-b from-card to-card/95 border-border/60 shadow-elevated-lg">
                         <div className="p-6 sm:p-8 flex-1 flex flex-col gap-8">
 
                             {/* Header */}
@@ -649,7 +649,7 @@ export default function ServiceModePage() {
 
 
     return (
-        <div className="flex flex-col h-screen bg-background overflow-hidden relative">
+        <div className="flex flex-col min-h-[100dvh] bg-background relative">
             {/* Ambient Background */}
             <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5 -z-10" />
 
@@ -798,15 +798,14 @@ export default function ServiceModePage() {
                 onOpenChange={(open) => {
                     // Only allow closing if selection was made or if we decide to exit
                     if (!open && !selectionMade.current) {
-                        // User dismissed without selecting -> Navigate back
-                        navigate(-1)
+                        navigate('/dashboard/orders')
+                    } else {
+                        setShowEmployeeSelect(open)
                     }
-                    setShowEmployeeSelect(open)
                 }}
-                triggerAction="Service-Modus starten"
-                onEmployeeSelected={(id) => {
+                onSelect={(employee) => {
                     selectionMade.current = true
-                    selectEmployee(id)
+                    selectEmployee(employee)
                     setShowEmployeeSelect(false)
                 }}
             />
