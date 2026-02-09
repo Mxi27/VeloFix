@@ -97,6 +97,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     // Intake Requests State
     const [intakeRequests, setIntakeRequests] = useState<any[]>([])
     const [showIntakeSelection, setShowIntakeSelection] = useState(false)
+    const [selectedIntakeRequestId, setSelectedIntakeRequestId] = useState<string | null>(null)
 
     // Fetch templates and providers when modal opens
     useEffect(() => {
@@ -166,6 +167,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setAssignedMechanicId("")
             setDueDate(undefined)
             setShowIntakeSelection(false)
+            setSelectedIntakeRequestId(null)
         }
         onOpenChange?.(newOpen)
     }
@@ -215,15 +217,13 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setLeasingDetails(null)
         }
 
-        // Mark as imported (optimistic update or fire and forget)
-        supabase
-            .from('intake_requests')
-            .update({ status: 'imported' })
-            .eq('id', request.id)
-            .then(() => {
-                // Remove from local list
-                setIntakeRequests(prev => prev.filter(r => r.id !== request.id))
-            })
+        // Mark as imported (optimistic update local state only)
+        setSelectedIntakeRequestId(request.id)
+
+        // Remove from local list to avoid duplicate selection in this session? 
+        // Or keep it but greyed out? 
+        // Let's remove it from the view for now, effectively "selected"
+        setIntakeRequests(prev => prev.filter(r => r.id !== request.id))
 
         setShowIntakeSelection(false)
         setStep(3) // Jump to Date Step (skip type selection as we set it, skip leasing if set?)
@@ -401,6 +401,14 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 })
 
             if (error) throw error
+
+            // Update Intake Request Status (if applicable)
+            if (selectedIntakeRequestId) {
+                await supabase
+                    .from('intake_requests')
+                    .update({ status: 'imported' })
+                    .eq('id', selectedIntakeRequestId)
+            }
 
             toastSuccess('Auftrag erstellt', 'Der Auftrag wurde erfolgreich erstellt.')
             handleOpenChange(false)
