@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Plus, Check, ArrowLeft,
-    X, CheckCircle2, Download, SkipForward, AlertTriangle
+    X, CheckCircle2, Download, SkipForward, AlertTriangle,
+    Pencil, User, Bike, Clock, Pause, Play, PackageCheck, Archive
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,8 +31,21 @@ import { logOrderEvent } from "@/lib/history"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import jsPDF from "jspdf"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
-
+const STATUS_FLOW = [
+    { value: 'eingegangen', label: 'Eingegangen', icon: Clock, color: 'text-gray-500 bg-gray-500/10 border-gray-500/20' },
+    { value: 'warten_auf_teile', label: 'Warten auf Teile', icon: Pause, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
+    { value: 'in_bearbeitung', label: 'In Bearbeitung', icon: Play, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
+    { value: 'abholbereit', label: 'Abholbereit', icon: PackageCheck, color: 'text-green-500 bg-green-500/10 border-green-500/20' },
+    { value: 'abgeschlossen', label: 'Abgeschlossen', icon: Archive, color: 'text-slate-500 bg-slate-500/10 border-slate-500/20' }
+]
 
 interface ChecklistItem {
     text: string
@@ -64,6 +78,24 @@ export default function ServiceModePage() {
     const [newStepText, setNewStepText] = useState("")
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
 
+    // Edit Headers State
+    const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false)
+    const [editCustomerName, setEditCustomerName] = useState("")
+    const [editCustomerEmail, setEditCustomerEmail] = useState("")
+    const [editCustomerPhone, setEditCustomerPhone] = useState("")
+
+    const [isEditBikeOpen, setIsEditBikeOpen] = useState(false)
+    const [editBikeModel, setEditBikeModel] = useState("")
+    const [editBikeType, setEditBikeType] = useState("")
+    const [editFrameNumber, setEditFrameNumber] = useState("")
+    const [editFrameSize, setEditFrameSize] = useState("")
+    const [editColor, setEditColor] = useState("")
+
+
+
+    // Kiosk Pending Action State
+
+
     // Kiosk Mode Enforcer
     // Force re-selection on entry (Mount)
     const selectionMade = useRef(false) // Track if selection happened
@@ -95,6 +127,19 @@ export default function ServiceModePage() {
                 if (error) throw error
 
                 setOrder(data)
+
+                // Initialize edit states
+                setEditCustomerName(data.customer_name || "")
+                setEditCustomerEmail(data.customer_email || "")
+                setEditCustomerPhone(data.customer_phone || "")
+
+                setEditBikeModel(data.bike_model || "")
+                setEditBikeType(data.bike_type || "")
+                setEditFrameNumber(data.frame_number || "")
+                setEditFrameSize(data.frame_size || "")
+                setEditColor(data.bike_color || "")
+
+
 
                 // Parse checklist
                 let parsedItems: ChecklistItem[] = []
@@ -169,7 +214,7 @@ export default function ServiceModePage() {
 
         // Log History Event Immediately
         if (orderId) {
-            const actor = activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name, email: activeEmployee.email } : undefined
+            const actor = activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined
 
             logOrderEvent(orderId, {
                 type: 'service_step',
@@ -278,6 +323,122 @@ export default function ServiceModePage() {
         setItems(newItems)
         await saveChecklist(newItems)
         toast.success(newItems[currentStepIndex].warning ? "Warnung aktiviert" : "Warnung entfernt")
+    }
+
+
+
+    // --- Data Save Handlers ---
+
+    const handleSaveCustomer = async () => {
+        if (!order) return
+        setIsSaving(true)
+        try {
+            const updates = {
+                customer_name: editCustomerName,
+                customer_email: editCustomerEmail || null,
+                customer_phone: editCustomerPhone || null
+            }
+
+            const { error } = await supabase
+                .from('orders')
+                .update(updates)
+                .eq('id', order.id)
+
+            if (error) throw error
+
+            setOrder({ ...order, ...updates })
+            setIsEditCustomerOpen(false)
+            toast.success("Kundendaten gespeichert")
+
+            logOrderEvent(order.id, {
+                type: 'info',
+                title: 'Kundendaten geändert',
+                description: `Kundendaten im Service-Modus bearbeitet`,
+                actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined,
+                metadata: updates
+            }, user)
+
+        } catch (e: any) {
+            toast.error("Fehler", e.message)
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    const handleSaveBike = async () => {
+        if (!order) return
+        setIsSaving(true)
+        try {
+            const updates = {
+                bike_model: editBikeModel,
+                bike_type: editBikeType || null,
+                bike_color: editColor || null,
+                frame_number: editFrameNumber || null,
+                frame_size: editFrameSize || null
+            }
+
+            const { error } = await supabase
+                .from('orders')
+                .update(updates)
+                .eq('id', order.id)
+
+            if (error) throw error
+
+            setOrder({ ...order, ...updates })
+            setIsEditBikeOpen(false)
+            toast.success("Fahrraddaten gespeichert")
+
+            logOrderEvent(order.id, {
+                type: 'info',
+                title: 'Fahrraddaten geändert',
+                description: `Fahrraddaten im Service-Modus bearbeitet`,
+                actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined,
+                metadata: updates
+            }, user)
+
+        } catch (e: any) {
+            toast.error("Fehler", e.message)
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+
+
+    const handleStatusChange = async (newStatus: string) => {
+        if (!order) return
+
+        // Prevent accidental completion if items not done? Optional.
+        // User asked for "more like orders detail page", which allows status change anytime.
+
+        setIsSaving(true)
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({ status: newStatus })
+                .eq('id', order.id)
+
+            if (error) throw error
+
+            // Refresh local state
+            setOrder({ ...order, status: newStatus })
+
+            const statusLabel = STATUS_FLOW.find(s => s.value === newStatus)?.label || newStatus
+            toast.success(`Status geändert: ${statusLabel}`)
+
+            logOrderEvent(order.id, {
+                type: 'status_change',
+                title: 'Status geändert',
+                description: `Status zu "${statusLabel}" geändert (Service-Modus)`,
+                actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined,
+                metadata: { old_status: order.status, new_status: newStatus }
+            }, user)
+
+        } catch (e: any) {
+            toast.error("Fehler", e.message)
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     // Navigation
@@ -655,25 +816,113 @@ export default function ServiceModePage() {
 
             {/* Header */}
             <header className="flex-none bg-glass-bg backdrop-blur-md border-b border-glass-border px-4 py-3 sm:px-6">
-                <div className="max-w-5xl mx-auto flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                            Service-Modus
-                        </Badge>
-                        {isReadOnly && (
-                            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
-                                Nur Lesen
+                <div className="max-w-6xl mx-auto flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="mr-2">
+                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                Zurück
+                            </Button>
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 h-7">
+                                Service-Modus
                             </Badge>
-                        )}
-                        <div>
-                            <h1 className="text-sm font-semibold sm:text-base">{order.order_number}</h1>
-                            <p className="text-xs text-muted-foreground truncate max-w-[150px] sm:max-w-xs">{order.bike_model}</p>
+                            {isReadOnly && (
+                                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+                                    Nur Lesen
+                                </Badge>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            {/* Status Selector */}
+                            <Select
+                                value={order.status}
+                                onValueChange={handleStatusChange}
+                                disabled={isReadOnly || isSaving}
+                            >
+                                <SelectTrigger className="w-[180px] h-9 bg-background/50 border-input shadow-sm">
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {STATUS_FLOW.map((status) => (
+                                        <SelectItem key={status.value} value={status.value}>
+                                            <div className="flex items-center gap-2">
+                                                <status.icon className={`h-4 w-4 ${status.color.split(' ')[0]}`} />
+                                                <span>{status.label}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
-                        <X className="h-4 w-4 sm:mr-2" />
-                        <span className="hidden sm:inline">Beenden</span>
-                    </Button>
+
+                    {/* Customer & Bike Info Row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-card/40 p-4 rounded-lg border border-border/40">
+                        {/* Customer */}
+                        <div className="flex items-start justify-between group">
+                            <div className="space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground uppercase flex items-center gap-1.5">
+                                    <User className="h-3 w-3" />
+                                    Kunde
+                                </p>
+                                <div className="font-semibold text-sm sm:text-base">
+                                    {order.customer_name}
+                                </div>
+                                <div className="text-xs text-muted-foreground flex flex-col">
+                                    {order.customer_email && <span>{order.customer_email}</span>}
+                                    {order.customer_phone && <span>{order.customer_phone}</span>}
+                                </div>
+                            </div>
+                            {!isReadOnly && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => setIsEditCustomerOpen(true)}
+                                >
+                                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                </Button>
+                            )}
+                        </div>
+
+                        {/* Bike */}
+                        <div className="flex items-start justify-between group border-t sm:border-t-0 sm:border-l border-border/40 pt-4 sm:pt-0 sm:pl-4">
+                            <div className="space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground uppercase flex items-center gap-1.5">
+                                    <Bike className="h-3 w-3" />
+                                    Fahrrad
+                                </p>
+                                <div className="font-semibold text-sm sm:text-base">
+                                    {order.bike_model} <span className="text-muted-foreground font-normal">({order.bike_type || 'Typ n.a.'})</span>
+                                </div>
+                                <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3">
+                                    {order.frame_number && (
+                                        <span title="Rahmennummer"># {order.frame_number}</span>
+                                    )}
+                                    {order.frame_size && (
+                                        <span title="Rahmengröße">Größe: {order.frame_size}</span>
+                                    )}
+                                    {order.bike_color && (
+                                        <span className="flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full border border-border" style={{ backgroundColor: order.bike_color }}></span>
+                                            {order.bike_color}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            {!isReadOnly && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    onClick={() => setIsEditBikeOpen(true)}
+                                >
+                                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -792,6 +1041,72 @@ export default function ServiceModePage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Edit Customer Dialog */}
+            <Dialog open={isEditCustomerOpen} onOpenChange={setIsEditCustomerOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Kundendaten bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="c-name">Name</Label>
+                            <Input id="c-name" value={editCustomerName} onChange={e => setEditCustomerName(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="c-email">E-Mail</Label>
+                            <Input id="c-email" value={editCustomerEmail} onChange={e => setEditCustomerEmail(e.target.value)} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="c-phone">Telefon</Label>
+                            <Input id="c-phone" value={editCustomerPhone} onChange={e => setEditCustomerPhone(e.target.value)} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditCustomerOpen(false)}>Abbrechen</Button>
+                        <Button onClick={handleSaveCustomer} disabled={isSaving}>Speichern</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Bike Dialog */}
+            <Dialog open={isEditBikeOpen} onOpenChange={setIsEditBikeOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Fahrraddaten bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="b-model">Modell</Label>
+                                <Input id="b-model" value={editBikeModel} onChange={e => setEditBikeModel(e.target.value)} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="b-type">Typ</Label>
+                                <Input id="b-type" value={editBikeType} onChange={e => setEditBikeType(e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="b-frame">Rahmennummer</Label>
+                                <Input id="b-frame" value={editFrameNumber} onChange={e => setEditFrameNumber(e.target.value)} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="b-size">Rahmengröße</Label>
+                                <Input id="b-size" value={editFrameSize} onChange={e => setEditFrameSize(e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="b-color">Farbe</Label>
+                            <Input id="b-color" value={editColor} onChange={e => setEditColor(e.target.value)} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditBikeOpen(false)}>Abbrechen</Button>
+                        <Button onClick={handleSaveBike} disabled={isSaving}>Speichern</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             {/* Kiosk Employee Selection */}
             <EmployeeSelectionModal
                 open={showEmployeeSelect}

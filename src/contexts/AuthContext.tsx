@@ -12,6 +12,7 @@ interface AuthContextType {
     signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>
     signUp: (email: string, password: string, name: string) => Promise<{ data?: { user: User | null; session: Session | null }; error: AuthError | null }>
     signOut: () => Promise<void>
+    leaveWorkshop: () => Promise<void>
     workshopId: string | null
     refreshSession: () => Promise<void>
 }
@@ -257,6 +258,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut()
     }
 
+    const leaveWorkshop = async () => {
+        const { error } = await supabase.rpc('leave_workshop')
+        if (error) throw error
+
+        // Clear local state
+        setWorkshopId(null)
+        setUserRole(null)
+        localStorage.removeItem(AUTH_CACHE_KEY)
+
+        // Reload session/membership (should be null now)
+        await refreshSession()
+    }
+
     const refreshSession = async () => {
         if (user) {
             const { workshopId: wId, role } = await fetchMembership()
@@ -273,6 +287,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signIn,
         signUp,
         signOut,
+        leaveWorkshop,
         workshopId,
         refreshSession
     }

@@ -7,6 +7,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
@@ -78,7 +89,7 @@ const navItems: NavItem[] = [
 ]
 
 export default function SettingsPage() {
-    const { user, workshopId, userRole } = useAuth()
+    const { user, workshopId, userRole, leaveWorkshop } = useAuth()
     const [workshop, setWorkshop] = useState<Workshop | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -181,6 +192,16 @@ export default function SettingsPage() {
         }
     }
 
+    const handleLeaveWorkshop = async () => {
+        try {
+            await leaveWorkshop()
+            toast.success("Werkstatt erfolgreich verlassen")
+            // Redirect happens automatically via AuthContext/AppRoutes
+        } catch (error: any) {
+            toast.error("Fehler beim Verlassen", { description: error.message })
+        }
+    }
+
     const initials = user?.user_metadata?.full_name
         ?.split(' ')
         .map((n: string) => n[0])
@@ -257,6 +278,40 @@ export default function SettingsPage() {
                                         </Button>
                                     </div>
                                 </form>
+
+                                {/* Leave Workshop Section - Only for non-admins/non-owners */}
+                                {userRole !== 'owner' && userRole !== 'admin' && (
+                                    <div className="pt-6 mt-6 border-t border-border">
+                                        <h3 className="text-lg font-semibold text-destructive mb-2">Werkstatt verlassen</h3>
+                                        <p className="text-sm text-muted-foreground mb-4">
+                                            Wenn Sie die Werkstatt verlassen, verlieren Sie Zugriff auf alle Daten.
+                                            Sie benötigen einen neuen Einladungscode, um wieder beizutreten.
+                                        </p>
+
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive">
+                                                    Werkstatt verlassen
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Sie verlassen die aktuelle Werkstatt. Ihr Zugriff wird sofort widerrufen.
+                                                        Sie können nur mit einem neuen Einladungscode wieder beitreten.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={handleLeaveWorkshop} className="bg-destructive hover:bg-destructive/90">
+                                                        Verlassen
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </div>

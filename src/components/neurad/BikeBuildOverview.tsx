@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Wrench, User, Bike, FileText, ShieldCheck, Trash2 } from "lucide-react"
+import { ArrowLeft, Wrench, User, Bike, FileText, ShieldCheck, Trash2, Pencil, Clock, CheckCircle2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { supabase } from "@/lib/supabase"
@@ -20,6 +20,23 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 interface BikeBuildOverviewProps {
     build: any
@@ -69,6 +86,111 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
         }
     }
 
+    const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false)
+    const [editCustomerName, setEditCustomerName] = useState("")
+    const [editCustomerEmail, setEditCustomerEmail] = useState("")
+    const [editNotes, setEditNotes] = useState("")
+
+    const [isEditBikeOpen, setIsEditBikeOpen] = useState(false)
+    const [editBrand, setEditBrand] = useState("")
+    const [editModel, setEditModel] = useState("")
+    const [editColor, setEditColor] = useState("")
+    const [editFrameSize, setEditFrameSize] = useState("")
+    const [editInternalNumber, setEditInternalNumber] = useState("")
+
+    const [isSaving, setIsSaving] = useState(false)
+
+    const NEURAD_STATUS_FLOW = [
+        { value: 'offen', label: 'Offen', icon: Clock, color: 'text-gray-500 bg-gray-500/10 border-gray-500/20' },
+        { value: 'fertig', label: 'Fertig', icon: Wrench, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
+        { value: 'abgeschlossen', label: 'Abgeschlossen', icon: CheckCircle2, color: 'text-green-500 bg-green-500/10 border-green-500/20' }
+    ]
+
+    // Initialize edit state when modal opens or build changes
+    const openEditCustomer = () => {
+        setEditCustomerName(build.customer_name || "")
+        setEditCustomerEmail(build.customer_email || "")
+        setEditNotes(build.notes || "")
+        setIsEditCustomerOpen(true)
+    }
+
+    const openEditBike = () => {
+        setEditBrand(build.brand || "")
+        setEditModel(build.model || "")
+        setEditColor(build.color || "")
+        setEditFrameSize(build.frame_size || "")
+        setEditInternalNumber(build.internal_number || "")
+        setIsEditBikeOpen(true)
+    }
+
+    const handleSaveCustomer = async () => {
+        setIsSaving(true)
+        try {
+            const updates = {
+                customer_name: editCustomerName,
+                customer_email: editCustomerEmail || null,
+                notes: editNotes || null
+            }
+            const { error } = await supabase
+                .from('bike_builds')
+                .update(updates)
+                .eq('id', build.id)
+
+            if (error) throw error
+            toast.success("Kundendaten gespeichert")
+            setIsEditCustomerOpen(false)
+            if (onUpdate) onUpdate()
+        } catch (e: any) {
+            toast.error("Fehler", e.message)
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    const handleSaveBike = async () => {
+        setIsSaving(true)
+        try {
+            const updates = {
+                brand: editBrand,
+                model: editModel,
+                color: editColor,
+                frame_size: editFrameSize,
+                internal_number: editInternalNumber
+            }
+            const { error } = await supabase
+                .from('bike_builds')
+                .update(updates)
+                .eq('id', build.id)
+
+            if (error) throw error
+            toast.success("Fahrraddaten gespeichert")
+            setIsEditBikeOpen(false)
+            if (onUpdate) onUpdate()
+        } catch (e: any) {
+            toast.error("Fehler", e.message)
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
+    const handleStatusChange = async (newStatus: string) => {
+        setIsSaving(true)
+        try {
+            const { error } = await supabase
+                .from('bike_builds')
+                .update({ status: newStatus })
+                .eq('id', build.id)
+
+            if (error) throw error
+            toast.success("Status aktualisiert")
+            if (onUpdate) onUpdate()
+        } catch (e: any) {
+            toast.error("Fehler", e.message)
+        } finally {
+            setIsSaving(false)
+        }
+    }
+
     return (
         <div className="space-y-8 max-w-5xl mx-auto">
             {/* Header */}
@@ -90,10 +212,39 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
                             {build.internal_number}
                         </Badge>
                     </div>
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                        <Badge variant="secondary" className="capitalize">{build.status.replace(/_/g, ' ')}</Badge>
-                        <span>•</span>
-                        <span>Erstellt am {new Date(build.created_at).toLocaleDateString()}</span>
+                    <div className="flex items-center gap-4 mt-2">
+                        <Select
+                            value={build.status}
+                            onValueChange={handleStatusChange}
+                            disabled={isSaving || userRole === 'read'}
+                        >
+                            <SelectTrigger className={`w-[180px] h-9 transition-colors ${NEURAD_STATUS_FLOW.find(s => s.value === build.status)?.color?.split(' ')[1] || 'bg-muted/50'
+                                } border-transparent`}>
+                                <div className="flex items-center gap-2">
+                                    {(() => {
+                                        const status = NEURAD_STATUS_FLOW.find(s => s.value === build.status) || { icon: Clock, label: build.status }
+                                        const Icon = status.icon
+                                        return (
+                                            <>
+                                                <Icon className="h-4 w-4" />
+                                                <SelectValue>{status.label}</SelectValue>
+                                            </>
+                                        )
+                                    })()}
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {NEURAD_STATUS_FLOW.map((status) => (
+                                    <SelectItem key={status.value} value={status.value}>
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-2 h-2 rounded-full ${status.color ? status.color.split(' ')[0].replace('text-', 'bg-') : 'bg-gray-400'}`} />
+                                            {status.label}
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <span className="text-sm text-muted-foreground">Erstellt am {new Date(build.created_at).toLocaleDateString()}</span>
                     </div>
                 </div>
 
@@ -121,13 +272,18 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {/* Bike Details */}
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="flex items-center gap-2">
                             <Bike className="h-5 w-5 text-primary" />
                             Fahrrad Daten
                         </CardTitle>
+                        {userRole !== 'read' && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={openEditBike}>
+                                <Pencil className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                        )}
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <p className="text-sm font-medium text-muted-foreground">Marke</p>
@@ -156,13 +312,18 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
 
                 {/* Customer Info */}
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="flex items-center gap-2">
                             <User className="h-5 w-5 text-primary" />
                             Kunde
                         </CardTitle>
+                        {userRole !== 'read' && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={openEditCustomer}>
+                                <Pencil className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                        )}
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-4">
                         <div>
                             <p className="text-sm font-medium text-muted-foreground">Name</p>
                             <p className="text-base font-medium">{build.customer_name || 'Lagerbestand'}</p>
@@ -261,6 +422,104 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
                 onEmployeeSelected={handleAssignment}
             />
 
+            {/* Edit Customer Dialog */}
+            <Dialog open={isEditCustomerOpen} onOpenChange={setIsEditCustomerOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Kundendaten bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <Label>Name</Label>
+                            <Input
+                                value={editCustomerName}
+                                onChange={(e) => setEditCustomerName(e.target.value)}
+                                placeholder="Kundenname"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Email</Label>
+                            <Input
+                                value={editCustomerEmail}
+                                onChange={(e) => setEditCustomerEmail(e.target.value)}
+                                placeholder="Email"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Notizen</Label>
+                            <Textarea
+                                value={editNotes}
+                                onChange={(e) => setEditNotes(e.target.value)}
+                                placeholder="Notizen zum Kunden oder Auftrag..."
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditCustomerOpen(false)}>Abbrechen</Button>
+                        <Button onClick={handleSaveCustomer} disabled={isSaving}>
+                            {isSaving ? "Speichere..." : "Speichern"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Bike Dialog */}
+            <Dialog open={isEditBikeOpen} onOpenChange={setIsEditBikeOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Fahrraddaten bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid grid-cols-2 gap-4 py-2">
+                        <div className="space-y-2">
+                            <Label>Marke</Label>
+                            <Input
+                                value={editBrand}
+                                onChange={(e) => setEditBrand(e.target.value)}
+                                placeholder="Marke"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Modell</Label>
+                            <Input
+                                value={editModel}
+                                onChange={(e) => setEditModel(e.target.value)}
+                                placeholder="Modell"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Farbe</Label>
+                            <Input
+                                value={editColor}
+                                onChange={(e) => setEditColor(e.target.value)}
+                                placeholder="Farbe"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Rahmengröße</Label>
+                            <Input
+                                value={editFrameSize}
+                                onChange={(e) => setEditFrameSize(e.target.value)}
+                                placeholder="Rahmengröße"
+                            />
+                        </div>
+                        <div className="space-y-2 col-span-2">
+                            <Label>Interne Nummer</Label>
+                            <Input
+                                value={editInternalNumber}
+                                onChange={(e) => setEditInternalNumber(e.target.value)}
+                                placeholder="Interne Nummer"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditBikeOpen(false)}>Abbrechen</Button>
+                        <Button onClick={handleSaveBike} disabled={isSaving}>
+                            {isSaving ? "Speichere..." : "Speichern"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Danger Zone */}
             {(userRole === 'admin' || userRole === 'owner') && (
                 <div className="mt-12 pt-8 border-t border-dashed border-muted-foreground/20">
@@ -305,3 +564,4 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
         </div>
     )
 }
+

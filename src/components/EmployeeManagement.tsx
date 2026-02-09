@@ -447,7 +447,13 @@ export function EmployeeManagement() {
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     required
+                                    disabled={!!editingEmployee?.user_id}
                                 />
+                                {editingEmployee?.user_id && (
+                                    <p className="text-[0.8rem] text-muted-foreground">
+                                        Der Name wird vom Benutzerkonto verwaltet.
+                                    </p>
+                                )}
                             </div>
 
                             {!formData.isGhost && (
@@ -459,7 +465,13 @@ export function EmployeeManagement() {
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                         required={!formData.isGhost}
+                                        disabled={!!editingEmployee?.user_id}
                                     />
+                                    {editingEmployee?.user_id && (
+                                        <p className="text-[0.8rem] text-muted-foreground">
+                                            Die E-Mail wird vom Benutzerkonto verwaltet.
+                                        </p>
+                                    )}
                                 </div>
                             )}
 

@@ -88,7 +88,12 @@ export default function BikeBuildDetailPage() {
                             refreshBuild()
                             setViewMode('overview')
                         }}
-                        onComplete={() => {
+                        onComplete={async () => {
+                            // Auto-transition to 'fertig' (Assembly Done)
+                            const { error } = await supabase.from('bike_builds').update({ status: 'fertig' }).eq('id', build.id)
+                            if (error) toast.error("Fehler beim Aktualisieren des Status")
+                            else toast.success("Montage abgeschlossen: Status auf 'Fertig' gesetzt")
+
                             refreshBuild()
                             setViewMode('overview')
                         }}
@@ -100,7 +105,12 @@ export default function BikeBuildDetailPage() {
                             refreshBuild()
                             setViewMode('overview')
                         }}
-                        onComplete={() => {
+                        onComplete={async () => {
+                            // Auto-transition to 'abgeschlossen' (Control Done)
+                            const { error } = await supabase.from('bike_builds').update({ status: 'abgeschlossen' }).eq('id', build.id)
+                            if (error) toast.error("Fehler beim Aktualisieren des Status")
+                            else toast.success("Kontrolle abgeschlossen: Status auf 'Abgeschlossen' gesetzt")
+
                             refreshBuild()
                             setViewMode('overview')
                         }}
