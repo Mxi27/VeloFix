@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { cn } from "@/lib/utils"
@@ -28,26 +28,55 @@ export function LoginForm({
     const [loading, setLoading] = useState(false)
     const { signIn } = useAuth()
     const navigate = useNavigate()
+    const mounted = useRef(true)
+
+    useEffect(() => {
+        return () => {
+            mounted.current = false
+        }
+    }, [])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError("")
         setLoading(true)
 
-        const { error } = await signIn(email, password)
+        console.log("LoginForm: handleSubmit started")
+        try {
+            console.log("LoginForm: Calling signIn...")
+            const result = await signIn(email, password)
+            console.log("LoginForm: signIn returned", result)
+            const { error: authError } = result
 
-        if (error) {
-            // Deutsche Fehlermeldungen
-            if (error.message.includes("Invalid login credentials")) {
-                setError("Ungültige E-Mail oder Passwort")
-            } else if (error.message.includes("Email not confirmed")) {
-                setError("Bitte bestätigen Sie Ihre E-Mail-Adresse")
-            } else {
-                setError(error.message)
+            if (!mounted.current) {
+                console.warn("LoginForm: Component unmounted during request. Proceeding carefully.")
+                // Should we return? If we return, the UI stays stuck "Loading..." if the component is somehow still visible.
+                // Let's try to update state anyway. React will warn if it's truly dead, but if it's a zombie, it might fix the UI.
+                // return
             }
-            setLoading(false)
-        } else {
-            navigate("/dashboard")
+
+            if (authError) {
+                console.error("LoginForm: Login error caught:", authError)
+                // Deutsche Fehlermeldungen
+                if (authError.message.includes("Invalid login credentials")) {
+                    setError("Ungültige E-Mail oder Passwort")
+                } else if (authError.message.includes("Email not confirmed")) {
+                    setError("Bitte bestätigen Sie Ihre E-Mail-Adresse")
+                } else {
+                    setError(authError.message)
+                }
+                console.log("LoginForm: Setting loading to false")
+                setLoading(false)
+            } else {
+                console.log("LoginForm: Login success, navigating")
+                navigate("/dashboard")
+            }
+        } catch (e) {
+            console.error("Unexpected login error in form:", e)
+            if (mounted.current) {
+                setError("Ein unerwarteter Fehler ist aufgetreten")
+                setLoading(false)
+            }
         }
     }
 

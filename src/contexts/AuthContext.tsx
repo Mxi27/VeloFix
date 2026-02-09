@@ -216,24 +216,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [])
 
     const signIn = async (email: string, password: string) => {
-        // Optimistic UI: Don't wait for workshop data to resolve login form
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        try {
+            // Optimistic UI: Don't wait for workshop data to resolve login form
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
-        if (data.user && data.session) {
-            setSession(data.session)
-            setUser(data.user)
+            if (error) {
+                return { error }
+            }
 
-            // Fetch in background
-            fetchMembership().then(({ workshopId: wId, role }) => {
-                // Check if component is still mounted using ref since we are in async callback of a function
-                if (mountedRef.current) {
-                    setWorkshopId(wId)
-                    setUserRole(role)
+            if (data.user && data.session) {
+                // Set loading to true immediately to show loading screen instead of flickering onboarding
+                setLoading(true)
+
+                setSession(data.session)
+                setUser(data.user)
+
+                // Fetch in background but await it here to ensure we have the data before stopping loading
+                try {
+                    const { workshopId: wId, role } = await fetchMembership()
+
+                    // Check if component is still mounted using ref since we are in async callback of a function
+                    if (mountedRef.current) {
+                        setWorkshopId(wId)
+                        setUserRole(role)
+                        // Only stop loading after we have the workshop data
+                        setLoading(false)
+                    }
+                } catch (e) {
+                    console.error("Error fetching membership during signin:", e)
+                    if (mountedRef.current) {
+                        setLoading(false)
+                    }
                 }
-            })
-        }
+            }
 
-        return { error }
+            return { error: null }
+        } catch (err: any) {
+            console.error("Unexpected error during sign in:", err)
+            if (mountedRef.current) {
+                setLoading(false)
+            }
+            return { error: { message: err.message || "An unexpected error occurred", name: "UnexpectedError" } as AuthError }
+        }
     }
 
     const signUp = async (email: string, password: string, name: string) => {
