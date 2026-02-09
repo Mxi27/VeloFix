@@ -44,7 +44,6 @@ import {
     Pause,
     PackageCheck,
     Check,
-    Save,
     AlertCircle,
     Loader2,
     Archive,
@@ -160,7 +159,17 @@ export default function OrderDetailPage() {
 
     // Leasing dialog state
     const [isLeasingDialogOpen, setIsLeasingDialogOpen] = useState(false)
-    const [leasingCodeInput, setLeasingCodeInput] = useState("")
+    const [leasingCodeInput, setLeasingCodeInput] = useState("") // Acts as Pickup Code in Dialog
+    const [dialogLeasingCode, setDialogLeasingCode] = useState("") // Acts as Leasing Code in Dialog
+
+    // Editable Leasing Fields
+    const [isLeasingEditDialogOpen, setIsLeasingEditDialogOpen] = useState(false)
+    const [editLeasingProvider, setEditLeasingProvider] = useState("")
+    const [editLeasingPortalEmail, setEditLeasingPortalEmail] = useState("")
+    const [editContractId, setEditContractId] = useState("")
+    const [editServicePackage, setEditServicePackage] = useState("")
+    const [editInspectionCode, setEditInspectionCode] = useState("")
+    const [editPickupCode, setEditPickupCode] = useState("")
 
     // Assignment State
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
@@ -325,6 +334,14 @@ export default function OrderDetailPage() {
                 setEditEstimatedPrice(orderResult.data.estimated_price?.toString() || "")
                 // Initialize leasing code input properly to allow editing
                 setLeasingCodeInput(orderResult.data.leasing_code || "")
+
+                // Initialize leasing edit fields
+                setEditLeasingProvider(orderResult.data.leasing_provider || "")
+                setEditLeasingPortalEmail(orderResult.data.leasing_portal_email || "")
+                setEditContractId(orderResult.data.contract_id || "")
+                setEditServicePackage(orderResult.data.service_package || "")
+                setEditInspectionCode(orderResult.data.inspection_code || "")
+                setEditPickupCode(orderResult.data.pickup_code || "")
             }
 
             if (templatesResult.data) {
@@ -536,6 +553,15 @@ export default function OrderDetailPage() {
             return
         }
 
+        // Intercept 'abgeholt' for Leasing orders
+        if (order.is_leasing && newStatus === LEASING_STATUS.value) {
+            // Pre-fill the dialog with current values
+            setLeasingCodeInput(order.pickup_code || "")
+            setDialogLeasingCode(order.leasing_code || "")
+            setIsLeasingDialogOpen(true)
+            return
+        }
+
         setSaving(true)
 
         try {
@@ -585,15 +611,32 @@ export default function OrderDetailPage() {
             return
         }
 
-        // NOTE: We allow saving empty leasing code now as requested (nullable)
-
         setSaving(true)
 
+        // The dialog input `leasingCodeInput` is now primarily used for `pickup_code` in this flow
+        // BUT we also have `leasingCode` from the separate state if we want to handle both in the dialog.
+        // Wait, I need to make sure the dialog uses TWO inputs.
+        // Let's refactor this function to read from state directly or passing params?
+        // Actually, let's assume the state variables `leasingCodeInput` (now behaving as Pickup Code) 
+        // and a NEW state or reused state for Leasing Code are available.
+        // I will use `leasingCodeInput` for Pickup Code and `editLeasingCode` (which I need to ensure exists or reuse `editLeasingCode`?)
+        // Let's look at what I have... `leasingCodeInput` was `pickup_code`.
+        // I need a state for the second field in the dialog.
+
+        // Let's assume I add `dialogLeasingCode` state or similar.
+        // For now, I will use `leasingCodeInput` as Pickup Code and add a new state locally or reuse `editLeasingCode` if appropriate?
+        // No, `editLeasingCode` is for the general edit dialog. 
+        // I should probably unify them or just add a second state for this specific dialog.
+
+        // REVISITING logic: I will use `leasingCodeInput` for Pickup Code (as before)
+        // and add `dialogLeasingCode` for Leasing Code.
+
         const updates: any = {
-            leasing_code: leasingCodeInput
+            pickup_code: leasingCodeInput,
+            leasing_code: dialogLeasingCode
         }
 
-        // Only update status if we are in the dialog flow
+        // Only update status if we are in the dialog flow (which we are if this is called)
         if (isLeasingDialogOpen) {
             updates.status = LEASING_STATUS.value
         }
@@ -604,20 +647,79 @@ export default function OrderDetailPage() {
             .eq('id', order.id)
 
         if (error) {
-            toastError('Fehler beim Speichern', error.message || 'Der Leasing-Code konnte nicht gespeichert werden.')
+            toastError('Fehler beim Speichern', error.message || 'Der Abhol-Code konnte nicht gespeichert werden.')
         } else {
-            setOrder({
+            // Create a local update object
+            const updatedOrder = {
                 ...order,
-                ...updates
-            })
+                ...updates,
+                // If status changed, we need to update history too, but handleStatusChange does it separately.
+                // However, since we intercepted handleStatusChange, we must do the history log here manually
+                // OR we can't easily reuse handleStatusChange because it would trigger recursion or complex logic.
+                // Let's log the event here.
+            }
 
-            // Log event if status changed or just info?
-            // If status changed to Abgeholt (LEASING_STATUS), we should log it.
-            // But handleStatusChange does logic too. 
-            // LEASING_STATUS change here is implicit. We should probably log it.
-            // But for now, let's just respect the Kiosk flow.
+            // Log Status Change Event
+            const newStatus = LEASING_STATUS.value
+            const newStatusLabel = LEASING_STATUS.label
 
+            try {
+                const event = await logOrderEvent(
+                    order.id,
+                    {
+                        type: 'status_change',
+                        title: 'Status geändert (Leasing)',
+                        description: `Status zu "${newStatusLabel}" geändert. Abhol-Code: ${leasingCodeInput}`,
+                        metadata: { old_status: order.status, new_status: newStatus, pickup_code: leasingCodeInput },
+                        actor: actorOverride
+                    },
+                    user
+                )
+                updatedOrder.history = [event, ...(order.history || [])]
+            } catch (e) {
+                console.error("Failed to log event", e)
+            }
+
+            setOrder(updatedOrder)
             setIsLeasingDialogOpen(false)
+            toastSuccess("Abgeschlossen", "Auftrag wurde auf 'Abgeholt' gesetzt.")
+        }
+        setSaving(false)
+    }
+
+    const handleSaveLeasingData = async (actorOverride?: { id: string, name: string }) => {
+        if (!order || !workshopId) return
+
+        // No kiosk interception needed for simple edit unless desired, assuming standard edit flow
+
+        setSaving(true)
+
+        const updates = {
+            leasing_provider: editLeasingProvider,
+            leasing_portal_email: editLeasingPortalEmail || null,
+            contract_id: editContractId || null,
+            service_package: editServicePackage || null,
+            inspection_code: editInspectionCode || null,
+            pickup_code: editPickupCode || null
+        }
+
+        const { error } = await supabase
+            .from('orders')
+            .update(updates)
+            .eq('id', order.id)
+
+        if (error) {
+            toastError('Fehler beim Speichern', 'Die Leasing-Daten konnten nicht gespeichert werden.')
+        } else {
+            setOrder({ ...order, ...updates })
+            setIsLeasingEditDialogOpen(false)
+
+            logOrderEvent(order.id, {
+                type: 'info',
+                title: 'Leasing-Daten aktualisiert',
+                description: `Leasing-Daten bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
+                actor: actorOverride
+            }, user).catch(console.error)
         }
         setSaving(false)
     }
@@ -1000,11 +1102,30 @@ export default function OrderDetailPage() {
                             {order.is_leasing && (
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-base">
-                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                <CreditCard className="h-4 w-4 text-primary" />
+                                        <CardTitle className="flex items-center gap-2 text-base w-full">
+                                            <div className="flex items-center gap-2 flex-1">
+                                                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                    <CreditCard className="h-4 w-4 text-primary" />
+                                                </div>
+                                                Leasing
                                             </div>
-                                            Leasing
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 hover:bg-neutral-100"
+                                                disabled={isReadOnly}
+                                                onClick={() => {
+                                                    setEditLeasingProvider(order.leasing_provider || "")
+                                                    setEditLeasingPortalEmail(order.leasing_portal_email || "")
+                                                    setEditContractId(order.contract_id || "")
+                                                    setEditServicePackage(order.service_package || "")
+                                                    setEditInspectionCode(order.inspection_code || "")
+                                                    setEditPickupCode(order.pickup_code || "")
+                                                    setIsLeasingEditDialogOpen(true)
+                                                }}
+                                            >
+                                                <Pencil className="h-3.5 w-3.5" />
+                                            </Button>
                                         </CardTitle>
                                     </CardHeader>
                                     <CardContent className="space-y-4">
@@ -1028,36 +1149,22 @@ export default function OrderDetailPage() {
                                             <p className="font-medium">{order.service_package || '—'}</p>
                                         </div>
 
+                                        <Separator className="my-2" />
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <p className="text-xs text-muted-foreground">Inspektion Code</p>
-                                                <p className="font-mono text-sm bg-muted/50 p-1 rounded px-2 mt-0.5 inline-block">{order.inspection_code || '—'}</p>
+                                                <p className="text-xs text-muted-foreground">Leasing Code</p>
+                                                <p className="font-mono text-sm">{order.leasing_code || '—'}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xs text-muted-foreground">Abhol Code</p>
-                                                <p className="font-mono text-sm bg-muted/50 p-1 rounded px-2 mt-0.5 inline-block">{order.pickup_code || '—'}</p>
+                                                <p className="text-xs text-muted-foreground">Inspektions-Code</p>
+                                                <p className="font-mono text-sm">{order.inspection_code || '—'}</p>
                                             </div>
                                         </div>
 
-                                        <div className="pt-2 border-t border-border/50" />
+                                        {/* Abhol Code */}
                                         <div>
-                                            <p className="text-xs text-muted-foreground mb-2">Manueller Leasing-Code (Altsystem)</p>
-                                            <div className="flex gap-2">
-                                                <Input
-                                                    value={leasingCodeInput}
-                                                    onChange={(e) => setLeasingCodeInput(e.target.value)}
-                                                    placeholder="Code eingeben..."
-                                                    className="h-8"
-                                                />
-                                                <Button
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0"
-                                                    disabled={saving || (leasingCodeInput === (order.leasing_code || ""))}
-                                                    onClick={() => handleSaveLeasingCode()}
-                                                >
-                                                    <Save className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                                            <p className="text-xs text-muted-foreground">Abhol Code</p>
+                                            <p className="font-mono text-sm bg-muted/50 p-1 rounded px-2 mt-0.5 inline-block">{order.pickup_code || '—'}</p>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -1606,24 +1713,43 @@ export default function OrderDetailPage() {
             </Dialog>
 
 
-            {/* Dialog for Leasing Code */}
+            {/* Dialog for Leasing Pickup Code (Abholcode) */}
             <Dialog open={isLeasingDialogOpen} onOpenChange={setIsLeasingDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Leasing-Code eingeben</DialogTitle>
+                        <DialogTitle>Abholcode bestätigen</DialogTitle>
                         <DialogDescription>
-                            Bitte geben Sie den Abholcode/Leasing-Code für dieses Rad ein, um den Auftrag abzuschließen.
+                            Bitte überprüfen Sie den Abholcode für dieses Leasing-Rad ({order?.leasing_provider}).
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
-                        <Label htmlFor="leasing-code" className="mb-2 block">Leasing Code</Label>
-                        <Input
-                            id="leasing-code"
-                            value={leasingCodeInput}
-                            onChange={(e) => setLeasingCodeInput(e.target.value)}
-                            placeholder="z.B. 123456"
-                            autoFocus
-                        />
+                    <div className="grid gap-4 py-4">
+                        {order?.inspection_code && (
+                            <div className="p-3 bg-muted/50 rounded-md border border-border/50">
+                                <span className="text-xs text-muted-foreground block mb-1">Inspektions-Code (UVV)</span>
+                                <span className="font-mono font-medium">{order.inspection_code}</span>
+                            </div>
+                        )}
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="leasing-code-dialog-pickup">Abholcode</Label>
+                                <Input
+                                    id="leasing-code-dialog-pickup"
+                                    value={leasingCodeInput}
+                                    onChange={(e) => setLeasingCodeInput(e.target.value)}
+                                    placeholder="Abholcode eingeben"
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="leasing-code-dialog-leasing">Leasing Code</Label>
+                                <Input
+                                    id="leasing-code-dialog-leasing"
+                                    value={dialogLeasingCode}
+                                    onChange={(e) => setDialogLeasingCode(e.target.value)}
+                                    placeholder="Leasing Code eingeben"
+                                />
+                            </div>
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsLeasingDialogOpen(false)}>
@@ -1631,7 +1757,7 @@ export default function OrderDetailPage() {
                         </Button>
                         <Button
                             onClick={() => handleSaveLeasingCode()}
-                            disabled={!leasingCodeInput.trim() || saving}
+                            disabled={(!leasingCodeInput.trim() && !dialogLeasingCode.trim()) || saving}
                         >
                             {saving ? (
                                 <>
@@ -1640,6 +1766,88 @@ export default function OrderDetailPage() {
                                 </>
                             ) : (
                                 'Bestätigen & Abholen'
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog for Editing Leasing Data */}
+            <Dialog open={isLeasingEditDialogOpen} onOpenChange={setIsLeasingEditDialogOpen}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle>Leasing-Daten bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-provider">Anbieter</Label>
+                            {/* Assuming text input for now as provider list might be large or dynamic, 
+                                but ideally should use Select from existing providers if possible. 
+                                Keeping it simple text for edit flexibility as per request. */}
+                            <Input
+                                id="edit-provider"
+                                value={editLeasingProvider}
+                                onChange={e => setEditLeasingProvider(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-contract">Vertrags-Nr.</Label>
+                            <Input
+                                id="edit-contract"
+                                value={editContractId}
+                                onChange={e => setEditContractId(e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-portal-email">Portal E-Mail</Label>
+                            <Input
+                                id="edit-portal-email"
+                                value={editLeasingPortalEmail}
+                                onChange={e => setEditLeasingPortalEmail(e.target.value)}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-service-package">Service Paket</Label>
+                                <Input
+                                    id="edit-service-package"
+                                    value={editServicePackage}
+                                    onChange={e => setEditServicePackage(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-inspection-code">Insp.-Code</Label>
+                                <Input
+                                    id="edit-inspection-code"
+                                    value={editInspectionCode}
+                                    onChange={e => setEditInspectionCode(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="edit-pickup-code">Abholcode</Label>
+                            <Input
+                                id="edit-pickup-code"
+                                value={editPickupCode}
+                                onChange={e => setEditPickupCode(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsLeasingEditDialogOpen(false)}>
+                            Abbrechen
+                        </Button>
+                        <Button
+                            onClick={() => handleSaveLeasingData()}
+                            disabled={saving}
+                        >
+                            {saving ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Speichern
+                                </>
+                            ) : (
+                                'Speichern'
                             )}
                         </Button>
                     </DialogFooter>
