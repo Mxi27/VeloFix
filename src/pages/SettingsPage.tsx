@@ -31,6 +31,7 @@ import { DisplaySettings } from '@/components/DisplaySettings'
 import { DataExport } from '@/components/DataExport'
 import { DataManagementSettings } from '@/components/DataManagementSettings'
 import { NeuradSettings } from '@/components/NeuradSettings'
+import { CustomerInquiriesSettings } from '@/components/CustomerInquiriesSettings'
 import {
     User,
     Building2,
@@ -44,7 +45,8 @@ import {
     ChevronRight,
     FileSpreadsheet,
     Database as DatabaseIcon,
-    Wrench
+    Wrench,
+    MessageSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/supabase'
@@ -57,6 +59,7 @@ type SettingsSection =
     | 'employees'
     | 'checklists'
     | 'neurad'
+    | 'inquiries'
     | 'intake'
     | 'leasing'
     | 'notifications'
@@ -79,6 +82,7 @@ const navItems: NavItem[] = [
     { id: 'employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
     { id: 'checklists', label: 'Checklisten', icon: ListChecks, adminOnly: true },
     { id: 'neurad', label: 'Neurad Konfig', icon: Wrench, adminOnly: true },
+    { id: 'inquiries', label: 'Kundenanfragen', icon: MessageSquare, adminOnly: true },
     { id: 'intake', label: 'Annahme', icon: ClipboardList, adminOnly: true },
     { id: 'leasing', label: 'Leasing', icon: CreditCard, adminOnly: true },
     { id: 'data', label: 'Datenverwaltung', icon: DatabaseIcon, adminOnly: true },
@@ -425,6 +429,9 @@ export default function SettingsPage() {
 
             case 'neurad':
                 return <NeuradSettings />
+
+            case 'inquiries':
+                return <CustomerInquiriesSettings />
 
             case 'export':
                 return <DataExport />
