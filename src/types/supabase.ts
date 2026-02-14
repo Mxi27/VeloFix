@@ -23,6 +23,13 @@ export interface Database {
                     updated_at: string
                     invite_code?: string | null
                     allow_guest_join?: boolean
+                    bank_name?: string | null
+                    iban?: string | null
+                    bic?: string | null
+                    tax_id?: string | null
+                    ust_id?: string | null
+                    footer_text?: string | null
+                    terms_text?: string | null
                 }
                 Insert: {
                     id?: string
@@ -37,6 +44,13 @@ export interface Database {
                     updated_at?: string
                     invite_code?: string | null
                     allow_guest_join?: boolean
+                    bank_name?: string | null
+                    iban?: string | null
+                    bic?: string | null
+                    tax_id?: string | null
+                    ust_id?: string | null
+                    footer_text?: string | null
+                    terms_text?: string | null
                 }
                 Update: {
                     id?: string
@@ -51,6 +65,13 @@ export interface Database {
                     updated_at?: string
                     invite_code?: string | null
                     allow_guest_join?: boolean
+                    bank_name?: string | null
+                    iban?: string | null
+                    bic?: string | null
+                    tax_id?: string | null
+                    ust_id?: string | null
+                    footer_text?: string | null
+                    terms_text?: string | null
                 }
             }
             employees: {

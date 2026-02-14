@@ -8,6 +8,8 @@ import {
     CreditCard,
     Trash2,
     Star,
+    LayoutTemplate,
+    CheckSquare,
 } from "lucide-react"
 import {
     Sidebar,
@@ -51,9 +53,19 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
 
     const navItems = [
         {
+            title: "Cockpit",
+            icon: LayoutTemplate,
+            href: "/dashboard/cockpit",
+        },
+        {
             title: "Dashboard",
             icon: LayoutDashboard,
             href: "/dashboard",
+        },
+        {
+            title: "Aufgaben",
+            icon: CheckSquare,
+            href: "/dashboard/tasks",
         },
         {
             title: "Neuradaufbau",

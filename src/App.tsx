@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import DashboardPage from "@/pages/DashboardPage";
@@ -20,8 +21,11 @@ import IntakePage from "@/pages/IntakePage";
 import FeedbackPage from "@/pages/FeedbackPage";
 import { Toaster } from "sonner";
 import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
+import { loadThemeColor } from "@/lib/theme";
 
 import OnboardingPage from "@/pages/OnboardingPage";
+import TasksPage from "@/pages/TasksPage";
+import CockpitPage from "@/pages/CockpitPage";
 
 
 function AppRoutes() {
@@ -73,6 +77,22 @@ function AppRoutes() {
                 element={
                     <ProtectedRoute>
                         {workshopId ? <DashboardPage /> : <Navigate to="/onboarding" replace />}
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/dashboard/cockpit"
+                element={
+                    <ProtectedRoute>
+                        {workshopId ? <CockpitPage /> : <Navigate to="/onboarding" replace />}
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/dashboard/tasks"
+                element={
+                    <ProtectedRoute>
+                        {workshopId ? <TasksPage /> : <Navigate to="/onboarding" replace />}
                     </ProtectedRoute>
                 }
             />
@@ -162,6 +182,10 @@ function AppRoutes() {
 }
 
 export function App() {
+    useEffect(() => {
+        loadThemeColor();
+    }, []);
+
     return (
         // Assuming AuthProvider and EmployeeProvider are intended to wrap the BrowserRouter
         // and that their opening tags are implicitly added or already exist in the user's mental model.

@@ -115,7 +115,14 @@ export default function SettingsPage() {
         city: '',
         postal_code: '',
         website: '',
-        opening_hours: ''
+        opening_hours: '',
+        bank_name: '',
+        iban: '',
+        bic: '',
+        tax_id: '',
+        ust_id: '',
+        footer_text: '',
+        terms_text: ''
     })
 
     useEffect(() => {
@@ -146,7 +153,14 @@ export default function SettingsPage() {
                 city: data.city || '',
                 postal_code: data.postal_code || '',
                 website: (data as any).website || '',
-                opening_hours: (data as any).opening_hours || ''
+                opening_hours: (data as any).opening_hours || '',
+                bank_name: data.bank_name || '',
+                iban: data.iban || '',
+                bic: data.bic || '',
+                tax_id: data.tax_id || '',
+                ust_id: data.ust_id || '',
+                footer_text: data.footer_text || '',
+                terms_text: data.terms_text || ''
             })
         }
         setLoading(false)
@@ -166,6 +180,13 @@ export default function SettingsPage() {
                 address: workshopForm.address,
                 city: workshopForm.city,
                 postal_code: workshopForm.postal_code,
+                bank_name: workshopForm.bank_name,
+                iban: workshopForm.iban,
+                bic: workshopForm.bic,
+                tax_id: workshopForm.tax_id,
+                ust_id: workshopForm.ust_id,
+                footer_text: workshopForm.footer_text,
+                terms_text: workshopForm.terms_text,
                 updated_at: new Date().toISOString()
             })
             .eq('id', workshopId)
@@ -389,6 +410,82 @@ export default function SettingsPage() {
                                                 value={workshopForm.postal_code}
                                                 onChange={(e) => setWorkshopForm({ ...workshopForm, postal_code: e.target.value })}
                                             />
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t pt-6 mt-6">
+                                        <h3 className="text-lg font-medium mb-4">Bankverbindung & Rechtliches</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="workshop-bank">Bankname</Label>
+                                                <Input
+                                                    id="workshop-bank"
+                                                    value={workshopForm.bank_name}
+                                                    onChange={(e) => setWorkshopForm({ ...workshopForm, bank_name: e.target.value })}
+                                                    placeholder="z.B. Sparkasse"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="workshop-iban">IBAN</Label>
+                                                <Input
+                                                    id="workshop-iban"
+                                                    value={workshopForm.iban}
+                                                    onChange={(e) => setWorkshopForm({ ...workshopForm, iban: e.target.value })}
+                                                    placeholder="DE..."
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="workshop-bic">BIC</Label>
+                                                <Input
+                                                    id="workshop-bic"
+                                                    value={workshopForm.bic}
+                                                    onChange={(e) => setWorkshopForm({ ...workshopForm, bic: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="workshop-tax">Steuernummer</Label>
+                                                <Input
+                                                    id="workshop-tax"
+                                                    value={workshopForm.tax_id}
+                                                    onChange={(e) => setWorkshopForm({ ...workshopForm, tax_id: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="workshop-ust">USt-IdNr.</Label>
+                                                <Input
+                                                    id="workshop-ust"
+                                                    value={workshopForm.ust_id}
+                                                    onChange={(e) => setWorkshopForm({ ...workshopForm, ust_id: e.target.value })}
+                                                    placeholder="DE..."
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t pt-6 mt-6">
+                                        <h3 className="text-lg font-medium mb-4">Dokumente</h3>
+                                        <div className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="workshop-footer">Fußzeile (für Rechnungen/Aufträge)</Label>
+                                                <Input
+                                                    id="workshop-footer"
+                                                    value={workshopForm.footer_text}
+                                                    onChange={(e) => setWorkshopForm({ ...workshopForm, footer_text: e.target.value })}
+                                                    placeholder="z.B. Geschäftsführer: Max Mustermann • Amtsgericht Musterstadt"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="workshop-terms">Zahlungsbedingungen / AGB Kurztext</Label>
+                                                <textarea
+                                                    id="workshop-terms"
+                                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    value={workshopForm.terms_text}
+                                                    onChange={(e) => setWorkshopForm({ ...workshopForm, terms_text: e.target.value })}
+                                                    placeholder="z.B. Zahlbar sofort ohne Abzug. Es gelten unsere allgemeinen Geschäftsbedingungen."
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 

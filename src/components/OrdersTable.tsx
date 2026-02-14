@@ -3,6 +3,8 @@ import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { STATUS_COLORS } from "@/lib/constants"
+import type { DateRange } from "react-day-picker"
+import { DateRangePicker } from "@/components/DateRangePicker"
 import {
     Table,
     TableBody,
@@ -74,6 +76,8 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     const { employees } = useEmployee()
     const navigate = useNavigate()
     const [searchTerm, setSearchTerm] = useState("")
+    const [dateRange, setDateRange] = useState<DateRange | undefined>()
+    const [dateFilterType, setDateFilterType] = useState<"created" | "due">("created")
     const [filterStatus, setFilterStatus] = useState("all")
     const [filterEmployee, setFilterEmployee] = useState<string>("all")
     const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
@@ -216,7 +220,27 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                     ? (order.mechanic_ids === null || order.mechanic_ids.length === 0)
                     : (order.mechanic_ids && order.mechanic_ids.includes(filterEmployee))
 
-        return matchesSearch && matchesStatus && matchesEmployee
+        // Date Filter
+        let matchesDate = true
+        if (dateRange?.from) {
+            const dateToCompare = dateFilterType === 'created' ? order.created_at : order.due_date
+
+            if (!dateToCompare && dateFilterType === 'due') {
+                // If filtering by due date and order has no due date, exclude it
+                matchesDate = false
+            } else if (dateToCompare) {
+                const orderDate = new Date(dateToCompare)
+                const from = new Date(dateRange.from)
+                from.setHours(0, 0, 0, 0)
+
+                const to = dateRange.to ? new Date(dateRange.to) : new Date(from)
+                to.setHours(23, 59, 59, 999)
+
+                matchesDate = orderDate >= from && orderDate <= to
+            }
+        }
+
+        return matchesSearch && matchesStatus && matchesEmployee && matchesDate
     })
 
     const handleViewOrder = (orderId: string) => {
@@ -404,6 +428,23 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <Select value={dateFilterType} onValueChange={(v: "created" | "due") => setDateFilterType(v)}>
+                                    <SelectTrigger className="h-9 w-[130px] bg-background">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="created">Eingang</SelectItem>
+                                        <SelectItem value="due">Fällig</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <DateRangePicker
+                                    date={dateRange}
+                                    setDate={setDateRange}
+                                    className="w-auto"
+                                />
                             </div>
 
                             <Button

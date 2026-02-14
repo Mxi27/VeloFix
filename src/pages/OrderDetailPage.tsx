@@ -51,7 +51,7 @@ import {
     ShieldCheck,
     Pencil,
     Trash2,
-    Copy
+    Copy,
 } from "lucide-react"
 import { LoadingScreen } from "@/components/LoadingScreen"
 import { PageTransition } from "@/components/PageTransition"
@@ -68,6 +68,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+
 
 const STATUS_FLOW = [
     { value: 'eingegangen', label: 'Eingegangen', icon: Clock, color: STATUS_COLORS.eingegangen },
@@ -174,6 +175,9 @@ export default function OrderDetailPage() {
     // Assignment State
     const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
     const [assignmentType, setAssignmentType] = useState<'add_mechanic' | 'qc'>('add_mechanic')
+
+    // Checkout Dialog
+
 
     const getEmployeeName = (id: string) => {
         if (!employees) return "Lade..."
@@ -980,6 +984,16 @@ export default function OrderDetailPage() {
 
                             <Button
                                 size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
+                                className="bg-green-500/10 text-green-600 border-green-200 hover:bg-green-500/20"
+                            >
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Kontrolle
+                            </Button>
+
+                            <Button
+                                size="sm"
                                 onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
                                 className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-md shadow-blue-500/20"
                             >
@@ -988,15 +1002,6 @@ export default function OrderDetailPage() {
                                     ? "Weiterarbeiten"
                                     : "Arbeitsmodus starten"
                                 }
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
-                                className="bg-green-500/10 text-green-600 border-green-200 hover:bg-green-500/20"
-                            >
-                                <ShieldCheck className="mr-2 h-4 w-4" />
-                                Kontrolle
                             </Button>
                         </div>
                     </div>
