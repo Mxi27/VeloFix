@@ -362,13 +362,13 @@ export default function NotebookPageView() {
     // ── Render ──────────────────────────────────────────────────────────
 
     return (
-        <PageTransition>
-            <DashboardLayout>
+        <PageTransition className="h-full">
+            <DashboardLayout fullWidth>
                 {/* Main Content: Sidebar + Editor — full height, no header banner */}
-                <div className="flex gap-0" style={{ height: 'calc(100vh - 80px)' }}>
+                <div className="flex gap-0 h-full overflow-hidden w-full">
 
                     {/* ── Tree Sidebar ── */}
-                    <div className="flex-shrink-0 w-[260px] bg-card border border-border/50 rounded-l-2xl overflow-hidden flex flex-col">
+                    <div className="flex-shrink-0 w-[260px] bg-card border border-border/50 border-r-0 overflow-hidden flex flex-col">
                         {/* Search */}
                         <div className="p-3 border-b border-border/30">
                             <div className="relative">
@@ -383,7 +383,7 @@ export default function NotebookPageView() {
                         </div>
 
                         {/* Pages Tree */}
-                        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+                        <div className="flex-1 overflow-y-auto p-2 space-y-0.5 scrollbar-thin scrollbar-thumb-muted/10 hover:scrollbar-thumb-muted/20">
                             {loading ? (
                                 <div className="space-y-2 p-2">
                                     {[1, 2, 3, 4].map(i => (
@@ -438,7 +438,7 @@ export default function NotebookPageView() {
                         </div>
 
                         {/* Bottom Actions — pinned at bottom, always visible */}
-                        <div className="flex-shrink-0 p-2 border-t border-border/30 space-y-0.5 bg-card">
+                        <div className="flex-shrink-0 p-2 border-t border-border/30 space-y-0.5 bg-card z-10">
                             <Button
                                 variant="ghost"
                                 className="w-full h-7 text-xs text-muted-foreground hover:text-foreground justify-start gap-2 rounded-lg"
@@ -466,11 +466,11 @@ export default function NotebookPageView() {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ duration: 0.15 }}
-                                className="bg-card border border-l-0 border-border/50 rounded-r-2xl flex flex-col h-full"
+                                className="bg-card border border-l-0 border-border/50 rounded-r-2xl flex flex-col h-full overflow-hidden"
                             >
-                                {/* Breadcrumbs */}
+                                {/* Breadcrumbs - Fixed at top */}
                                 {breadcrumbs.length > 1 && (
-                                    <div className="px-12 pt-6 flex items-center gap-1.5 text-xs text-muted-foreground/50">
+                                    <div className="px-12 pt-6 flex-shrink-0 flex items-center gap-1.5 text-xs text-muted-foreground/50">
                                         {breadcrumbs.map((crumb, i) => (
                                             <span key={crumb.id} className="flex items-center gap-1.5">
                                                 {i > 0 && <ChevronRight className="h-3 w-3" />}
@@ -492,8 +492,8 @@ export default function NotebookPageView() {
                                     </div>
                                 )}
 
-                                {/* Title Area */}
-                                <div className="px-12 pt-8 pb-4 max-w-4xl">
+                                {/* Title Area - Fixed at top */}
+                                <div className="px-12 pt-8 pb-4 max-w-4xl flex-shrink-0">
                                     <input
                                         ref={titleRef}
                                         type="text"
@@ -512,17 +512,19 @@ export default function NotebookPageView() {
                                     </div>
                                 </div>
 
-                                <div className="mx-12 max-w-4xl">
+                                <div className="mx-12 max-w-4xl flex-shrink-0">
                                     <div className="h-px bg-border/20" />
                                 </div>
 
-                                {/* Content Editor with Slash Commands */}
-                                <div className="flex-1 px-12 pb-12 relative max-w-4xl">
-                                    <NotebookEditor
-                                        key={selectedPageId}
-                                        content={editContent}
-                                        onChange={handleContentChange}
-                                    />
+                                {/* Content Editor - SCROLLABLE AREA */}
+                                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted/10 hover:scrollbar-thumb-muted/20">
+                                    <div className="px-12 pb-12 relative max-w-4xl">
+                                        <NotebookEditor
+                                            key={selectedPageId}
+                                            content={editContent}
+                                            onChange={handleContentChange}
+                                        />
+                                    </div>
                                 </div>
                             </motion.div>
                         ) : selectedPage?.is_folder ? (
@@ -532,7 +534,7 @@ export default function NotebookPageView() {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ duration: 0.15 }}
-                                className="bg-card border border-l-0 border-border/50 rounded-r-2xl flex flex-col h-full p-12"
+                                className="bg-card border border-l-0 border-border/50 rounded-r-2xl flex flex-col h-full p-12 overflow-y-auto"
                             >
                                 <div className="flex items-center gap-4 mb-8">
                                     <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">

@@ -92,20 +92,6 @@ const SLASH_COMMANDS: SlashCommand[] = [
         icon: Minus,
         category: "Blöcke",
         action: (editor) => editor.chain().focus().setHorizontalRule().run()
-    },
-    {
-        label: "Zitat",
-        description: "Blockzitat",
-        icon: Quote,
-        category: "Blöcke",
-        action: (editor) => editor.chain().focus().toggleBlockquote().run()
-    },
-    {
-        label: "Code",
-        description: "Code-Block",
-        icon: Code,
-        category: "Blöcke",
-        action: (editor) => editor.chain().focus().toggleCodeBlock().run()
     }
 ]
 
@@ -192,10 +178,18 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
 
                 // Get coords
                 const coords = view.coordsAtPos($from.pos)
-                // We need relative coords to the editor container usually
-                // For floating absolute:
+
+                // Calculate position
+                const MENU_HEIGHT = 320 // Approx max height
+                const spaceBelow = window.innerHeight - coords.bottom
+
+                let topPosition = coords.bottom + 10
+                if (spaceBelow < MENU_HEIGHT) {
+                    topPosition = coords.top - MENU_HEIGHT - 10
+                }
+
                 setSlashCoordinates({
-                    top: coords.bottom + 10, // Position below cursor
+                    top: topPosition,
                     left: coords.left
                 })
             } else {
