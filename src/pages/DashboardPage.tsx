@@ -1,7 +1,6 @@
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { StatsCards } from "@/components/StatsCards"
 import { OrdersTable } from "@/components/OrdersTable"
-import { DashboardTasks } from "@/components/DashboardTasks"
 import { PageTransition } from "@/components/PageTransition"
 import { useAuth } from "@/contexts/AuthContext"
 import { useState } from "react"
@@ -52,20 +51,11 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* My Tasks & QC - ALWAYS VISIBLE */}
-                <div className="mb-8">
-                    <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                        Meine Aufgaben
-                    </h2>
-                    <DashboardTasks />
-                </div>
-
                 {/* Stats */}
                 <StatsCards key={`stats-${refreshKey}`} />
 
                 {/* Orders */}
                 <div className="mt-8">
-                    <h2 className="text-lg font-semibold mb-4">Aktuelle Aufträge</h2>
                     <OrdersTable key={refreshKey} />
                 </div>
             </DashboardLayout>

@@ -27,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, Eye, UserPlus, Users, X, Check } from "lucide-react"
+import { Search, Filter, Eye, UserPlus, Users, X, Check, SlidersHorizontal } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -47,6 +47,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
 
 interface Order {
     id: string
@@ -67,7 +72,6 @@ type TableMode = 'active' | 'archived' | 'leasing_billing' | 'trash'
 
 interface OrdersTableProps {
     mode?: TableMode
-    // Backward compatibility prop (optional)
     showArchived?: boolean
 }
 
@@ -81,13 +85,13 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     const [filterStatus, setFilterStatus] = useState("all")
     const [filterEmployee, setFilterEmployee] = useState<string>("all")
     const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
+    const [showFilters, setShowFilters] = useState(false)
 
     const handleDeleteOrder = async () => {
         if (!orderToDelete) return
 
         try {
             if (effectiveMode === 'trash') {
-                // Permanent Delete
                 const { error } = await supabase
                     .from('orders')
                     .delete()
@@ -95,7 +99,6 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                 if (error) throw error
             } else {
-                // Soft Delete (Move to Trash)
                 const { error } = await supabase
                     .from('orders')
                     .update({ status: 'trash', trash_date: new Date().toISOString() })
@@ -104,7 +107,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                 if (error) throw error
             }
 
-            mutate() // Refresh list
+            mutate()
             toastSuccess('Auftrag gelöscht', 'Der Auftrag wurde erfolgreich gelöscht.')
         } catch (error) {
             toastError('Fehler beim Löschen', 'Der Auftrag konnte nicht gelöscht werden.')
@@ -119,29 +122,11 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
         let newMechanicIds: string[] = []
         if (employeeId) {
-            // If we are setting a single employee via dropdown, we might want to REPLACE the list or ADD to it?
-            // The dropdown currently implies "Assign this person".
-            // For simple table behavior, let's say selecting a mechanic REPLACES the list (single assignment mode for quick action),
-            // OR adds them if not present?
-            // Given the UI is a simple list selection, replacing is safer to avoid confusion, 
-            // BUT `OrderDetailPage` allows multiple.
-            // Let's make the table dropdown just ADD the employee if not there, or if "None" clears all.
-            // Wait, the dropdown has "Keine Zuweisung".
-
-            // Strategy: 
-            // "Keine Zuweisung" -> clears all mechanics
-            // Selecting a user -> Adds them if not present.  (Or should it replace? logic in `OrderDetailPage` is "Add").
-            // Let's stick to "Add" for consistency, but maybe the user expects "Assign this one person".
-            // Actually, looking at the previous logic `update({ mechanic_id: employeeId })`, it was a single assignment.
-            // If I change it to `mechanic_ids: [employeeId]`, it replaces everyone else. This might be what's expected from a simple dropdown.
-            // Let's go with REPLACING for the table quick-action to keep it simple and consistent with "Assign TO X".
-            // If they want advanced multiple assignment, they go to detail page.
             newMechanicIds = [employeeId]
         } else {
             newMechanicIds = []
         }
 
-        // Optimistic
         const updatedOrders = orders.map(o => o.id === orderId ? { ...o, mechanic_ids: newMechanicIds } : o)
         mutate(updatedOrders, false)
 
@@ -153,14 +138,13 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
             if (error) throw error
             toastSuccess('Zuweisung aktualisiert', employeeId ? 'Mitarbeiter zugewiesen.' : 'Zuweisung aufgehoben.')
-            mutate() // Revalidate
+            mutate()
         } catch (error) {
             toastError('Fehler', 'Mitarbeiter konnte nicht zugewiesen werden.')
-            mutate() // Rollback
+            mutate()
         }
     }
 
-    // Resolve effective mode
     const effectiveMode: TableMode = showArchived ? 'archived' : mode
 
     const fetchOrders = async () => {
@@ -175,15 +159,11 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         if (effectiveMode === 'archived') {
             query = query.eq('status', 'abgeschlossen')
         } else if (effectiveMode === 'leasing_billing') {
-            // Leasing billing: is_leasing = true AND status = 'abgeholt'
             query = query.eq('is_leasing', true).eq('status', 'abgeholt')
         } else if (effectiveMode === 'trash') {
             query = query.eq('status', 'trash')
         } else {
-            // Active: Exclude 'abgeschlossen', 'abgeholt', AND 'trash'
             query = query.neq('status', 'abgeschlossen').neq('status', 'abgeholt').neq('status', 'trash')
-
-            // Also exclude 'trash' explicitly just in case string matching overlaps, though 'trash' !='abgeschlossen'
         }
 
         const { data, error } = await query
@@ -220,13 +200,11 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                     ? (order.mechanic_ids === null || order.mechanic_ids.length === 0)
                     : (order.mechanic_ids && order.mechanic_ids.includes(filterEmployee))
 
-        // Date Filter
         let matchesDate = true
         if (dateRange?.from) {
             const dateToCompare = dateFilterType === 'created' ? order.created_at : order.due_date
 
             if (!dateToCompare && dateFilterType === 'due') {
-                // If filtering by due date and order has no due date, exclude it
                 matchesDate = false
             } else if (dateToCompare) {
                 const orderDate = new Date(dateToCompare)
@@ -255,6 +233,12 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         if (!id) return null
         return employees.find(e => e.id === id)?.name || "Unbekannt"
     }
+
+    const activeFilterCount = [
+        filterStatus !== 'all',
+        filterEmployee !== 'all',
+        dateRange?.from
+    ].filter(Boolean).length
 
     const renderTable = (ordersToRender: Order[]) => (
         <div className="rounded-xl border border-border/60 bg-background overflow-x-auto shadow-sm">
@@ -408,79 +392,125 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         <>
             <Card className="border-none shadow-sm bg-card/50">
                 <CardHeader className="pb-4">
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <div className="space-y-1 text-center sm:text-left">
+                    <div className="flex flex-col gap-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <CardTitle className="text-xl font-bold tracking-tight">
                                 {getTitle()}
                             </CardTitle>
+
+                            {/* Filter Toggle Button */}
+                            <Popover open={showFilters} onOpenChange={setShowFilters}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="gap-2 bg-background"
+                                    >
+                                        <SlidersHorizontal className="h-4 w-4" />
+                                        Filter
+                                        {activeFilterCount > 0 && (
+                                            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                                                {activeFilterCount}
+                                            </Badge>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80" align="end">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-semibold">Filter & Optionen</p>
+                                            {(filterStatus !== 'all' || filterEmployee !== 'all' || dateRange) && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 text-xs"
+                                                    onClick={() => {
+                                                        setFilterStatus('all')
+                                                        setFilterEmployee('all')
+                                                        setDateRange(undefined)
+                                                    }}
+                                                >
+                                                    Alle zurücksetzen
+                                                </Button>
+                                            )}
+                                        </div>
+
+                                        {/* Employee Filter */}
+                                        <div className="space-y-2">
+                                            <label className="text-xs text-muted-foreground">Mitarbeiter</label>
+                                            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                                                <SelectTrigger className="h-9">
+                                                    <SelectValue placeholder="Alle Mitarbeiter" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">Alle Mitarbeiter</SelectItem>
+                                                    <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
+                                                    {employees.map(emp => (
+                                                        <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {/* Date Range Filter */}
+                                        <div className="space-y-2">
+                                            <label className="text-xs text-muted-foreground">Zeitraum</label>
+                                            <div className="flex items-center gap-2">
+                                                <Select value={dateFilterType} onValueChange={(v: "created" | "due") => setDateFilterType(v)}>
+                                                    <SelectTrigger className="h-9 flex-1">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="created">Eingang</SelectItem>
+                                                        <SelectItem value="due">Fällig</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <DateRangePicker
+                                                    date={dateRange}
+                                                    setDate={setDateRange}
+                                                    className="flex-1"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Refresh Button */}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => mutate()}
+                                            disabled={loading}
+                                            className="w-full justify-start"
+                                        >
+                                            <Filter className="mr-2 h-4 w-4" />
+                                            {loading ? "Lädt..." : "Aktualisieren"}
+                                        </Button>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-40 sm:w-56">
-                                <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-                                    <SelectTrigger className="h-9">
-                                        <SelectValue placeholder="Mitarbeiter" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">Alle Mitarbeiter</SelectItem>
-                                        <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                                        {employees.map(emp => (
-                                            <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
 
-                            <div className="flex items-center gap-2">
-                                <Select value={dateFilterType} onValueChange={(v: "created" | "due") => setDateFilterType(v)}>
-                                    <SelectTrigger className="h-9 w-[130px] bg-background">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="created">Eingang</SelectItem>
-                                        <SelectItem value="due">Fällig</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <DateRangePicker
-                                    date={dateRange}
-                                    setDate={setDateRange}
-                                    className="w-auto"
-                                />
-                            </div>
-
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={fetchOrders}
-                                disabled={loading}
-                                className="shrink-0 bg-background hover:bg-muted/50"
-                            >
-                                {loading ? <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent mr-2" /> : <Filter className="mr-2 h-4 w-4" />}
-                                {loading ? "Lädt..." : "Aktualisieren"}
-                            </Button>
+                        {/* Search Bar */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Suche nach Kunde, Auftragsnummer oder Modell..."
+                                className="pl-10 bg-background"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
                         </div>
                     </div>
                 </CardHeader>
                 <CardContent>
                     {effectiveMode === 'active' ? (
                         <Tabs defaultValue="all" className="space-y-6" onValueChange={setFilterStatus}>
-                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                                <div className="flex items-center gap-2 w-full md:w-auto md:flex-1 relative max-w-sm">
-                                    <Search className="h-4 w-4 absolute left-3 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Suche nach Kunde, Auftragsnummer oder Modell..."
-                                        className="pl-9 bg-background"
-                                        value={searchTerm}
-                                        onChange={e => setSearchTerm(e.target.value)}
-                                    />
-                                </div>
-                                <TabsList variant="line" className="w-full md:w-auto overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1">
-                                    <TabsTrigger value="all" className="whitespace-nowrap">Alle</TabsTrigger>
-                                    <TabsTrigger value="eingegangen" className="whitespace-nowrap">Eingegangen</TabsTrigger>
-                                    <TabsTrigger value="warten_auf_teile" className="whitespace-nowrap">Warten auf Teile</TabsTrigger>
-                                    <TabsTrigger value="in_bearbeitung" className="whitespace-nowrap">In Bearbeitung</TabsTrigger>
-                                    <TabsTrigger value="abholbereit" className="whitespace-nowrap">Abholbereit</TabsTrigger>
-                                </TabsList>
-                            </div>
+                            <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1">
+                                <TabsTrigger value="all" className="whitespace-nowrap">Alle</TabsTrigger>
+                                <TabsTrigger value="eingegangen" className="whitespace-nowrap">Eingegangen</TabsTrigger>
+                                <TabsTrigger value="warten_auf_teile" className="whitespace-nowrap">Warten auf Teile</TabsTrigger>
+                                <TabsTrigger value="in_bearbeitung" className="whitespace-nowrap">In Bearbeitung</TabsTrigger>
+                                <TabsTrigger value="abholbereit" className="whitespace-nowrap">Abholbereit</TabsTrigger>
+                            </TabsList>
 
                             <TabsContent value="all" className="mt-0">
                                 {renderTable(filteredOrders)}
@@ -500,15 +530,6 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                         </Tabs>
                     ) : (
                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 max-w-sm relative">
-                                <Search className="h-4 w-4 absolute left-3 text-muted-foreground" />
-                                <Input
-                                    placeholder={effectiveMode === 'archived' ? "Suche im Archiv..." : (effectiveMode === 'trash' ? "Suche im Papierkorb..." : "Suche in Abrechnung...")}
-                                    className="pl-9 bg-background"
-                                    value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                />
-                            </div>
                             {renderTable(filteredOrders)}
                         </div>
                     )}

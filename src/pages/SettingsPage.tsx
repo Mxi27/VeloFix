@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
     AlertDialog,
@@ -65,7 +66,6 @@ type SettingsSection =
     | 'notifications'
     | 'security'
     | 'display'
-    | 'display'
     | 'data'
     | 'export'
 
@@ -76,20 +76,40 @@ interface NavItem {
     adminOnly?: boolean
 }
 
-const navItems: NavItem[] = [
-    { id: 'profile', label: 'Profil', icon: User },
-    { id: 'workshop', label: 'Werkstatt', icon: Building2, adminOnly: true },
-    { id: 'employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
-    { id: 'checklists', label: 'Checklisten', icon: ListChecks, adminOnly: true },
-    { id: 'neurad', label: 'Neurad Konfig', icon: Wrench, adminOnly: true },
-    { id: 'inquiries', label: 'Kundenanfragen', icon: MessageSquare, adminOnly: true },
-    { id: 'intake', label: 'Annahme', icon: ClipboardList, adminOnly: true },
-    { id: 'leasing', label: 'Leasing', icon: CreditCard, adminOnly: true },
-    { id: 'data', label: 'Datenverwaltung', icon: DatabaseIcon, adminOnly: true },
-    { id: 'export', label: 'Datenexport', icon: FileSpreadsheet, adminOnly: true },
-    { id: 'notifications', label: 'Benachrichtigungen', icon: Bell },
-    { id: 'security', label: 'Sicherheit', icon: Shield },
-    { id: 'display', label: 'Darstellung', icon: Palette },
+interface NavGroup {
+    label: string
+    items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
+    {
+        label: 'Persönlich',
+        items: [
+            { id: 'profile', label: 'Profil', icon: User },
+            { id: 'display', label: 'Darstellung', icon: Palette },
+            { id: 'notifications', label: 'Benachrichtigungen', icon: Bell },
+            { id: 'security', label: 'Sicherheit', icon: Shield },
+        ],
+    },
+    {
+        label: 'Werkstatt',
+        items: [
+            { id: 'workshop', label: 'Werkstatt-Details', icon: Building2, adminOnly: true },
+            { id: 'employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
+            { id: 'checklists', label: 'Checklisten', icon: ListChecks, adminOnly: true },
+            { id: 'neurad', label: 'Neurad Konfig', icon: Wrench, adminOnly: true },
+            { id: 'inquiries', label: 'Kundenanfragen', icon: MessageSquare, adminOnly: true },
+            { id: 'intake', label: 'Annahme & QR', icon: ClipboardList, adminOnly: true },
+            { id: 'leasing', label: 'Leasing', icon: CreditCard, adminOnly: true },
+        ],
+    },
+    {
+        label: 'System',
+        items: [
+            { id: 'data', label: 'Datenverwaltung', icon: DatabaseIcon, adminOnly: true },
+            { id: 'export', label: 'Datenexport', icon: FileSpreadsheet, adminOnly: true },
+        ],
+    },
 ]
 
 export default function SettingsPage() {
@@ -233,9 +253,17 @@ export default function SettingsPage() {
         .join('')
         .toUpperCase() || 'U'
 
-    const filteredNavItems = navItems.filter(item =>
-        !item.adminOnly || (userRole === 'admin' || userRole === 'owner')
-    )
+    const isAdmin = userRole === 'admin' || userRole === 'owner'
+    const filteredNavGroups = navGroups
+        .map(group => ({
+            ...group,
+            items: group.items.filter(item => !item.adminOnly || isAdmin),
+        }))
+        .filter(group => group.items.length > 0)
+
+    const memberSince = user?.created_at
+        ? new Date(user.created_at).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
+        : null
 
     if (loading) {
         return (
@@ -265,20 +293,32 @@ export default function SettingsPage() {
                             <CardContent className="space-y-6">
                                 <form onSubmit={handleUpdateProfile} className="space-y-6">
                                     <div className="flex items-center gap-6">
-                                        <Avatar className="h-24 w-24 border-4 border-background shadow-lg">
+                                        <Avatar className="h-24 w-24 border-4 border-background shadow-lg ring-2 ring-primary/10">
                                             <AvatarImage src="" />
                                             <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/80 to-primary text-primary-foreground">
                                                 {initials}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <div className="space-y-1">
-                                            <h3 className="text-xl font-semibold">
+                                        <div className="space-y-1.5">
+                                            <h3 className="text-xl font-semibold tracking-tight">
                                                 {user?.user_metadata?.full_name || 'Benutzer'}
                                             </h3>
-                                            <p className="text-muted-foreground">{user?.email}</p>
-                                            <p className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded inline-block">
-                                                {userRole === 'admin' ? 'Administrator' : 'Mitarbeiter'}
-                                            </p>
+                                            <p className="text-sm text-muted-foreground">{user?.email}</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className={cn(
+                                                    "text-xs font-medium px-2.5 py-1 rounded-full",
+                                                    (userRole === 'admin' || userRole === 'owner')
+                                                        ? "bg-primary/10 text-primary"
+                                                        : "bg-muted text-muted-foreground"
+                                                )}>
+                                                    {userRole === 'owner' ? 'Inhaber' : userRole === 'admin' ? 'Administrator' : 'Mitarbeiter'}
+                                                </span>
+                                                {memberSince && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Mitglied seit {memberSince}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
@@ -465,6 +505,21 @@ export default function SettingsPage() {
                                     </div>
 
                                     <div className="border-t pt-6 mt-6">
+                                        <h3 className="text-lg font-medium mb-4">Öffnungszeiten</h3>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="workshop-hours">Öffnungszeiten</Label>
+                                            <Textarea
+                                                id="workshop-hours"
+                                                value={workshopForm.opening_hours}
+                                                onChange={(e) => setWorkshopForm({ ...workshopForm, opening_hours: e.target.value })}
+                                                placeholder={"Mo–Fr: 09:00 – 18:00\nSa: 09:00 – 13:00\nSo: Geschlossen"}
+                                                className="min-h-[100px]"
+                                            />
+                                            <p className="text-xs text-muted-foreground">Wird auf Dokumenten und im Selbst-Check-In angezeigt.</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t pt-6 mt-6">
                                         <h3 className="text-lg font-medium mb-4">Dokumente</h3>
                                         <div className="space-y-4">
                                             <div className="space-y-2">
@@ -478,12 +533,12 @@ export default function SettingsPage() {
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="workshop-terms">Zahlungsbedingungen / AGB Kurztext</Label>
-                                                <textarea
+                                                <Textarea
                                                     id="workshop-terms"
-                                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                     value={workshopForm.terms_text}
                                                     onChange={(e) => setWorkshopForm({ ...workshopForm, terms_text: e.target.value })}
                                                     placeholder="z.B. Zahlbar sofort ohne Abzug. Es gelten unsere allgemeinen Geschäftsbedingungen."
+                                                    className="min-h-[80px]"
                                                 />
                                             </div>
                                         </div>
@@ -507,7 +562,7 @@ export default function SettingsPage() {
                 return <ChecklistTemplateManager />
 
             case 'intake':
-                return <AcceptanceSettings workshopName={workshop?.name} />
+                return <AcceptanceSettings workshopName={workshop?.name} workshopAddress={workshop?.address ? `${workshop.address}${workshop.city ? `, ${workshop.city}` : ''}` : undefined} workshopPhone={workshop?.phone || undefined} />
 
             case 'leasing':
                 return <LeasingSettings />
@@ -557,35 +612,45 @@ export default function SettingsPage() {
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Premium Sidebar Navigation */}
                     <div className="lg:w-64 shrink-0">
-                        <nav className="space-y-1 sticky top-4 p-2 rounded-xl bg-muted/30 border">
-                            {filteredNavItems.map((item) => {
-                                const Icon = item.icon
-                                const isActive = activeSection === item.id
+                        <nav className="sticky top-4 p-2 rounded-xl bg-muted/30 border space-y-4">
+                            {filteredNavGroups.map((group, gi) => (
+                                <div key={group.label}>
+                                    {gi > 0 && <div className="border-t border-border/50 mb-3" />}
+                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 mb-1.5">
+                                        {group.label}
+                                    </p>
+                                    <div className="space-y-0.5">
+                                        {group.items.map((item) => {
+                                            const Icon = item.icon
+                                            const isActive = activeSection === item.id
 
-                                return (
-                                    <button
-                                        key={item.id}
-                                        onClick={() => setActiveSection(item.id)}
-                                        className={cn(
-                                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200",
-                                            isActive
-                                                ? "bg-background shadow-sm border text-foreground"
-                                                : "hover:bg-background/50 text-muted-foreground hover:text-foreground"
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            "p-1.5 rounded-md transition-colors",
-                                            isActive ? "bg-primary/10 text-primary" : "bg-muted"
-                                        )}>
-                                            <Icon className="h-4 w-4" />
-                                        </div>
-                                        <span className="font-medium text-sm">{item.label}</span>
-                                        {isActive && (
-                                            <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground" />
-                                        )}
-                                    </button>
-                                )
-                            })}
+                                            return (
+                                                <button
+                                                    key={item.id}
+                                                    onClick={() => setActiveSection(item.id)}
+                                                    className={cn(
+                                                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200",
+                                                        isActive
+                                                            ? "bg-background shadow-sm border text-foreground"
+                                                            : "hover:bg-background/50 text-muted-foreground hover:text-foreground"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "p-1.5 rounded-md transition-colors",
+                                                        isActive ? "bg-primary/10 text-primary" : "bg-transparent"
+                                                    )}>
+                                                        <Icon className="h-4 w-4" />
+                                                    </div>
+                                                    <span className="font-medium text-sm">{item.label}</span>
+                                                    {isActive && (
+                                                        <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground/50" />
+                                                    )}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
                         </nav>
                     </div>
 

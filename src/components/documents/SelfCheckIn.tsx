@@ -2,6 +2,8 @@ import React from "react";
 
 export interface SelfCheckInProps {
     shopName?: string;
+    shopAddress?: string;
+    shopPhone?: string;
     qrCodeSrc?: string;
     accentColor?: string;
 }
@@ -10,6 +12,8 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
     (
         {
             shopName = "Boxenstop Radsport",
+            shopAddress,
+            shopPhone,
             qrCodeSrc = "/qr-code.png",
             accentColor = "#1B7A4A",
         },
@@ -21,7 +25,7 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
                 id="self-check-in-print-root"
                 style={{
                     width: "210mm",
-                    minHeight: "297mm",
+                    height: "297mm",
                     margin: "0 auto",
                     background: "#FFFFFF",
                     fontFamily:
@@ -49,16 +53,19 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
                 <div
                     style={{
                         width: "100%",
-                        height: "5px",
-                        background: accentColor,
+                        height: "8px",
+                        background: `linear-gradient(90deg, ${accentColor}, ${accentColor}CC)`,
                     }}
                 />
+
+                {/* ── Top Spacer ── */}
+                <div style={{ flex: 1, minHeight: "40px" }} />
 
                 {/* ── Header ── */}
                 <div
                     style={{
                         width: "100%",
-                        padding: "40px 48px 0",
+                        padding: "0 56px",
                         boxSizing: "border-box",
                         display: "flex",
                         flexDirection: "column",
@@ -68,12 +75,12 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
                 >
                     <span
                         style={{
-                            fontSize: "10px",
+                            fontSize: "11px",
                             fontWeight: 600,
-                            letterSpacing: "2.5px",
+                            letterSpacing: "3px",
                             textTransform: "uppercase",
-                            color: "#999999",
-                            marginBottom: "4px",
+                            color: "#AAAAAA",
+                            marginBottom: "6px",
                         }}
                     >
                         {shopName}
@@ -81,24 +88,11 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
 
                     <span
                         style={{
-                            fontSize: "26px",
+                            fontSize: "32px",
                             fontWeight: 800,
                             letterSpacing: "-0.5px",
                             color: "#0A0A0A",
-                            marginBottom: "20px",
-                        }}
-                    >
-                        VeloFix
-                    </span>
-
-                    <span
-                        style={{
-                            fontSize: "9.5px",
-                            fontWeight: 600,
-                            letterSpacing: "3px",
-                            textTransform: "uppercase",
-                            color: "#AAAAAA",
-                            marginBottom: "28px",
+                            marginBottom: "8px",
                         }}
                     >
                         Self Check-In
@@ -106,22 +100,23 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
 
                     <p
                         style={{
-                            fontSize: "13px",
+                            fontSize: "14px",
                             fontWeight: 400,
-                            color: "#777777",
+                            color: "#888888",
                             margin: 0,
-                            lineHeight: 1.5,
+                            lineHeight: 1.6,
+                            maxWidth: "360px",
                         }}
                     >
-                        Starten Sie Ihre Reparatur-Annahme – schnell &amp;
-                        digital.
+                        Starten Sie Ihre Reparatur-Annahme –<br />
+                        schnell &amp; digital.
                     </p>
                 </div>
 
                 {/* ── QR Code Section ── */}
                 <div
                     style={{
-                        marginTop: "36px",
+                        marginTop: "48px",
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "center",
@@ -129,16 +124,16 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
                 >
                     <div
                         style={{
-                            width: "220px",
-                            height: "220px",
-                            borderRadius: "10px",
+                            width: "260px",
+                            height: "260px",
+                            borderRadius: "16px",
                             background: "#FFFFFF",
                             boxShadow:
-                                "0 2px 24px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04)",
+                                "0 4px 32px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            padding: "18px",
+                            padding: "22px",
                             boxSizing: "border-box",
                         }}
                     >
@@ -155,14 +150,14 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
 
                     <div
                         style={{
-                            marginTop: "18px",
+                            marginTop: "22px",
                             background: accentColor,
                             color: "#FFFFFF",
-                            fontSize: "12px",
+                            fontSize: "13px",
                             fontWeight: 700,
-                            letterSpacing: "1.8px",
+                            letterSpacing: "2px",
                             textTransform: "uppercase",
-                            padding: "11px 34px",
+                            padding: "13px 40px",
                             borderRadius: "100px",
                         }}
                     >
@@ -175,8 +170,8 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
                     style={{
                         width: "56px",
                         height: "1px",
-                        background: "#E5E5E5",
-                        margin: "36px 0",
+                        background: "#E0E0E0",
+                        margin: "44px 0",
                     }}
                 />
 
@@ -184,8 +179,9 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
                 <div
                     style={{
                         width: "100%",
-                        padding: "0 48px",
+                        padding: "0 56px",
                         boxSizing: "border-box",
+                        maxWidth: "440px",
                     }}
                 >
                     {/* Section Header */}
@@ -194,7 +190,7 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
                             display: "flex",
                             alignItems: "center",
                             gap: "12px",
-                            marginBottom: "20px",
+                            marginBottom: "22px",
                         }}
                     >
                         <span
@@ -254,26 +250,26 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
                                 style={{
                                     display: "flex",
                                     alignItems: "center",
-                                    gap: "14px",
-                                    padding: "14px 0",
+                                    gap: "16px",
+                                    padding: "16px 0",
                                     borderBottom:
                                         i < 2
-                                            ? "1px solid #F5F5F5"
+                                            ? "1px solid #F3F3F3"
                                             : "none",
                                 }}
                             >
                                 <div
                                     style={{
-                                        width: "34px",
-                                        height: "34px",
-                                        minWidth: "34px",
+                                        width: "38px",
+                                        height: "38px",
+                                        minWidth: "38px",
                                         borderRadius: "50%",
-                                        background: `${accentColor}12`,
+                                        background: `${accentColor}14`,
                                         border: `1.5px solid ${accentColor}30`,
                                         display: "flex",
                                         alignItems: "center",
                                         justifyContent: "center",
-                                        fontSize: "13px",
+                                        fontSize: "14px",
                                         fontWeight: 700,
                                         color: accentColor,
                                     }}
@@ -283,7 +279,7 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
 
                                 <span
                                     style={{
-                                        fontSize: "13px",
+                                        fontSize: "14px",
                                         fontWeight: 600,
                                         color: "#2A2A2A",
                                         lineHeight: 1.4,
@@ -296,32 +292,48 @@ export const SelfCheckIn = React.forwardRef<HTMLDivElement, SelfCheckInProps>(
                     </div>
                 </div>
 
-                {/* ── Spacer ── */}
+                {/* ── Bottom Spacer ── */}
                 <div style={{ flex: 1, minHeight: "40px" }} />
 
                 {/* ── Footer ── */}
                 <div
                     style={{
                         width: "100%",
-                        padding: "24px 48px 28px",
+                        padding: "24px 56px 28px",
                         boxSizing: "border-box",
                         display: "flex",
                         justifyContent: "space-between",
-                        alignItems: "center",
+                        alignItems: "flex-end",
                         borderTop: "1px solid #F0F0F0",
                     }}
                 >
-                    <span
-                        style={{
-                            fontSize: "9px",
-                            fontWeight: 600,
-                            letterSpacing: "2px",
-                            textTransform: "uppercase",
-                            color: "#CCCCCC",
-                        }}
-                    >
-                        Powered by VeloFix Software
-                    </span>
+                    <div>
+                        {(shopAddress || shopPhone) && (
+                            <p
+                                style={{
+                                    fontSize: "9px",
+                                    color: "#BBBBBB",
+                                    margin: "0 0 4px 0",
+                                    lineHeight: 1.5,
+                                }}
+                            >
+                                {shopName}
+                                {shopAddress ? ` · ${shopAddress}` : ""}
+                                {shopPhone ? ` · ${shopPhone}` : ""}
+                            </p>
+                        )}
+                        <span
+                            style={{
+                                fontSize: "9px",
+                                fontWeight: 600,
+                                letterSpacing: "2px",
+                                textTransform: "uppercase",
+                                color: "#CCCCCC",
+                            }}
+                        >
+                            Powered by VeloFix Software
+                        </span>
+                    </div>
                     <span
                         style={{
                             fontSize: "9px",

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Palette, Monitor, Moon, Sun, LayoutGrid, Check } from 'lucide-react'
+import { Palette, Monitor, Moon, Sun, LayoutGrid, Check, Globe } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -224,6 +224,40 @@ export function DisplaySettings() {
                             onCheckedChange={handleCompactChange}
                         />
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* Language / Region */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                            <Globe className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-lg">Sprache & Region</CardTitle>
+                            <CardDescription>
+                                Stellen Sie die Anzeigesprache ein
+                            </CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                        <div className="flex items-center gap-3">
+                            <span className="text-lg">🇩🇪</span>
+                            <div>
+                                <p className="font-medium text-sm">Deutsch</p>
+                                <p className="text-xs text-muted-foreground">Deutschland</p>
+                            </div>
+                        </div>
+                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-medium">
+                            Aktiv
+                        </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-3">
+                        Weitere Sprachen folgen in zukünftigen Updates.
+                    </p>
                 </CardContent>
             </Card>
         </div>

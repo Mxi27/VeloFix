@@ -11,9 +11,11 @@ import { SelfCheckIn } from '@/components/documents/SelfCheckIn'
 interface IntakeQRGeneratorProps {
     workshopId: string
     workshopName: string
+    workshopAddress?: string
+    workshopPhone?: string
 }
 
-export function IntakeQRGenerator({ workshopId, workshopName }: IntakeQRGeneratorProps) {
+export function IntakeQRGenerator({ workshopId, workshopName, workshopAddress, workshopPhone }: IntakeQRGeneratorProps) {
     // Logic: Use production URL if on localhost, otherwise current origin
     const productionUrl = 'https://velo-fix.vercel.app'
     const origin = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
@@ -118,9 +120,9 @@ export function IntakeQRGenerator({ workshopId, workshopName }: IntakeQRGenerato
 
             toastSuccess('PDF erfolgreich heruntergeladen', `${workshopName}_Annahme_QR.pdf`)
 
-        } catch (error) {
-            console.error(error)
-            toastError('Fehler beim Erstellen des PDFs', 'Bitte versuchen Sie es erneut.')
+        } catch (error: any) {
+            console.error("PDF Generation Error:", error)
+            toastError('Fehler beim Erstellen des PDFs', error.message || 'Bitte versuchen Sie es erneut.')
         } finally {
             setGenerating(false)
         }
@@ -180,11 +182,13 @@ export function IntakeQRGenerator({ workshopId, workshopName }: IntakeQRGenerato
                     </div>
                 </div>
 
-                {/* Hidden container for PDF generation */}
-                <div style={{ position: 'absolute', top: '-10000px', left: '-10000px' }}>
+                {/* Hidden container for PDF generation - using fixed/transform to ensure it's rendered but not visible */}
+                <div style={{ position: 'fixed', top: 0, left: 0, transform: 'translateX(-200vw)', pointerEvents: 'none', zIndex: -1 }}>
                     <SelfCheckIn
                         ref={printRef}
                         shopName={workshopName}
+                        shopAddress={workshopAddress}
+                        shopPhone={workshopPhone}
                         qrCodeSrc={qrCodeDataUrl}
                         accentColor="#D32F2F"
                     />

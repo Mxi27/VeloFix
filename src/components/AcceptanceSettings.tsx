@@ -19,7 +19,7 @@ import {
 
 import { IntakeQRGenerator } from './IntakeQRGenerator'
 
-export function AcceptanceSettings({ workshopName }: { workshopName?: string }) {
+export function AcceptanceSettings({ workshopName, workshopAddress, workshopPhone }: { workshopName?: string; workshopAddress?: string; workshopPhone?: string }) {
     const { workshopId } = useAuth()
     const [items, setItems] = useState<string[]>([])
     const [newItem, setNewItem] = useState('')
@@ -133,7 +133,7 @@ export function AcceptanceSettings({ workshopName }: { workshopName?: string }) 
     return (
         <>
             <div className="space-y-6">
-                {workshopId && <IntakeQRGenerator workshopId={workshopId} workshopName={workshopName || 'Werkstatt'} />}
+                {workshopId && <IntakeQRGenerator workshopId={workshopId} workshopName={workshopName || 'Werkstatt'} workshopAddress={workshopAddress} workshopPhone={workshopPhone} />}
 
                 <Card>
                     <CardHeader>
