@@ -14,8 +14,6 @@ import {
     ListOrdered,
     CheckSquare,
     Minus,
-    Quote,
-    Code,
     Type
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
