@@ -10,6 +10,7 @@ import {
     Star,
     LayoutTemplate,
     CheckSquare,
+    BookOpen,
 } from "lucide-react"
 import {
     Sidebar,
@@ -66,6 +67,11 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
             title: "Aufgaben",
             icon: CheckSquare,
             href: "/dashboard/tasks",
+        },
+        {
+            title: "Notizbuch",
+            icon: BookOpen,
+            href: "/dashboard/notebook",
         },
         {
             title: "Neuradaufbau",
