@@ -21,6 +21,7 @@ export interface OrderItem {
 export const STATUS_LABELS: Record<string, string> = {
     eingegangen: "Eingegangen",
     in_bearbeitung: "In Bearbeitung",
+    kontrolle_offen: "Kontrolle offen",
     warten_auf_teile: "Warten auf Teile",
     abholbereit: "Abholbereit",
     abgeschlossen: "Abgeschlossen",
@@ -37,6 +38,7 @@ export const STATUS_COLORS: Record<string, string> = {
     abholbereit: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800",
     todo: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
     in_progress: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
+    kontrolle_offen: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800",
     done: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800",
 }
 

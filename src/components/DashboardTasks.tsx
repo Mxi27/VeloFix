@@ -124,6 +124,7 @@ export function DashboardTasks() {
             case 'abholbereit': return 'text-emerald-600 bg-emerald-50 border-emerald-200'
             case 'in_bearbeitung': return 'text-blue-600 bg-blue-50 border-blue-200'
             case 'warten_auf_teile': return 'text-amber-600 bg-amber-50 border-amber-200'
+            case 'kontrolle_offen': return 'text-yellow-600 bg-yellow-50 border-yellow-200'
             case 'eingegangen': return 'text-slate-600 bg-slate-50 border-slate-200'
             default: return 'text-slate-600 bg-slate-50 border-slate-200'
         }
@@ -293,6 +294,10 @@ export function DashboardTasks() {
                             <DropdownMenuItem onClick={() => setStatusFilter('warten_auf_teile')}>
                                 Warten auf Teile
                                 {statusFilter === 'warten_auf_teile' && <CheckCircle2 className="h-3 w-3 ml-auto" />}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setStatusFilter('kontrolle_offen')}>
+                                Kontrolle offen
+                                {statusFilter === 'kontrolle_offen' && <CheckCircle2 className="h-3 w-3 ml-auto" />}
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => setStatusFilter('eingegangen')}>
                                 Eingegangen

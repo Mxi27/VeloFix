@@ -32,10 +32,11 @@ interface AllRepairsListProps {
 }
 
 type SortOption = 'due_date' | 'created_at'
-type FilterStatus = 'all' | 'all_open' | 'unassigned' | 'eingegangen' | 'in_bearbeitung' | 'warten_auf_teile' | 'abholbereit'
+type FilterStatus = 'all' | 'all_open' | 'unassigned' | 'eingegangen' | 'in_bearbeitung' | 'warten_auf_teile' | 'kontrolle_offen' | 'abholbereit'
 
 export const AllRepairsList = ({ orders, employees }: AllRepairsListProps) => {
     const { workshopId, user } = useAuth()
+    // Force rebuild
     const navigate = useNavigate()
     const { activeEmployee } = useEmployee()
     const location = useLocation()
@@ -89,7 +90,7 @@ export const AllRepairsList = ({ orders, employees }: AllRepairsListProps) => {
                     return true
                 }
 
-                if (filterStatus !== 'all' && filterStatus !== 'all_open' && order.status !== (filterStatus as string)) return false
+                if (filterStatus !== 'all' && order.status !== (filterStatus as string)) return false
 
                 return true
             })
@@ -201,6 +202,7 @@ export const AllRepairsList = ({ orders, employees }: AllRepairsListProps) => {
                             <SelectItem value="eingegangen">Eingegangen</SelectItem>
                             <SelectItem value="in_bearbeitung">In Bearbeitung</SelectItem>
                             <SelectItem value="warten_auf_teile">Warten auf Teile</SelectItem>
+                            <SelectItem value="kontrolle_offen">Kontrolle offen</SelectItem>
                             <SelectItem value="abholbereit">Abholbereit</SelectItem>
                         </SelectContent>
                     </Select>

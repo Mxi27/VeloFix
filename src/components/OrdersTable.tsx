@@ -509,6 +509,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 <TabsTrigger value="eingegangen" className="whitespace-nowrap">Eingegangen</TabsTrigger>
                                 <TabsTrigger value="warten_auf_teile" className="whitespace-nowrap">Warten auf Teile</TabsTrigger>
                                 <TabsTrigger value="in_bearbeitung" className="whitespace-nowrap">In Bearbeitung</TabsTrigger>
+                                <TabsTrigger value="kontrolle_offen" className="whitespace-nowrap">Kontrolle offen</TabsTrigger>
                                 <TabsTrigger value="abholbereit" className="whitespace-nowrap">Abholbereit</TabsTrigger>
                             </TabsList>
 
@@ -522,6 +523,9 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 {renderTable(filteredOrders)}
                             </TabsContent>
                             <TabsContent value="in_bearbeitung" className="mt-0">
+                                {renderTable(filteredOrders)}
+                            </TabsContent>
+                            <TabsContent value="kontrolle_offen" className="mt-0">
                                 {renderTable(filteredOrders)}
                             </TabsContent>
                             <TabsContent value="abholbereit" className="mt-0">
