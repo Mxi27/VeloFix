@@ -308,6 +308,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 if (template?.items && Array.isArray(template.items)) {
                     serviceItems = template.items.map((item: any) => ({
                         text: item.text,
+                        description: item.description, // Copy description
                         completed: false, // Reset completion for the order
                         type: 'service'
                     }))

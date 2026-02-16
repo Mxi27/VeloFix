@@ -1561,370 +1561,372 @@ export default function OrderDetailPage() {
                         </div>
                     )}
                 </div>
-            </DashboardLayout>
-
-            <Dialog open={isCustomerEditDialogOpen} onOpenChange={setIsCustomerEditDialogOpen}>
-                <DialogContent aria-describedby={undefined}>
-                    <DialogHeader>
-                        <DialogTitle>Kundendaten bearbeiten</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Name</Label>
-                            <Input
-                                value={editCustomerName}
-                                onChange={e => setEditCustomerName(e.target.value)}
-                                placeholder="Name eingeben"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>E-Mail</Label>
-                            <Input
-                                value={editCustomerEmail}
-                                onChange={e => setEditCustomerEmail(e.target.value)}
-                                placeholder="E-Mail eingeben"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Telefon</Label>
-                            <Input
-                                value={editCustomerPhone}
-                                onChange={e => setEditCustomerPhone(e.target.value)}
-                                placeholder="Telefon eingeben"
-                            />
-                        </div>
-
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsCustomerEditDialogOpen(false)}>Abbrechen</Button>
-                        <Button
-                            onClick={() => handleSaveCustomerData()}
-                            disabled={!editCustomerName || saving}
-                        >
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Edit Bike Dialog */}
-            <Dialog open={isBikeEditDialogOpen} onOpenChange={setIsBikeEditDialogOpen}>
-                <DialogContent aria-describedby={undefined}>
-                    <DialogHeader>
-                        <DialogTitle>Fahrraddaten bearbeiten</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Modell</Label>
-                            <Input
-                                value={editBikeModel}
-                                onChange={e => setEditBikeModel(e.target.value)}
-                                placeholder="Modell eingeben"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Typ</Label>
-                            <Select value={editBikeType} onValueChange={setEditBikeType}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Typ wählen" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.entries(BIKE_TYPE_LABELS).map(([key, label]) => (
-                                        <SelectItem key={key} value={key}>{label}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsBikeEditDialogOpen(false)}>Abbrechen</Button>
-                        <Button
-                            onClick={() => handleSaveBikeData()}
-                            disabled={!editBikeModel || saving}
-                        >
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
 
 
 
-
-            <Dialog open={isPriceEditDialogOpen} onOpenChange={setIsPriceEditDialogOpen}>
-                <DialogContent aria-describedby={undefined}>
-                    <DialogHeader>
-                        <DialogTitle>Preise bearbeiten</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label>Geschätzter Preis (€)</Label>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                value={editEstimatedPrice}
-                                onChange={e => setEditEstimatedPrice(e.target.value)}
-                                placeholder="0.00"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Tatsächlicher Preis (€)</Label>
-                            <Input
-                                type="number"
-                                step="0.01"
-                                value={editFinalPrice}
-                                onChange={e => setEditFinalPrice(e.target.value)}
-                                placeholder="0.00"
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPriceEditDialogOpen(false)}>Abbrechen</Button>
-                        <Button
-                            onClick={() => handleSavePriceData()}
-                            disabled={saving}
-                        >
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            <Dialog open={isInternalNoteEditDialogOpen} onOpenChange={setIsInternalNoteEditDialogOpen}>
-                <DialogContent aria-describedby={undefined}>
-                    <DialogHeader>
-                        <DialogTitle>Interne Notiz bearbeiten</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                        <Label htmlFor="internal-note" className="mb-2 block">Notiz</Label>
-                        <Textarea
-                            id="internal-note"
-                            value={editInternalNote}
-                            onChange={(e) => setEditInternalNote(e.target.value)}
-                            className="min-h-[150px]"
-                            placeholder="Interne Notizen hier eingeben..."
-                        />
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsInternalNoteEditDialogOpen(false)}>Abbrechen</Button>
-                        <Button
-                            onClick={() => handleSaveInternalNotesData()}
-                            disabled={saving}
-                        >
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-
-            {/* Dialog for Leasing Pickup Code (Abholcode) */}
-            <Dialog open={isLeasingDialogOpen} onOpenChange={setIsLeasingDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Abholcode bestätigen</DialogTitle>
-                        <DialogDescription>
-                            Bitte überprüfen Sie den Abholcode für dieses Leasing-Rad ({order?.leasing_provider}).
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        {order?.inspection_code && (
-                            <div className="p-3 bg-muted/50 rounded-md border border-border/50">
-                                <span className="text-xs text-muted-foreground block mb-1">Inspektions-Code (UVV)</span>
-                                <span className="font-mono font-medium">{order.inspection_code}</span>
-                            </div>
-                        )}
-                        <div className="space-y-4">
+                <Dialog open={isCustomerEditDialogOpen} onOpenChange={setIsCustomerEditDialogOpen}>
+                    <DialogContent aria-describedby={undefined}>
+                        <DialogHeader>
+                            <DialogTitle>Kundendaten bearbeiten</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
                             <div className="space-y-2">
-                                <Label htmlFor="leasing-code-dialog-pickup">Abholcode</Label>
+                                <Label>Name</Label>
                                 <Input
-                                    id="leasing-code-dialog-pickup"
-                                    value={leasingCodeInput}
-                                    onChange={(e) => setLeasingCodeInput(e.target.value)}
-                                    placeholder="Abholcode eingeben"
-                                    autoFocus
+                                    value={editCustomerName}
+                                    onChange={e => setEditCustomerName(e.target.value)}
+                                    placeholder="Name eingeben"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="leasing-code-dialog-leasing">Leasing Code</Label>
+                                <Label>E-Mail</Label>
                                 <Input
-                                    id="leasing-code-dialog-leasing"
-                                    value={dialogLeasingCode}
-                                    onChange={(e) => setDialogLeasingCode(e.target.value)}
-                                    placeholder="Leasing Code eingeben"
+                                    value={editCustomerEmail}
+                                    onChange={e => setEditCustomerEmail(e.target.value)}
+                                    placeholder="E-Mail eingeben"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Telefon</Label>
+                                <Input
+                                    value={editCustomerPhone}
+                                    onChange={e => setEditCustomerPhone(e.target.value)}
+                                    placeholder="Telefon eingeben"
+                                />
+                            </div>
+
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsCustomerEditDialogOpen(false)}>Abbrechen</Button>
+                            <Button
+                                onClick={() => handleSaveCustomerData()}
+                                disabled={!editCustomerName || saving}
+                            >
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Edit Bike Dialog */}
+                <Dialog open={isBikeEditDialogOpen} onOpenChange={setIsBikeEditDialogOpen}>
+                    <DialogContent aria-describedby={undefined}>
+                        <DialogHeader>
+                            <DialogTitle>Fahrraddaten bearbeiten</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Modell</Label>
+                                <Input
+                                    value={editBikeModel}
+                                    onChange={e => setEditBikeModel(e.target.value)}
+                                    placeholder="Modell eingeben"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Typ</Label>
+                                <Select value={editBikeType} onValueChange={setEditBikeType}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Typ wählen" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Object.entries(BIKE_TYPE_LABELS).map(([key, label]) => (
+                                            <SelectItem key={key} value={key}>{label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsBikeEditDialogOpen(false)}>Abbrechen</Button>
+                            <Button
+                                onClick={() => handleSaveBikeData()}
+                                disabled={!editBikeModel || saving}
+                            >
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+
+
+
+                <Dialog open={isPriceEditDialogOpen} onOpenChange={setIsPriceEditDialogOpen}>
+                    <DialogContent aria-describedby={undefined}>
+                        <DialogHeader>
+                            <DialogTitle>Preise bearbeiten</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label>Geschätzter Preis (€)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={editEstimatedPrice}
+                                    onChange={e => setEditEstimatedPrice(e.target.value)}
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Tatsächlicher Preis (€)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={editFinalPrice}
+                                    onChange={e => setEditFinalPrice(e.target.value)}
+                                    placeholder="0.00"
                                 />
                             </div>
                         </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsLeasingDialogOpen(false)}>
-                            Abbrechen
-                        </Button>
-                        <Button
-                            onClick={() => handleSaveLeasingCode()}
-                            disabled={(!leasingCodeInput.trim() && !dialogLeasingCode.trim()) || saving}
-                        >
-                            {saving ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Speichern
-                                </>
-                            ) : (
-                                'Bestätigen & Abholen'
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsPriceEditDialogOpen(false)}>Abbrechen</Button>
+                            <Button
+                                onClick={() => handleSavePriceData()}
+                                disabled={saving}
+                            >
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isInternalNoteEditDialogOpen} onOpenChange={setIsInternalNoteEditDialogOpen}>
+                    <DialogContent aria-describedby={undefined}>
+                        <DialogHeader>
+                            <DialogTitle>Interne Notiz bearbeiten</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                            <Label htmlFor="internal-note" className="mb-2 block">Notiz</Label>
+                            <Textarea
+                                id="internal-note"
+                                value={editInternalNote}
+                                onChange={(e) => setEditInternalNote(e.target.value)}
+                                className="min-h-[150px]"
+                                placeholder="Interne Notizen hier eingeben..."
+                            />
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsInternalNoteEditDialogOpen(false)}>Abbrechen</Button>
+                            <Button
+                                onClick={() => handleSaveInternalNotesData()}
+                                disabled={saving}
+                            >
+                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+
+                {/* Dialog for Leasing Pickup Code (Abholcode) */}
+                <Dialog open={isLeasingDialogOpen} onOpenChange={setIsLeasingDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Abholcode bestätigen</DialogTitle>
+                            <DialogDescription>
+                                Bitte überprüfen Sie den Abholcode für dieses Leasing-Rad ({order?.leasing_provider}).
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            {order?.inspection_code && (
+                                <div className="p-3 bg-muted/50 rounded-md border border-border/50">
+                                    <span className="text-xs text-muted-foreground block mb-1">Inspektions-Code (UVV)</span>
+                                    <span className="font-mono font-medium">{order.inspection_code}</span>
+                                </div>
                             )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="leasing-code-dialog-pickup">Abholcode</Label>
+                                    <Input
+                                        id="leasing-code-dialog-pickup"
+                                        value={leasingCodeInput}
+                                        onChange={(e) => setLeasingCodeInput(e.target.value)}
+                                        placeholder="Abholcode eingeben"
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="leasing-code-dialog-leasing">Leasing Code</Label>
+                                    <Input
+                                        id="leasing-code-dialog-leasing"
+                                        value={dialogLeasingCode}
+                                        onChange={(e) => setDialogLeasingCode(e.target.value)}
+                                        placeholder="Leasing Code eingeben"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsLeasingDialogOpen(false)}>
+                                Abbrechen
+                            </Button>
+                            <Button
+                                onClick={() => handleSaveLeasingCode()}
+                                disabled={(!leasingCodeInput.trim() && !dialogLeasingCode.trim()) || saving}
+                            >
+                                {saving ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Speichern
+                                    </>
+                                ) : (
+                                    'Bestätigen & Abholen'
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
-            {/* Dialog for Editing Leasing Data */}
-            <Dialog open={isLeasingEditDialogOpen} onOpenChange={setIsLeasingEditDialogOpen}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Leasing-Daten bearbeiten</DialogTitle>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-provider">Anbieter</Label>
-                            {/* Assuming text input for now as provider list might be large or dynamic, 
+                {/* Dialog for Editing Leasing Data */}
+                <Dialog open={isLeasingEditDialogOpen} onOpenChange={setIsLeasingEditDialogOpen}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>Leasing-Daten bearbeiten</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-provider">Anbieter</Label>
+                                {/* Assuming text input for now as provider list might be large or dynamic, 
                                 but ideally should use Select from existing providers if possible. 
                                 Keeping it simple text for edit flexibility as per request. */}
-                            <Input
-                                id="edit-provider"
-                                value={editLeasingProvider}
-                                onChange={e => setEditLeasingProvider(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-contract">Vertrags-Nr.</Label>
-                            <Input
-                                id="edit-contract"
-                                value={editContractId}
-                                onChange={e => setEditContractId(e.target.value)}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-portal-email">Portal E-Mail</Label>
-                            <Input
-                                id="edit-portal-email"
-                                value={editLeasingPortalEmail}
-                                onChange={e => setEditLeasingPortalEmail(e.target.value)}
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-service-package">Service Paket</Label>
                                 <Input
-                                    id="edit-service-package"
-                                    value={editServicePackage}
-                                    onChange={e => setEditServicePackage(e.target.value)}
+                                    id="edit-provider"
+                                    value={editLeasingProvider}
+                                    onChange={e => setEditLeasingProvider(e.target.value)}
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="edit-inspection-code">Insp.-Code</Label>
+                                <Label htmlFor="edit-contract">Vertrags-Nr.</Label>
                                 <Input
-                                    id="edit-inspection-code"
-                                    value={editInspectionCode}
-                                    onChange={e => setEditInspectionCode(e.target.value)}
+                                    id="edit-contract"
+                                    value={editContractId}
+                                    onChange={e => setEditContractId(e.target.value)}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-portal-email">Portal E-Mail</Label>
+                                <Input
+                                    id="edit-portal-email"
+                                    value={editLeasingPortalEmail}
+                                    onChange={e => setEditLeasingPortalEmail(e.target.value)}
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-service-package">Service Paket</Label>
+                                    <Input
+                                        id="edit-service-package"
+                                        value={editServicePackage}
+                                        onChange={e => setEditServicePackage(e.target.value)}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-inspection-code">Insp.-Code</Label>
+                                    <Input
+                                        id="edit-inspection-code"
+                                        value={editInspectionCode}
+                                        onChange={e => setEditInspectionCode(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-pickup-code">Abholcode</Label>
+                                <Input
+                                    id="edit-pickup-code"
+                                    value={editPickupCode}
+                                    onChange={e => setEditPickupCode(e.target.value)}
                                 />
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="edit-pickup-code">Abholcode</Label>
-                            <Input
-                                id="edit-pickup-code"
-                                value={editPickupCode}
-                                onChange={e => setEditPickupCode(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsLeasingEditDialogOpen(false)}>
-                            Abbrechen
-                        </Button>
-                        <Button
-                            onClick={() => handleSaveLeasingData()}
-                            disabled={saving}
-                        >
-                            {saving ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Speichern
-                                </>
-                            ) : (
-                                'Speichern'
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsLeasingEditDialogOpen(false)}>
+                                Abbrechen
+                            </Button>
+                            <Button
+                                onClick={() => handleSaveLeasingData()}
+                                disabled={saving}
+                            >
+                                {saving ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Speichern
+                                    </>
+                                ) : (
+                                    'Speichern'
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
-            {/* Kiosk Employee Selection */}
-            <EmployeeSelectionModal
-                open={showEmployeeSelect}
-                onOpenChange={(open) => {
-                    setShowEmployeeSelect(open)
-                    if (!open) setPendingAction(null) // Clear pending action on cancel
-                }}
-                triggerAction={
-                    pendingAction?.type === 'status' ? 'Status ändern' :
-                        pendingAction?.type === 'save_notes_data' ? 'Notizen speichern' :
-                            pendingAction?.type === 'save_price_data' ? 'Preise speichern' :
-                                pendingAction?.type === 'toggle_checklist' ? 'Checkliste speichern' :
-                                    pendingAction?.type === 'save_customer' ? 'Kundendaten speichern' :
-                                        pendingAction?.type === 'save_bike' ? 'Fahrraddaten speichern' :
-                                            'Speichern'
-                }
-                onEmployeeSelected={handleEmployeeSelected}
-            />
+                {/* Kiosk Employee Selection */}
+                <EmployeeSelectionModal
+                    open={showEmployeeSelect}
+                    onOpenChange={(open) => {
+                        setShowEmployeeSelect(open)
+                        if (!open) setPendingAction(null) // Clear pending action on cancel
+                    }}
+                    triggerAction={
+                        pendingAction?.type === 'status' ? 'Status ändern' :
+                            pendingAction?.type === 'save_notes_data' ? 'Notizen speichern' :
+                                pendingAction?.type === 'save_price_data' ? 'Preise speichern' :
+                                    pendingAction?.type === 'toggle_checklist' ? 'Checkliste speichern' :
+                                        pendingAction?.type === 'save_customer' ? 'Kundendaten speichern' :
+                                            pendingAction?.type === 'save_bike' ? 'Fahrraddaten speichern' :
+                                                'Speichern'
+                    }
+                    onEmployeeSelected={handleEmployeeSelected}
+                />
 
-            {/* General Assignment Modal */}
-            <EmployeeSelectionModal
-                open={isAssignmentModalOpen}
-                onOpenChange={setIsAssignmentModalOpen}
-                triggerAction={assignmentType === 'add_mechanic' ? "Mechaniker zuweisen" : "QC Mitarbeiter zuweisen"}
-                onEmployeeSelected={handleAssignment}
-            />
+                {/* General Assignment Modal */}
+                <EmployeeSelectionModal
+                    open={isAssignmentModalOpen}
+                    onOpenChange={setIsAssignmentModalOpen}
+                    triggerAction={assignmentType === 'add_mechanic' ? "Mechaniker zuweisen" : "QC Mitarbeiter zuweisen"}
+                    onEmployeeSelected={handleAssignment}
+                />
 
-            <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Ungespeicherte Änderungen</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Sie haben ungespeicherte Änderungen (Notizen oder Preis). Möchten Sie die Seite wirklich verlassen, ohne zu speichern?
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <Button variant="outline" onClick={() => setShowExitDialog(false)}>
-                            Abbrechen
-                        </Button>
-                        <Button variant="destructive" onClick={() => navigate(returnPath)}>
-                            Verlassen
-                        </Button>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Ungespeicherte Änderungen</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Sie haben ungespeicherte Änderungen (Notizen oder Preis). Möchten Sie die Seite wirklich verlassen, ohne zu speichern?
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <Button variant="outline" onClick={() => setShowExitDialog(false)}>
+                                Abbrechen
+                            </Button>
+                            <Button variant="destructive" onClick={() => navigate(returnPath)}>
+                                Verlassen
+                            </Button>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
-            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Auftrag wirklich löschen?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Der Auftrag wird in den Papierkorb verschoben und nach 30 Tagen automatisch endgültig gelöscht.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDeleteOrder}
-                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                        >
-                            Verschieben
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Auftrag wirklich löschen?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Der Auftrag wird in den Papierkorb verschoben und nach 30 Tagen automatisch endgültig gelöscht.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDeleteOrder}
+                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                            >
+                                Verschieben
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
+            </DashboardLayout>
         </PageTransition >
     )
 }

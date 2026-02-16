@@ -1,13 +1,12 @@
 import { toastSuccess, toastError } from '@/lib/toast-utils'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { ClipboardList, Download, Copy, Loader2, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import QRCode from 'react-qr-code'
-import QRCodeLib from 'qrcode'
-import jsPDF from 'jspdf'
+import { SelfCheckIn } from '@/components/documents/SelfCheckIn'
 
 interface IntakeQRGeneratorProps {
     workshopId: string
@@ -23,136 +22,104 @@ export function IntakeQRGenerator({ workshopId, workshopName }: IntakeQRGenerato
 
     const intakeUrl = `${origin}/intake/${workshopId}`
     const [generating, setGenerating] = useState(false)
+    const printRef = useRef<HTMLDivElement>(null)
+
+    // Generate high-res QR code for the print component
+    const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('')
+
+    // Generate the QR code data URL once when component mounts or url changes
+    // Fixed: moved side effect from useState initializer to useEffect, and used dynamic import
+    useEffect(() => {
+        let mounted = true
+        const generateQR = async () => {
+            try {
+                const QRCodeModule = await import('qrcode')
+                // Handle both ES and CommonJS module exports
+                const toDataURL = QRCodeModule.default?.toDataURL || QRCodeModule.toDataURL
+
+                if (toDataURL) {
+                    const url = await toDataURL(intakeUrl, {
+                        width: 1000,
+                        margin: 1,
+                        errorCorrectionLevel: 'H',
+                        color: {
+                            dark: '#000000',
+                            light: '#FFFFFF'
+                        }
+                    })
+                    if (mounted) setQrCodeDataUrl(url)
+                }
+            } catch (err) {
+                console.error("Failed to load qrcode library", err)
+            }
+        }
+        generateQR()
+        return () => { mounted = false }
+    }, [intakeUrl])
 
     const handleDownloadPDF = async () => {
         setGenerating(true)
         try {
-            // 1. Generate QR Code Data URL (High Res)
-            const qrDataUrl = await QRCodeLib.toDataURL(intakeUrl, {
-                width: 1000,
-                margin: 1,
-                errorCorrectionLevel: 'H',
-                color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
+            if (!printRef.current) {
+                throw new Error("Print element not found")
+            }
+
+            // Dynamically import heavy libraries for PDF generation
+            const html2canvasModule = await import('html2canvas')
+            const html2canvas = html2canvasModule.default || html2canvasModule
+
+            const jsPDFModule = await import('jspdf')
+            const jsPDF = jsPDFModule.default ? jsPDFModule.default : (jsPDFModule as any).jsPDF || jsPDFModule
+
+            // Temporarily show the element to capture it (it's hidden via css)
+            // But html2canvas needs it to be rendered. We can use a hidden div that is technically "visible" but positioned off-screen
+            // The current implementation puts it in a hidden div, let's see if html2canvas can capture it.
+            // Usually it needs to be in the DOM.
+
+            const element = printRef.current
+
+            const canvas = await html2canvas(element, {
+                scale: 2, // Higher scale for better quality
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                onclone: (clonedDoc) => {
+                    // Remove global stylesheets to prevent oklch errors from Tailwind v4
+                    // html2canvas crashes if it encounters oklch() in computed styles
+                    const links = clonedDoc.getElementsByTagName('link')
+                    const styles = clonedDoc.getElementsByTagName('style')
+
+                    // Remove all external stylesheets
+                    Array.from(links).forEach(link => {
+                        if (link.rel === 'stylesheet') link.remove()
+                    })
+
+                    // Remove all style tags (including global styles)
+                    // Note: This also removes the reset style we added in SelfCheckIn, 
+                    // but that's fine because without Tailwind globals, the browser defaults (transparent/black) are safe.
+                    Array.from(styles).forEach(style => style.remove())
                 }
             })
 
-            // 2. Create PDF (A4 Portrait)
-            const doc = new jsPDF({
+            const imgData = canvas.toDataURL('image/png')
+
+            // A4 dimensions in mm
+            const pdfWidth = 210
+            const pdfHeight = 297
+
+            const pdf = new jsPDF({
                 orientation: 'portrait',
                 unit: 'mm',
                 format: 'a4'
             })
 
-            const pageWidth = doc.internal.pageSize.getWidth() // 210mm
-            const pageHeight = doc.internal.pageSize.getHeight() // 297mm
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+            pdf.save(`${workshopName ? workshopName.replace(/[^a-z0-9]/gi, '_') : 'Velofix'}_Annahme_QR.pdf`)
 
-            // Colors (White Theme)
-            const bgWhite = [255, 255, 255]
-            const textBlack = [9, 9, 11] // #09090b
-            const textGray = [82, 82, 91] // #52525b
-            const accentGreen = [22, 163, 74] // #16a34a (Slightly darker for better contrast on white)
-
-            // Helper for centering text
-            const centerText = (text: string, y: number, fontSize: number, fontStyle: string = 'normal', color: number[] = textBlack) => {
-                doc.setFontSize(fontSize)
-                doc.setFont("helvetica", fontStyle)
-                doc.setTextColor(color[0], color[1], color[2])
-                const textWidth = doc.getTextWidth(text)
-                doc.text(text, (pageWidth - textWidth) / 2, y)
-            }
-
-            // --- DESIGN IMPLEMENTATION ---
-
-            // 1. Background (White)
-            doc.setFillColor(bgWhite[0], bgWhite[1], bgWhite[2])
-            doc.rect(0, 0, pageWidth, pageHeight, 'F')
-
-            // 2. Header Section
-            // Accent Line
-            doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2])
-            doc.setLineWidth(1)
-            doc.line(20, 15, pageWidth - 20, 15)
-
-            centerText(workshopName ? workshopName.toUpperCase() : 'VELOFIX', 30, 14, 'bold', textGray)
-            centerText('SELF CHECK-IN', 48, 38, 'bold', textBlack)
-            centerText('Starten Sie Ihre Reparatur-Annahme hier.', 58, 12, 'normal', textGray)
-
-            // 3. QR Code Hero Section
-            const boxSize = 100
-            const boxX = (pageWidth - boxSize) / 2
-            const boxY = 80
-
-            // Frame Effect
-            doc.setDrawColor(228, 228, 231) // Light gray border
-            doc.setLineWidth(0.5)
-            doc.roundedRect(boxX - 5, boxY - 5, boxSize + 10, boxSize + 10, 5, 5, 'S') // Outer thin
-
-            doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2])
-            doc.setLineWidth(1)
-            doc.roundedRect(boxX, boxY, boxSize, boxSize, 3, 3, 'S') // Main border (Green)
-
-            // QR Image
-            const qrSize = 90
-            const qrX = boxX + (boxSize - qrSize) / 2
-            const qrY = boxY + (boxSize - qrSize) / 2
-            doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSize, qrSize)
-
-            // "Scan Me" indicator badge
-            doc.setFillColor(accentGreen[0], accentGreen[1], accentGreen[2])
-            doc.roundedRect(pageWidth / 2 - 25, boxY + boxSize - 8, 50, 10, 5, 5, 'F')
-
-            doc.setFontSize(10)
-            doc.setFont("helvetica", "bold")
-            doc.setTextColor(255, 255, 255) // White text on green badge
-            const badgeText = "JETZT SCANNEN"
-            const badgeWidth = doc.getTextWidth(badgeText)
-            doc.text(badgeText, (pageWidth - badgeWidth) / 2, boxY + boxSize - 1.5)
-
-
-            // 4. Instructions / Steps
-            const stepsY = boxY + boxSize + 35
-            const listGap = 20
-
-            // Clean Step Drawer
-            const renderStepRow = (num: string, text: string, y: number) => {
-                // Circle for number
-                doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2])
-                doc.setFillColor(240, 253, 244) // Very light green bg
-                doc.setLineWidth(0.5)
-                doc.circle(55, y - 2, 7, 'FD')
-
-                doc.setTextColor(accentGreen[0], accentGreen[1], accentGreen[2])
-                doc.setFontSize(12)
-                doc.setFont("helvetica", "bold")
-                doc.text(num, 53.5, y + 2)
-
-                doc.setTextColor(textBlack[0], textBlack[1], textBlack[2])
-                doc.setFontSize(14)
-                doc.text(text, 70, y + 2)
-            }
-
-            renderStepRow("1", "QR-Code mit Kamera scannen", stepsY)
-            renderStepRow("2", "Details zum Fahrrad eingeben", stepsY + listGap)
-            renderStepRow("3", "Auftrag unverbindlich absenden", stepsY + listGap * 2)
-
-
-            // 5. Footer
-            const footerY = pageHeight - 20
-
-            doc.setDrawColor(228, 228, 231) // Light gray line
-            doc.setLineWidth(0.5)
-            doc.line(60, footerY - 10, pageWidth - 60, footerY - 10)
-
-            centerText('POWERED BY VELOFIX OS', footerY, 9, 'bold', [161, 161, 170])
-            centerText('Digital • Schnell • Sicher', footerY + 5, 9, 'normal', [161, 161, 170])
-
-            // Save
-            doc.save(`${workshopName ? workshopName.replace(/[^a-z0-9]/gi, '_') : 'Velofix'}_Annahme_QR.pdf`)
             toastSuccess('PDF erfolgreich heruntergeladen', `${workshopName}_Annahme_QR.pdf`)
 
         } catch (error) {
+            console.error(error)
             toastError('Fehler beim Erstellen des PDFs', 'Bitte versuchen Sie es erneut.')
         } finally {
             setGenerating(false)
@@ -211,6 +178,16 @@ export function IntakeQRGenerator({ workshopId, workshopName }: IntakeQRGenerato
                             </Button>
                         </div>
                     </div>
+                </div>
+
+                {/* Hidden container for PDF generation */}
+                <div style={{ position: 'absolute', top: '-10000px', left: '-10000px' }}>
+                    <SelfCheckIn
+                        ref={printRef}
+                        shopName={workshopName}
+                        qrCodeSrc={qrCodeDataUrl}
+                        accentColor="#D32F2F"
+                    />
                 </div>
             </CardContent>
         </Card>

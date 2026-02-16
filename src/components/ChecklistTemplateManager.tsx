@@ -45,6 +45,7 @@ type ChecklistTemplate = Database['public']['Tables']['checklist_templates']['Ro
 interface ChecklistItem {
     id: string
     text: string
+    description?: string // Added description
     order: number
 }
 
@@ -52,10 +53,12 @@ interface SortableItemProps {
     item: ChecklistItem
     isEditing: boolean
     draftValue: string
+    draftDescription: string // Added draftDescription
     onDraftChange: (value: string) => void
+    onDraftDescriptionChange: (value: string) => void // Added handler
     onSave: () => void
     onRemove: (id: string) => void
-    onStartEdit: (id: string, text: string) => void
+    onStartEdit: (id: string, text: string, description?: string) => void
     onCancelEdit: () => void
     onEnter: () => void
 }
@@ -64,7 +67,9 @@ function SortableItem({
     item,
     isEditing,
     draftValue,
+    draftDescription,
     onDraftChange,
+    onDraftDescriptionChange,
     onSave,
     onRemove,
     onStartEdit,
@@ -91,81 +96,102 @@ function SortableItem({
             ref={setNodeRef}
             style={style}
             className={cn(
-                "flex items-center gap-2 p-3 bg-muted/50 rounded-lg border",
+                "flex flex-col gap-2 p-3 bg-muted/50 rounded-lg border",
                 isDragging && "border-primary"
             )}
         >
-            <button
-                type="button"
-                className="cursor-grab active:cursor-grabbing touch-none p-1 hover:bg-background rounded"
-                {...attributes}
-                {...listeners}
-            >
-                <GripVertical className="h-4 w-4 text-muted-foreground" />
-            </button>
+            <div className="flex items-start gap-2">
+                <button
+                    type="button"
+                    className="cursor-grab active:cursor-grabbing touch-none p-1 hover:bg-background rounded mt-1.5"
+                    {...attributes}
+                    {...listeners}
+                >
+                    <GripVertical className="h-4 w-4 text-muted-foreground" />
+                </button>
 
-            {isEditing ? (
-                <>
-                    <Input
-                        value={draftValue}
-                        onChange={(e) => onDraftChange(e.target.value)}
-                        className="flex-1"
-                        placeholder="Checklistenpunkt eingeben..."
-                        autoFocus
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault()
-                                onEnter()
-                            }
-                            if (e.key === 'Escape') {
-                                e.preventDefault()
-                                onCancelEdit()
-                            }
-                        }}
-                    />
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={onSave}
-                    >
-                        <Check className="h-4 w-4 text-green-600" />
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={onCancelEdit}
-                    >
-                        <X className="h-4 w-4 text-destructive" />
-                    </Button>
-                </>
-            ) : (
-                <>
-                    <span className={cn(
-                        "flex-1 text-sm",
-                        !item.text && "text-muted-foreground italic"
-                    )}>
-                        {item.text || "Leerer Punkt - Zum Bearbeiten klicken"}
-                    </span>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onStartEdit(item.id, item.text)}
-                    >
-                        <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onRemove(item.id)}
-                    >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                </>
-            )}
+                {isEditing ? (
+                    <div className="flex-1 space-y-2">
+                        <Input
+                            value={draftValue}
+                            onChange={(e) => onDraftChange(e.target.value)}
+                            className="flex-1"
+                            placeholder="Checklistenpunkt eingeben..."
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) { // Allow shift+enter for description? No, description is separate
+                                    e.preventDefault()
+                                    onEnter()
+                                }
+                                if (e.key === 'Escape') {
+                                    e.preventDefault()
+                                    onCancelEdit()
+                                }
+                            }}
+                        />
+                        <Textarea
+                            value={draftDescription}
+                            onChange={(e) => onDraftDescriptionChange(e.target.value)}
+                            placeholder="Beschreibung / Anleitung (optional)"
+                            className="h-20 resize-none text-sm"
+                        />
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={onCancelEdit}
+                            >
+                                <X className="h-4 w-4 text-destructive mr-2" />
+                                Abbrechen
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={onSave}
+                            >
+                                <Check className="h-4 w-4 text-green-600 mr-2" />
+                                Speichern
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex-1 py-1">
+                            <span className={cn(
+                                "block text-sm font-medium",
+                                !item.text && "text-muted-foreground italic"
+                            )}>
+                                {item.text || "Leerer Punkt - Zum Bearbeiten klicken"}
+                            </span>
+                            {item.description && (
+                                <span className="block text-xs text-muted-foreground mt-1">
+                                    {item.description}
+                                </span>
+                            )}
+                        </div>
+                        <div className="flex gap-1">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onStartEdit(item.id, item.text, item.description)}
+                            >
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => onRemove(item.id)}
+                            >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     )
 }
@@ -182,6 +208,7 @@ export function ChecklistTemplateManager() {
     // State for managing inline editing
     const [editingItemId, setEditingItemId] = useState<string | null>(null)
     const [draftValue, setDraftValue] = useState("")
+    const [draftDescription, setDraftDescription] = useState("") // Added draftDescription state
 
     const [formData, setFormData] = useState({
         name: '',
@@ -232,13 +259,14 @@ export function ChecklistTemplateManager() {
         let currentItems = [...formData.items]
         if (editingItemId) {
             currentItems = currentItems.map(item =>
-                item.id === editingItemId ? { ...item, text: draftValue } : item
+                item.id === editingItemId ? { ...item, text: draftValue, description: draftDescription } : item
             )
         }
 
         const itemsJson = currentItems.map((item, index) => ({
             id: item.id,
             text: item.text,
+            description: item.description, // Save description
             order: index,
             completed: false
         }))
@@ -294,14 +322,16 @@ export function ChecklistTemplateManager() {
     // ... (rest of methods until updateItem)
 
     // Handlers
-    const startEditing = (id: string, text: string) => {
+    const startEditing = (id: string, text: string, description?: string) => {
         setEditingItemId(id)
         setDraftValue(text)
+        setDraftDescription(description || "")
     }
 
     const cancelEditing = () => {
         setEditingItemId(null)
         setDraftValue("")
+        setDraftDescription("")
     }
 
     const saveEditing = () => {
@@ -309,11 +339,12 @@ export function ChecklistTemplateManager() {
             setFormData({
                 ...formData,
                 items: formData.items.map(item =>
-                    item.id === editingItemId ? { ...item, text: draftValue } : item
+                    item.id === editingItemId ? { ...item, text: draftValue, description: draftDescription } : item
                 )
             })
             setEditingItemId(null)
             setDraftValue("")
+            setDraftDescription("")
         }
     }
 
@@ -321,12 +352,14 @@ export function ChecklistTemplateManager() {
         if (editingItemId) {
             // 1. Save current item
             const savedText = draftValue
+            const savedDesc = draftDescription
             const currentId = editingItemId
 
             // 2. Create new item
             const newItem: ChecklistItem = {
                 id: `item-${Date.now()}-${Math.random()}`,
                 text: '',
+                description: '',
                 order: 0 // Order re-calc happens on save/render usually, but let's just insert
             }
 
@@ -334,7 +367,7 @@ export function ChecklistTemplateManager() {
                 const index = prev.items.findIndex(i => i.id === currentId)
                 const newItems = [...prev.items]
                 // Update current item
-                newItems[index] = { ...newItems[index], text: savedText }
+                newItems[index] = { ...newItems[index], text: savedText, description: savedDesc }
                 // Insert new item after
                 newItems.splice(index + 1, 0, newItem)
                 return { ...prev, items: newItems }
@@ -343,6 +376,7 @@ export function ChecklistTemplateManager() {
             // 3. Switch edit mode to new item
             setEditingItemId(newItem.id)
             setDraftValue("")
+            setDraftDescription("")
         }
     }
 
@@ -374,6 +408,7 @@ export function ChecklistTemplateManager() {
             items: items.map((item: any) => ({
                 id: item.id || `item-${Date.now()}-${Math.random()}`,
                 text: item.text || '',
+                description: item.description || '', // Load description
                 order: item.order || 0
             })).sort((a, b) => a.order - b.order)
         })
@@ -395,6 +430,7 @@ export function ChecklistTemplateManager() {
         const newItem: ChecklistItem = {
             id: `item-${Date.now()}-${Math.random()}`,
             text: '',
+            description: '',
             order: formData.items.length
         }
         setFormData({ ...formData, items: [...formData.items, newItem] })
@@ -506,7 +542,9 @@ export function ChecklistTemplateManager() {
                                                             item={item}
                                                             isEditing={editingItemId === item.id}
                                                             draftValue={draftValue}
+                                                            draftDescription={draftDescription} // Pass description
                                                             onDraftChange={setDraftValue}
+                                                            onDraftDescriptionChange={setDraftDescription} // Pass handler
                                                             onSave={saveEditing}
                                                             onRemove={removeItem}
                                                             onStartEdit={startEditing}

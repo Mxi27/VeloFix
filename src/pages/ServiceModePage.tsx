@@ -49,6 +49,7 @@ const STATUS_FLOW = [
 
 interface ChecklistItem {
     text: string
+    description?: string // Added description
     completed: boolean
     notes?: string
     skipped?: boolean
@@ -147,6 +148,7 @@ export default function ServiceModePage() {
                     parsedItems = data.checklist.map((item: any) => ({
                         ...item,
                         text: typeof item === 'string' ? item : item.text,
+                        description: typeof item === 'string' ? '' : (item.description || ''), // Parse description
                         completed: typeof item === 'string' ? false : (item.completed || false),
                         notes: typeof item === 'string' ? '' : (item.notes || ''),
                         skipped: typeof item === 'string' ? false : (item.skipped || false),
@@ -270,18 +272,26 @@ export default function ServiceModePage() {
         setItems(newItems)
     }
 
+    const [newStepDescription, setNewStepDescription] = useState("") // Added state
+
+    /* ... */
+
     const handleAddStep = async () => {
         if (!newStepText.trim()) return
 
         const newStep: ChecklistItem = {
             text: newStepText,
+            description: newStepDescription, // Save description
             completed: false,
             notes: ''
         }
 
+        /* ... */
+
         const newItems = [...items, newStep]
         setItems(newItems)
         setNewStepText("")
+        setNewStepDescription("") // Reset
         setIsAddStepOpen(false)
 
         await saveChecklist(newItems)
@@ -689,7 +699,7 @@ export default function ServiceModePage() {
 
                             {/* Header */}
                             <div className="flex justify-between items-start">
-                                <div className="space-y-2">
+                                <div className="space-y-4 max-w-[80%]">
                                     <div className="flex items-center gap-2 mb-2">
                                         <Badge variant="secondary">Schritt {currentStepIndex + 1} von {items.length}</Badge>
                                         {!isReadOnly && (
@@ -702,12 +712,17 @@ export default function ServiceModePage() {
                                             </button>
                                         )}
                                     </div>
-                                    <h2 className="text-2xl sm:text-4xl font-bold tracking-tight">
+                                    <h2 className="text-2xl sm:text-4xl font-bold tracking-tight leading-tight">
                                         {currentItem?.text}
                                     </h2>
+                                    {currentItem?.description && (
+                                        <div className="text-lg text-muted-foreground leading-relaxed bg-muted/20 p-4 rounded-lg border border-border/40">
+                                            {currentItem.description}
+                                        </div>
+                                    )}
                                 </div>
                                 {currentItem?.completed && (
-                                    <div className="bg-green-500/10 text-green-600 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5">
+                                    <div className="bg-green-500/10 text-green-600 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 whitespace-nowrap">
                                         <CheckCircle2 className="h-4 w-4" />
                                         Erledigt
                                     </div>
@@ -996,15 +1011,27 @@ export default function ServiceModePage() {
                             Fügen Sie einen neuen Arbeitsschritt am Ende der Liste hinzu.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
-                        <Label htmlFor="step-name" className="mb-2 block">Beschreibung</Label>
-                        <Input
-                            id="step-name"
-                            value={newStepText}
-                            onChange={(e) => setNewStepText(e.target.value)}
-                            placeholder="z.B. Probefahrt durchführen"
-                            autoFocus
-                        />
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="step-name">Bezeichnung</Label>
+                            <Input
+                                id="step-name"
+                                value={newStepText}
+                                onChange={(e) => setNewStepText(e.target.value)}
+                                placeholder="z.B. Probefahrt durchführen"
+                                autoFocus
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="step-desc">Beschreibung (Optional)</Label>
+                            <Textarea
+                                id="step-desc"
+                                value={newStepDescription}
+                                onChange={(e) => setNewStepDescription(e.target.value)}
+                                placeholder="Zusätzliche Anweisungen oder Details..."
+                                className="resize-none h-24"
+                            />
+                        </div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsAddStepOpen(false)}>
