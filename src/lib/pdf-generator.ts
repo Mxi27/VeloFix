@@ -3,7 +3,6 @@
  * Creates beautiful, professional PDFs with custom styling
  */
 
-import { WorkshopDesignConfig } from '@/types/design'
 import { designConfig } from './design-config'
 
 export interface PDFOrderData {

@@ -1,6 +1,6 @@
 import { isPast, isToday, format, differenceInHours, differenceInDays } from "date-fns"
 import { de } from "date-fns/locale"
-import { AlertTriangle, Clock, ShieldCheck, AlertCircle, Calendar } from "lucide-react"
+import { AlertTriangle, Clock, ShieldCheck, Calendar } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 export interface UrgencyInfo {

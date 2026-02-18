@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Filter, X, SlidersHorizontal } from "lucide-react"
+import { X, SlidersHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export type UrgencyFilter = 'all' | 'overdue' | 'today' | 'urgent' | 'upcoming'

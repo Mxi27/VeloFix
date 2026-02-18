@@ -1,12 +1,12 @@
 import { useNavigate, useLocation } from "react-router-dom"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ListTodo, ShieldCheck, CheckCircle2, ArrowRight, AlertTriangle, AlertCircle } from "lucide-react"
 import type { OrderItem } from "./OrderCard"
 import { cn } from "@/lib/utils"
 import { isPast, isToday, format } from "date-fns"
 import { de } from "date-fns/locale"
-import { getUrgencyInfo, sortByUrgency } from "@/lib/urgency"
+import { getUrgencyInfo } from "@/lib/urgency"
 import {
     Tooltip,
     TooltipContent,
@@ -28,12 +28,6 @@ interface TasksSectionProps {
     shopTasks: ShopTask[]
     qcOrders: OrderItem[]
     currentEmployeeId?: string
-}
-
-const PRIORITY_CONFIG = {
-    high: { color: "bg-red-500", label: "Hoch", badge: "bg-red-50 text-red-700 border-red-200" },
-    medium: { color: "bg-amber-500", label: "Mittel", badge: "bg-amber-50 text-amber-700 border-amber-200" },
-    low: { color: "bg-slate-300", label: "Niedrig", badge: "bg-slate-50 text-slate-600 border-slate-200" },
 }
 
 export const TasksSection = ({ shopTasks, qcOrders, currentEmployeeId }: TasksSectionProps) => {
@@ -187,7 +181,6 @@ export const TasksSection = ({ shopTasks, qcOrders, currentEmployeeId }: TasksSe
                 ) : (
                     <div className="grid gap-3">
                         {shopTasks.map((task) => {
-                            const priority = PRIORITY_CONFIG[task.priority]
                             const isOverdue = task.due_date && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date))
 
                             return (

@@ -16,6 +16,12 @@ export interface OrderItem {
     created_at: string
     mechanic_ids: string[] | null
     qc_mechanic_id?: string | null
+    checklist?: {
+        text: string
+        completed: boolean
+        completed_by?: string | null
+        completed_at?: string | null
+    }[] | null
 }
 
 export const STATUS_LABELS: Record<string, string> = {

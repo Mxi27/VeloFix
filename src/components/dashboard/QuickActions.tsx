@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { Plus, Search, QrCode, FileText, Users, Wrench } from "lucide-react"
+import { Plus, QrCode, FileText, Users, Wrench } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import {
   DropdownMenu,

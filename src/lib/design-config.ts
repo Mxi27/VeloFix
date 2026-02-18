@@ -3,7 +3,8 @@
  * Handles workshop design customization and CSS variable injection
  */
 
-import type { WorkshopDesignConfig, DEFAULT_DESIGN_CONFIG } from '@/types/design'
+import type { WorkshopDesignConfig } from '@/types/design'
+import { DEFAULT_DESIGN_CONFIG } from '@/types/design'
 
 class DesignConfigManager {
   private config: WorkshopDesignConfig

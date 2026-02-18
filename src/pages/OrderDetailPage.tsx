@@ -85,6 +85,8 @@ interface ChecklistItem {
     text: string
     completed: boolean
     type?: 'acceptance' | 'service'
+    completed_by?: string | null
+    completed_at?: string | null
 }
 
 interface Order {
@@ -144,6 +146,8 @@ export default function OrderDetailPage() {
     const { orderId } = useParams<{ orderId: string }>()
     const navigate = useNavigate()
     const { workshopId, user, userRole } = useAuth()
+    const location = useLocation()
+    const returnPath = location.state?.from || '/dashboard/cockpit'
     const [order, setOrder] = useState<Order | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -428,50 +432,7 @@ export default function OrderDetailPage() {
         }
     }
 
-    // Handler for Kiosk selection
-    const handleEmployeeSelected = (employeeId: string) => {
-        const selectedEmp = employees.find(e => e.id === employeeId)
-        if (!selectedEmp || !pendingAction) {
-            setShowEmployeeSelect(false)
-            setPendingAction(null)
-            return
-        }
 
-        const actor = {
-            id: selectedEmp.id,
-            name: selectedEmp.name,
-            email: selectedEmp.email || undefined
-        }
-
-        // Execute pending action with actor override
-        switch (pendingAction.type) {
-            case 'status':
-                handleStatusChange(pendingAction.payload, actor)
-                break
-            case 'save_leasing':
-                handleSaveLeasingCode(actor)
-                break
-            // Legacy cases removed or updated
-            case 'toggle_checklist':
-                handleToggleChecklist(pendingAction.payload.index, pendingAction.payload.checked, actor)
-                break
-            case 'save_customer':
-                handleSaveCustomerData(actor)
-                break
-            case 'save_bike':
-                handleSaveBikeData(actor)
-                break
-            case 'save_notes_data':
-                handleSaveInternalNotesData(actor)
-                break
-            case 'save_price_data':
-                handleSavePriceData(actor)
-                break
-        }
-
-        setShowEmployeeSelect(false)
-        setPendingAction(null)
-    }
 
     const handleSaveCustomerData = async (actorOverride?: { id: string, name: string }) => {
         if (!order) return
@@ -570,10 +531,28 @@ export default function OrderDetailPage() {
         setSaving(true)
 
         try {
-            // 1. Update status
+            // 1. Prepare updates
+            const updates: any = { status: newStatus }
+
+            // Auto-assign QC mechanic if status changed to 'kontrolle_offen'
+            if (newStatus === 'kontrolle_offen') {
+                const actingUserId = actorOverride?.id || user?.id
+                // Verify we have a valid ID before assigning
+                if (actingUserId) {
+                    updates.qc_mechanic_id = actingUserId
+
+                    // Also ensure this user is in the mechanic_ids list (as they worked on it)
+                    const currentMechanics = order.mechanic_ids || []
+                    if (!currentMechanics.includes(actingUserId)) {
+                        updates.mechanic_ids = [...currentMechanics, actingUserId]
+                    }
+                }
+            }
+
+            // 1. Update status and other fields
             const { error } = await supabase
                 .from('orders')
-                .update({ status: newStatus })
+                .update(updates)
                 .eq('id', order.id)
 
             if (error) throw error
@@ -596,7 +575,7 @@ export default function OrderDetailPage() {
             // 3. Update local state
             setOrder(prev => prev ? ({
                 ...prev,
-                status: newStatus,
+                ...updates,
                 history: [event, ...(prev.history || [])]
             }) : null)
 
@@ -880,8 +859,52 @@ export default function OrderDetailPage() {
         }
     }
 
-    const location = useLocation()
-    const returnPath = location.state?.from || '/dashboard'
+
+
+    // Handler for Kiosk selection
+    const handleEmployeeSelected = (employeeId: string) => {
+        const selectedEmp = employees.find(e => e.id === employeeId)
+        if (!selectedEmp || !pendingAction) {
+            setShowEmployeeSelect(false)
+            setPendingAction(null)
+            return
+        }
+
+        const actor = {
+            id: selectedEmp.id,
+            name: selectedEmp.name,
+            email: selectedEmp.email || undefined
+        }
+
+        // Execute pending action with actor override
+        switch (pendingAction.type) {
+            case 'status':
+                handleStatusChange(pendingAction.payload, actor)
+                break
+            case 'save_leasing':
+                handleSaveLeasingCode(actor)
+                break
+            // Legacy cases removed or updated
+            case 'toggle_checklist':
+                handleToggleChecklist(pendingAction.payload.index, pendingAction.payload.checked, actor)
+                break
+            case 'save_customer':
+                handleSaveCustomerData(actor)
+                break
+            case 'save_bike':
+                handleSaveBikeData(actor)
+                break
+            case 'save_notes_data':
+                handleSaveInternalNotesData(actor)
+                break
+            case 'save_price_data':
+                handleSavePriceData(actor)
+                break
+        }
+
+        setShowEmployeeSelect(false)
+        setPendingAction(null)
+    }
 
     if (loading) {
         return <LoadingScreen />
