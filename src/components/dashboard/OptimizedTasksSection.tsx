@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { ListTodo, ShieldCheck, CheckCircle2, AlertTriangle, Clock, Circle } from "lucide-react"
 import type { OrderItem } from "./OrderCard"
 import { cn } from "@/lib/utils"
-import { isPast, isToday, format, differenceInHours, differenceInDays } from "date-fns"
+import { isPast, isToday, format } from "date-fns"
 import { de } from "date-fns/locale"
 import {
   Tooltip,
@@ -13,7 +13,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { getUrgencyInfo } from "@/lib/urgency"
-import { motion } from "framer-motion"
 
 export interface ShopTask {
   id: string

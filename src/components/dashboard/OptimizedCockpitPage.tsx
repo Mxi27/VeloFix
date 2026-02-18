@@ -4,21 +4,20 @@ import { useEmployee } from "@/contexts/EmployeeContext"
 import { supabase } from "@/lib/supabase"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { PageTransition } from "@/components/PageTransition"
-import { CockpitGreeting } from "@/components/dashboard/CockpitGreeting"
 import { MyBikesSection } from "@/components/dashboard/MyBikesSection"
 import { TasksSection } from "@/components/dashboard/TasksSection"
 import { AllRepairsList } from "@/components/dashboard/AllRepairsList"
-import { CockpitFilters, UrgencyFilter } from "@/components/dashboard/CockpitFilters"
+import { type UrgencyFilter } from "@/components/dashboard/CockpitFilters"
 import { QuickActions } from "@/components/dashboard/QuickActions"
 import { GlobalKeyboardShortcuts } from "@/components/dashboard/KeyboardShortcuts"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { X, Filter, ChevronDown, ChevronUp, Maximize2, Minimize2, Clock, AlertTriangle } from "lucide-react"
-import { cn, formatRelativeTime } from "@/lib/utils"
+import { X, Maximize2, Minimize2, AlertTriangle, Clock } from "lucide-react"
+import { cn } from "@/lib/utils"
 import type { OrderItem } from "@/components/dashboard/OrderCard"
 import { filterByUrgency } from "@/lib/urgency"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 
 interface ShopTask {
   id: string
@@ -36,7 +35,7 @@ interface ShopTask {
  */
 export default function OptimizedCockpitPage() {
   const { user, workshopId } = useAuth()
-  const { activeEmployee, employees, isKioskMode } = useEmployee()
+  const { activeEmployee, employees } = useEmployee()
 
   const [myOrders, setMyOrders] = useState<OrderItem[]>([])
   const [allOrders, setAllOrders] = useState<OrderItem[]>([])
@@ -46,9 +45,7 @@ export default function OptimizedCockpitPage() {
 
   // UI State
   const [urgencyFilter, setUrgencyFilter] = useState<UrgencyFilter>('all')
-  const [showFilters, setShowFilters] = useState(true)
   const [focusMode, setFocusMode] = useState(false)
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
 
   // Kiosk Mode State
   const [viewAsEmployeeId, setViewAsEmployeeId] = useState<string | undefined>(undefined)
@@ -136,18 +133,6 @@ export default function OptimizedCockpitPage() {
     const interval = setInterval(fetchAll, 30000)
     return () => clearInterval(interval)
   }, [workshopId, user, viewAsEmployeeId, activeEmployee])
-
-  const toggleSection = (section: string) => {
-    setCollapsedSections(prev => {
-      const next = new Set(prev)
-      if (next.has(section)) {
-        next.delete(section)
-      } else {
-        next.add(section)
-      }
-      return next
-    })
-  }
 
   // Calculate filter counts
   const filterCounts = {
@@ -317,53 +302,29 @@ export default function OptimizedCockpitPage() {
               "lg:col-span-2",
               focusMode && "lg:col-span-3"
             )}>
-              <AnimatePresence mode="wait">
-                {!collapsedSections.has('mybikes') && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                  >
-                    <MyBikesSection orders={filteredMyOrders} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <MyBikesSection orders={filteredMyOrders} />
             </div>
 
             {/* Sidebar - QC & Tasks */}
             {!focusMode && (
               <div className="space-y-4">
-                <AnimatePresence mode="wait">
-                  {!collapsedSections.has('tasks') && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                    >
-                      <TasksSection
-                        shopTasks={shopTasks}
-                        qcOrders={qcOrders}
-                        currentEmployeeId={viewAsEmployeeId || activeEmployee?.id}
-                      />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <TasksSection
+                  shopTasks={shopTasks}
+                  qcOrders={qcOrders}
+                  currentEmployeeId={viewAsEmployeeId || activeEmployee?.id}
+                />
               </div>
             )}
           </div>
 
           {/* All Repairs List - Only in normal mode */}
           {!focusMode && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="mt-6"
-            >
+            <div className="mt-6">
               <AllRepairsList
                 orders={allOrders}
                 employees={employees || []}
               />
-            </motion.div>
+            </div>
           )}
         </div>
       </DashboardLayout>
