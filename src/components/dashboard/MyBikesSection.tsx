@@ -1,11 +1,11 @@
 import { useNavigate, useLocation } from "react-router-dom"
-import { Bike, CheckCircle2, Clock, AlertTriangle } from "lucide-react"
+import { Bike, CheckCircle2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import type { OrderItem } from "./OrderCard"
 import { STATUS_COLORS, STATUS_LABELS } from "./OrderCard"
-import { cn, formatRelativeTime } from "@/lib/utils"
-import { isPast, isToday, differenceInHours, differenceInDays } from "date-fns"
+import { cn } from "@/lib/utils"
+import { getUrgencyInfo, sortByUrgency } from "@/lib/urgency"
 
 interface MyBikesSectionProps {
     orders: OrderItem[]
@@ -16,69 +16,8 @@ export const MyBikesSection = ({ orders }: MyBikesSectionProps) => {
     const location = useLocation()
 
 
-    // Sort by urgency: overdue > due today > due soon > no due date
-    const sortedOrders = [...orders].sort((a, b) => {
-        const aDue = a.due_date ? new Date(a.due_date).getTime() : Number.MAX_SAFE_INTEGER
-        const bDue = b.due_date ? new Date(b.due_date).getTime() : Number.MAX_SAFE_INTEGER
-
-        if (aDue !== bDue) return aDue - bDue
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    })
-
-    const getUrgencyInfo = (dueDate: string | null) => {
-        if (!dueDate) return {
-            icon: Clock,
-            color: "text-muted-foreground",
-            bg: "bg-muted/50 dark:bg-muted/20",
-            label: "Kein Datum"
-        }
-
-        const date = new Date(dueDate)
-        const isOverdue = isPast(date) && !isToday(date)
-        const dueToday = isToday(date)
-
-        if (isOverdue) {
-            return {
-                icon: AlertTriangle,
-                color: "text-red-600 dark:text-red-400",
-                bg: "bg-red-50 dark:bg-red-900/20",
-                label: "Überfällig"
-            }
-        }
-        if (dueToday) {
-            return {
-                icon: AlertTriangle,
-                color: "text-amber-600 dark:text-amber-400",
-                bg: "bg-amber-50 dark:bg-amber-900/20",
-                label: "Heute fällig"
-            }
-        }
-
-        const hoursUntil = differenceInHours(date, new Date())
-        if (hoursUntil < 24) {
-            return {
-                icon: Clock,
-                color: "text-orange-600 dark:text-orange-400",
-                bg: "bg-orange-50 dark:bg-orange-900/20",
-                label: "Morgen fällig"
-            }
-        }
-        const daysUntil = differenceInDays(date, new Date())
-        if (daysUntil <= 3) {
-            return {
-                icon: Clock,
-                color: "text-blue-600 dark:text-blue-400",
-                bg: "bg-blue-50 dark:bg-blue-900/20",
-                label: `In ${daysUntil} Tagen`
-            }
-        }
-        return {
-            icon: Clock,
-            color: "text-muted-foreground",
-            bg: "bg-muted/50 dark:bg-muted/20",
-            label: formatRelativeTime(date)
-        }
-    }
+    // Sort by urgency using shared utility
+    const sortedOrders = sortByUrgency(orders)
 
     if (orders.length === 0) {
         return (
@@ -122,7 +61,7 @@ export const MyBikesSection = ({ orders }: MyBikesSectionProps) => {
             {/* Compact List View - Priority on scannability */}
             <Card className="border-border/40 shadow-sm bg-card/50 backdrop-blur-sm overflow-hidden">
                 <CardContent className="p-2">
-                    <div className="divide-y divide-border/30">
+                    <div className="grid gap-3">
                         {sortedOrders.map((order) => {
                             const urgency = getUrgencyInfo(order.due_date)
                             const UrgencyIcon = urgency.icon
@@ -131,11 +70,11 @@ export const MyBikesSection = ({ orders }: MyBikesSectionProps) => {
                                 <div
                                     key={order.id}
                                     onClick={() => navigate(`/dashboard/orders/${order.id}/work`, { state: { from: location.pathname } })}
-                                    className="group flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-all border border-transparent hover:border-border/40"
+                                    className="group flex items-center gap-3 p-3 rounded-xl bg-card border border-border/50 shadow-sm hover:shadow-md cursor-pointer transition-all duration-200"
                                 >
                                     {/* Urgency Indicator */}
                                     <div className={cn(
-                                        "p-2 rounded-md shrink-0 transition-colors",
+                                        "p-2 rounded-lg shrink-0 transition-colors",
                                         urgency.bg,
                                         "group-hover:bg-opacity-80"
                                     )}>
@@ -156,7 +95,7 @@ export const MyBikesSection = ({ orders }: MyBikesSectionProps) => {
 
                                     {/* Due Date Badge */}
                                     <div className={cn(
-                                        "shrink-0 text-right",
+                                        "shrink-0 text-right ms-2",
                                         urgency.color
                                     )}>
                                         <p className="text-xs font-medium">{urgency.label}</p>

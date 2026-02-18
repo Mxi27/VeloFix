@@ -1,27 +1,49 @@
-import React, { Component, type ReactNode } from 'react'
+import React, { Component, type ReactNode, type ErrorInfo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { AlertTriangle, RefreshCw, Home, Bug } from 'lucide-react'
 
 interface Props {
     children: ReactNode
     fallback?: ReactNode
+    onError?: (error: Error, errorInfo: ErrorInfo) => void
 }
 
 interface State {
     hasError: boolean
     error: Error | null
+    errorInfo: ErrorInfo | null
 }
 
+/**
+ * Enhanced Error Boundary Component with logging and custom handlers
+ */
 export class ErrorBoundary extends Component<Props, State> {
     constructor(props: Props) {
         super(props)
-        this.state = { hasError: false, error: null }
+        this.state = { hasError: false, error: null, errorInfo: null }
     }
 
     static getDerivedStateFromError(error: Error): State {
-        return { hasError: true, error }
+        return { hasError: true, error, errorInfo: null }
     }
 
-    componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('ErrorBoundary caught an error:', error, errorInfo)
+
+        // Call custom error handler if provided
+        this.props.onError?.(error, errorInfo)
+
+        // Update state with error info
+        this.setState({ errorInfo })
+
+        // TODO: Log to error reporting service (e.g., Sentry)
+        // Sentry.captureException(error, { contexts: { react: { componentStack: errorInfo.componentStack } } })
+    }
+
+    handleReset = () => {
+        this.setState({ hasError: false, error: null, errorInfo: null })
     }
 
     render() {
@@ -30,61 +52,102 @@ export class ErrorBoundary extends Component<Props, State> {
                 return this.props.fallback
             }
 
-            return (
-                <div className="flex min-h-svh w-full items-center justify-center bg-background p-6">
-                    <div className="w-full max-w-md space-y-6 text-center">
-                        <div className="space-y-2">
-                            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10">
-                                <svg
-                                    className="h-10 w-10 text-destructive"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                                    />
-                                </svg>
-                            </div>
-                            <h1 className="text-2xl font-bold tracking-tight">Etwas ist schief gelaufen</h1>
-                            <p className="text-sm text-muted-foreground">
-                                Die Anwendung ist auf einen unerwarteten Fehler gestoßen.
-                            </p>
-                        </div>
-
-                        {this.state.error && (
-                            <details className="rounded-lg border border-border bg-muted/30 p-4 text-left">
-                                <summary className="cursor-pointer text-sm font-medium">
-                                    Technische Details
-                                </summary>
-                                <pre className="mt-2 overflow-auto text-xs text-muted-foreground">
-                                    {this.state.error.message}
-                                </pre>
-                            </details>
-                        )}
-
-                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-                            <button
-                                onClick={() => window.location.reload()}
-                                className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            >
-                                Seite neu laden
-                            </button>
-                            <button
-                                onClick={() => (window.location.href = '/dashboard')}
-                                className="inline-flex h-10 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            >
-                                Zum Dashboard
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )
+            return <ErrorFallback error={this.state.error} errorInfo={this.state.errorInfo} onReset={this.handleReset} />
         }
 
         return this.props.children
     }
+}
+
+/**
+ * Error Fallback Component with improved UI
+ */
+interface ErrorFallbackProps {
+    error: Error | null
+    errorInfo: ErrorInfo | null
+    onReset: () => void
+}
+
+const ErrorFallback = ({ error, errorInfo, onReset }: ErrorFallbackProps) => {
+    const navigate = useNavigate()
+
+    return (
+        <div className="flex min-h-svh w-full items-center justify-center bg-muted/20 p-6">
+            <Card className="w-full max-w-lg">
+                <CardContent className="p-8 space-y-6">
+                    {/* Icon */}
+                    <div className="flex justify-center">
+                        <div className="h-20 w-20 rounded-full bg-destructive/10 flex items-center justify-center">
+                            <AlertTriangle className="h-10 w-10 text-destructive" />
+                        </div>
+                    </div>
+
+                    {/* Message */}
+                    <div className="text-center space-y-2">
+                        <h1 className="text-2xl font-bold tracking-tight">Etwas ist schiefgelaufen</h1>
+                        <p className="text-sm text-muted-foreground">
+                            Ein unerwarteter Fehler ist aufgetreten. Die Fehlermeldung wurde protokolliert.
+                        </p>
+                    </div>
+
+                    {/* Error Details (Dev Mode) */}
+                    {import.meta.env.DEV && error && (
+                        <details className="rounded-lg border border-border bg-muted/30 p-4">
+                            <summary className="cursor-pointer text-sm font-medium flex items-center gap-2">
+                                <Bug className="h-4 w-4" />
+                                Technische Details (nur Entwicklung)
+                            </summary>
+                            <div className="mt-3 space-y-2">
+                                <div className="p-3 bg-background rounded-md">
+                                    <p className="text-xs font-medium text-muted-foreground mb-1">Fehlermeldung:</p>
+                                    <pre className="text-xs text-destructive overflow-auto">
+                                        {error.message}
+                                    </pre>
+                                </div>
+                                {errorInfo && (
+                                    <div className="p-3 bg-background rounded-md">
+                                        <p className="text-xs font-medium text-muted-foreground mb-1">Component Stack:</p>
+                                        <pre className="text-xs text-muted-foreground overflow-auto max-h-32">
+                                            {errorInfo.componentStack}
+                                        </pre>
+                                    </div>
+                                )}
+                            </div>
+                        </details>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+                        <Button onClick={onReset} className="gap-2">
+                            <RefreshCw className="h-4 w-4" />
+                            Erneut versuchen
+                        </Button>
+                        <Button
+                            onClick={() => navigate('/dashboard')}
+                            variant="outline"
+                            className="gap-2"
+                        >
+                            <Home className="h-4 w-4" />
+                            Zum Dashboard
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+/**
+ * HOC to wrap components with ErrorBoundary
+ */
+export const withErrorBoundary = <P extends object>(
+    Component: React.ComponentType<P>,
+    fallback?: ReactNode,
+    onError?: (error: Error, errorInfo: ErrorInfo) => void
+) => {
+    return (props: P) => (
+        <ErrorBoundary fallback={fallback} onError={onError}>
+            <Component {...props} />
+        </ErrorBoundary>
+    )
 }
