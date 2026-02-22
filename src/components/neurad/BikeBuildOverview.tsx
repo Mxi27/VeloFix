@@ -1,10 +1,11 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Wrench, User, Bike, FileText, ShieldCheck, Trash2, Pencil, Clock, CheckCircle2 } from "lucide-react"
+import {
+    ArrowLeft, Wrench, User, Bike, ShieldCheck, Trash2, Pencil, Clock,
+    CheckCircle2, Zap, Key, StickyNote, TrendingUp, AlertCircle, ZapOff
+} from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { supabase } from "@/lib/supabase"
@@ -30,13 +31,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
+import { NEURAD_STATUS_MAP, NEURAD_STATUSES } from "@/lib/constants"
+import useSWR from "swr"
 
 interface BikeBuildOverviewProps {
     build: any
@@ -46,20 +44,70 @@ interface BikeBuildOverviewProps {
     onUpdate?: () => void
 }
 
+// Progress from assembly_progress JSON
+function parseProgress(prog: any) {
+    if (!prog) return { done: 0, skipped: 0, total: 0, pct: 0 }
+    const done = prog.completed_steps?.length || 0
+    const skipped = prog.skipped_steps?.length || 0
+    // We don't store total in the JSON, so we use done+skipped as a floor
+    return { done, skipped, total: done + skipped, pct: done + skipped > 0 ? 100 : 0 }
+}
+
+function parseControlProgress(ctrl: any) {
+    if (!ctrl) return { done: 0, total: 0, pct: 0 }
+    const done = ctrl.verified_steps?.length || 0
+    return { done, total: done, pct: ctrl.completed ? 100 : (done > 0 ? 60 : 0) }
+}
+
 export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDelete, onUpdate }: BikeBuildOverviewProps) {
     const navigate = useNavigate()
-    const { userRole } = useAuth()
+    const { userRole, workshopId } = useAuth()
     const { employees } = useEmployee()
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+    // Fetch real step count for accurate progress
+    const { data: stepCount = 0 } = useSWR(
+        workshopId ? ['neurad_step_count', workshopId, build.checklist_template] : null,
+        async () => {
+            let q = supabase.from('neurad_steps').select('id', { count: 'exact', head: true })
+                .eq('workshop_id', workshopId).eq('is_active', true)
+            if (build.checklist_template) q = q.eq('template_name', build.checklist_template)
+            const { count } = await q
+            return count || 0
+        },
+        { revalidateOnFocus: false }
+    )
 
     // Assignment Logic
     const [showSelectionModal, setShowSelectionModal] = useState(false)
     const [assignmentType, setAssignmentType] = useState<'mechanic' | 'qc'>('mechanic')
+    const [isSaving, setIsSaving] = useState(false)
 
-    const getEmployeeName = (id: string) => {
-        if (!employees) return "Lade..."
-        return employees.find(e => e.id === id)?.name || "Unbekannt"
-    }
+    // Edit dialogs state
+    const [isEditBikeOpen, setIsEditBikeOpen] = useState(false)
+    const [isEditNotesOpen, setIsEditNotesOpen] = useState(false)
+    const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false)
+
+    // Bike edit fields
+    const [editBrand, setEditBrand] = useState("")
+    const [editModel, setEditModel] = useState("")
+    const [editColor, setEditColor] = useState("")
+    const [editFrameSize, setEditFrameSize] = useState("")
+    const [editInternalNumber, setEditInternalNumber] = useState("")
+    const [editIsEbike, setEditIsEbike] = useState(false)
+    const [editEbikeSystem, setEditEbikeSystem] = useState("")
+    const [editBatterySerial, setEditBatterySerial] = useState("")
+    const [editKeyNumber, setEditKeyNumber] = useState("")
+
+    // Notes edit
+    const [editNotes, setEditNotes] = useState("")
+
+    // Customer edit
+    const [editCustomerName, setEditCustomerName] = useState("")
+    const [editCustomerEmail, setEditCustomerEmail] = useState("")
+
+    const getEmployeeName = (id: string) =>
+        employees?.find(e => e.id === id)?.name || "Unbekannt"
 
     const openSelectionModal = (type: 'mechanic' | 'qc') => {
         setAssignmentType(type)
@@ -70,48 +118,23 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
         const updateData = assignmentType === 'mechanic'
             ? { assigned_employee_id: employeeId }
             : { qc_mechanic_id: employeeId }
-
-        const { error } = await supabase
-            .from('bike_builds')
-            .update(updateData)
-            .eq('id', build.id)
-
-        if (error) {
-            console.error(error)
-            toast.error("Fehler bei der Zuweisung")
-        } else {
+        const { error } = await supabase.from('bike_builds').update(updateData).eq('id', build.id)
+        if (error) toast.error("Fehler bei der Zuweisung")
+        else {
             toast.success("Zuweisung aktualisiert")
             setShowSelectionModal(false)
-            if (onUpdate) onUpdate()
+            onUpdate?.()
         }
     }
 
-    const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false)
-    const [editCustomerName, setEditCustomerName] = useState("")
-    const [editCustomerEmail, setEditCustomerEmail] = useState("")
-    const [editNotes, setEditNotes] = useState("")
-
-    const [isEditBikeOpen, setIsEditBikeOpen] = useState(false)
-    const [editBrand, setEditBrand] = useState("")
-    const [editModel, setEditModel] = useState("")
-    const [editColor, setEditColor] = useState("")
-    const [editFrameSize, setEditFrameSize] = useState("")
-    const [editInternalNumber, setEditInternalNumber] = useState("")
-
-    const [isSaving, setIsSaving] = useState(false)
-
-    const NEURAD_STATUS_FLOW = [
-        { value: 'offen', label: 'Offen', icon: Clock, color: 'text-gray-500 bg-gray-500/10 border-gray-500/20' },
-        { value: 'fertig', label: 'Fertig', icon: Wrench, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
-        { value: 'abgeschlossen', label: 'Abgeschlossen', icon: CheckCircle2, color: 'text-green-500 bg-green-500/10 border-green-500/20' }
-    ]
-
-    // Initialize edit state when modal opens or build changes
-    const openEditCustomer = () => {
-        setEditCustomerName(build.customer_name || "")
-        setEditCustomerEmail(build.customer_email || "")
-        setEditNotes(build.notes || "")
-        setIsEditCustomerOpen(true)
+    const handleStatusChange = async (newStatus: string) => {
+        setIsSaving(true)
+        try {
+            const { error } = await supabase.from('bike_builds').update({ status: newStatus }).eq('id', build.id)
+            if (error) throw error
+            toast.success("Status aktualisiert")
+            onUpdate?.()
+        } catch { toast.error("Fehler beim Status") } finally { setIsSaving(false) }
     }
 
     const openEditBike = () => {
@@ -120,395 +143,446 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
         setEditColor(build.color || "")
         setEditFrameSize(build.frame_size || "")
         setEditInternalNumber(build.internal_number || "")
+        setEditIsEbike(build.is_ebike || false)
+        setEditEbikeSystem(build.ebike_system || "")
+        setEditBatterySerial(build.battery_serial || "")
+        setEditKeyNumber(build.key_number || "")
         setIsEditBikeOpen(true)
     }
 
-    const handleSaveCustomer = async () => {
-        setIsSaving(true)
-        try {
-            const updates = {
-                customer_name: editCustomerName,
-                customer_email: editCustomerEmail || null,
-                notes: editNotes || null
-            }
-            const { error } = await supabase
-                .from('bike_builds')
-                .update(updates)
-                .eq('id', build.id)
+    const openEditNotes = () => {
+        setEditNotes(build.notes || "")
+        setIsEditNotesOpen(true)
+    }
 
-            if (error) throw error
-            toast.success("Kundendaten gespeichert")
-            setIsEditCustomerOpen(false)
-            if (onUpdate) onUpdate()
-        } catch (e: any) {
-            toast.error("Fehler", e.message)
-        } finally {
-            setIsSaving(false)
-        }
+    const openEditCustomer = () => {
+        setEditCustomerName(build.customer_name || "")
+        setEditCustomerEmail(build.customer_email || "")
+        setIsEditCustomerOpen(true)
     }
 
     const handleSaveBike = async () => {
         setIsSaving(true)
         try {
-            const updates = {
+            const { error } = await supabase.from('bike_builds').update({
                 brand: editBrand,
                 model: editModel,
                 color: editColor,
                 frame_size: editFrameSize,
-                internal_number: editInternalNumber
-            }
-            const { error } = await supabase
-                .from('bike_builds')
-                .update(updates)
-                .eq('id', build.id)
-
+                internal_number: editInternalNumber,
+                is_ebike: editIsEbike,
+                ebike_system: editIsEbike ? editEbikeSystem || null : null,
+                battery_serial: editIsEbike ? editBatterySerial || null : null,
+                key_number: editKeyNumber || null,
+            }).eq('id', build.id)
             if (error) throw error
             toast.success("Fahrraddaten gespeichert")
             setIsEditBikeOpen(false)
-            if (onUpdate) onUpdate()
-        } catch (e: any) {
-            toast.error("Fehler", e.message)
-        } finally {
-            setIsSaving(false)
-        }
+            onUpdate?.()
+        } catch { toast.error("Fehler beim Speichern") } finally { setIsSaving(false) }
     }
 
-    const handleStatusChange = async (newStatus: string) => {
+    const handleSaveNotes = async () => {
         setIsSaving(true)
         try {
-            const { error } = await supabase
-                .from('bike_builds')
-                .update({ status: newStatus })
-                .eq('id', build.id)
-
+            const { error } = await supabase.from('bike_builds').update({ notes: editNotes || null }).eq('id', build.id)
             if (error) throw error
-            toast.success("Status aktualisiert")
-            if (onUpdate) onUpdate()
-        } catch (e: any) {
-            toast.error("Fehler", e.message)
-        } finally {
-            setIsSaving(false)
-        }
+            toast.success("Notizen gespeichert")
+            setIsEditNotesOpen(false)
+            onUpdate?.()
+        } catch { toast.error("Fehler beim Speichern") } finally { setIsSaving(false) }
     }
 
+    const handleSaveCustomer = async () => {
+        setIsSaving(true)
+        try {
+            const { error } = await supabase.from('bike_builds').update({
+                customer_name: editCustomerName,
+                customer_email: editCustomerEmail || null,
+            }).eq('id', build.id)
+            if (error) throw error
+            toast.success("Kundendaten gespeichert")
+            setIsEditCustomerOpen(false)
+            onUpdate?.()
+        } catch { toast.error("Fehler beim Speichern") } finally { setIsSaving(false) }
+    }
+
+    // Progress stats
+    const assemblyProg = build.assembly_progress
+    const completedSteps = assemblyProg?.completed_steps?.length || 0
+    const skippedSteps = assemblyProg?.skipped_steps?.length || 0
+    const totalSteps = stepCount || (completedSteps + skippedSteps) || 0
+    const assemblyPct = totalSteps > 0 ? Math.round(((completedSteps + skippedSteps) / totalSteps) * 100) : (completedSteps > 0 ? 100 : 0)
+
+    const controlProg = build.control_data
+    const controlVerified = controlProg?.verified_steps?.length || 0
+    const controlPct = controlProg?.completed ? 100 : (totalSteps > 0 ? Math.round((controlVerified / totalSteps) * 100) : (controlVerified > 0 ? 80 : 0))
+
+    const currentStatus = NEURAD_STATUS_MAP[build.status] || { label: build.status, color: 'bg-muted text-muted-foreground border-border/60', dotColor: 'bg-muted-foreground' }
+
     return (
-        <div className="space-y-8 max-w-5xl mx-auto">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
+        <div className="space-y-6 max-w-5xl mx-auto">
+
+            {/* ── Header ── */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-primary/3 border border-primary/10 p-5">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+
+                <div className="relative">
                     <Button
                         variant="ghost"
-                        className="pl-0 gap-2 text-muted-foreground hover:text-foreground"
+                        className="pl-0 gap-2 text-muted-foreground hover:text-foreground mb-3 h-8 text-sm"
                         onClick={() => navigate("/dashboard/bike-builds")}
                     >
-                        <ArrowLeft className="h-4 w-4" />
-                        Zurück zur Übersicht
+                        <ArrowLeft className="h-3.5 w-3.5" />
+                        Zurück
                     </Button>
-                    <div className="flex items-center gap-3">
-                        <h1 className="text-3xl font-bold tracking-tight">
-                            {build.brand} {build.model}
-                        </h1>
-                        <Badge variant="outline" className="text-lg px-3 py-1 bg-background/50">
-                            {build.internal_number}
-                        </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 mt-2">
-                        <Select
-                            value={build.status}
-                            onValueChange={handleStatusChange}
-                            disabled={isSaving || userRole === 'read'}
-                        >
-                            <SelectTrigger className={`w-[180px] h-9 transition-colors ${NEURAD_STATUS_FLOW.find(s => s.value === build.status)?.color?.split(' ')[1] || 'bg-muted/50'
-                                } border-transparent`}>
-                                <div className="flex items-center gap-2">
-                                    {(() => {
-                                        const status = NEURAD_STATUS_FLOW.find(s => s.value === build.status) || { icon: Clock, label: build.status }
-                                        const Icon = status.icon
-                                        return (
-                                            <>
-                                                <Icon className="h-4 w-4" />
-                                                <SelectValue>{status.label}</SelectValue>
-                                            </>
-                                        )
-                                    })()}
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                                {NEURAD_STATUS_FLOW.map((status) => (
-                                    <SelectItem key={status.value} value={status.value}>
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-2 h-2 rounded-full ${status.color ? status.color.split(' ')[0].replace('text-', 'bg-') : 'bg-gray-400'}`} />
-                                            {status.label}
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <span className="text-sm text-muted-foreground">Erstellt am {new Date(build.created_at).toLocaleDateString()}</span>
-                    </div>
-                </div>
 
-                <div className="flex items-center gap-2">
-                    <Button
-                        onClick={onStartWorkshop}
-                        size="lg"
-                        className="bg-primary text-primary-foreground shadow-lg hover:shadow-primary/25"
-                    >
-                        <Wrench className="mr-2 h-5 w-5" />
-                        Montage starten
-                    </Button>
-                    <Button
-                        onClick={onStartControl}
-                        size="lg"
-                        variant="outline"
-                        className="border-green-500/20 text-green-600 hover:bg-green-500/10"
-                    >
-                        <ShieldCheck className="mr-2 h-5 w-5" />
-                        Kontrolle
-                    </Button>
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        <div>
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <h1 className="text-2xl font-bold tracking-tight">
+                                    {build.brand} {build.model}
+                                </h1>
+                                <span className="font-mono text-sm px-2.5 py-1 rounded-lg bg-muted/60 border border-border/50 text-muted-foreground">
+                                    {build.internal_number}
+                                </span>
+                                {build.is_ebike && (
+                                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 gap-1">
+                                        <Zap className="h-3 w-3" />
+                                        E-Bike
+                                    </Badge>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                <Badge
+                                    variant="secondary"
+                                    className={cn("border text-xs font-normal", currentStatus.color)}
+                                >
+                                    <div className={cn("h-1.5 w-1.5 rounded-full mr-1.5", currentStatus.dotColor)} />
+                                    {currentStatus.label}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                    Erstellt am {new Date(build.created_at).toLocaleDateString('de-DE')}
+                                </span>
+                            </div>
+                            {/* Status Switcher */}
+                            {userRole !== 'read' && (
+                                <div className="flex flex-wrap gap-1.5 mt-3">
+                                    {NEURAD_STATUSES.map(s => (
+                                        <button
+                                            key={s.value}
+                                            disabled={isSaving}
+                                            onClick={() => handleStatusChange(s.value)}
+                                            className={cn(
+                                                "text-xs px-3 py-1 rounded-full border transition-all",
+                                                build.status === s.value
+                                                    ? cn(s.color, "font-medium")
+                                                    : "text-muted-foreground border-border/40 hover:border-border hover:text-foreground bg-background/50"
+                                            )}
+                                        >
+                                            {s.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                                onClick={onStartWorkshop}
+                                className="bg-primary text-primary-foreground shadow-sm hover:shadow-primary/20"
+                            >
+                                <Wrench className="mr-2 h-4 w-4" />
+                                Montage
+                            </Button>
+                            <Button
+                                onClick={onStartControl}
+                                variant="outline"
+                                className="border-green-500/30 text-green-600 hover:bg-green-500/10"
+                            >
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Kontrolle
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {/* Bike Details */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="flex items-center gap-2">
-                            <Bike className="h-5 w-5 text-primary" />
-                            Fahrrad Daten
-                        </CardTitle>
-                        {userRole !== 'read' && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={openEditBike}>
-                                <Pencil className="h-4 w-4 text-muted-foreground" />
-                            </Button>
-                        )}
-                    </CardHeader>
-                    <CardContent className="space-y-4 pt-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Marke</p>
-                                <p className="text-base">{build.brand}</p>
+            {/* ── Progress Cards ── */}
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                {/* Montage Progress */}
+                <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-primary/10">
+                                <Wrench className="h-3.5 w-3.5 text-primary" />
                             </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Modell</p>
-                                <p className="text-base">{build.model}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Farbe</p>
-                                <p className="text-base">{build.color || '—'}</p>
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">Rahmengröße</p>
-                                <p className="text-base">{build.frame_size || '—'}</p>
-                            </div>
+                            <span className="text-sm font-medium">Montage-Fortschritt</span>
                         </div>
-                        <Separator />
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-1">Vorlage</p>
-                            <Badge variant="outline">{build.checklist_template || 'Standard'}</Badge>
-                        </div>
-                    </CardContent>
-                </Card>
+                        <span className="text-xs font-mono text-muted-foreground">
+                            {completedSteps}{skippedSteps > 0 ? `+${skippedSteps}` : ''}/{totalSteps || '?'} Schritte
+                        </span>
+                    </div>
+                    <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
+                        <div
+                            className={cn(
+                                "h-full rounded-full transition-all",
+                                assemblyPct === 100 ? "bg-green-500" : "bg-primary"
+                            )}
+                            style={{ width: `${assemblyPct}%` }}
+                        />
+                    </div>
+                    <div className="flex justify-between mt-1.5">
+                        <span className="text-xs text-muted-foreground">
+                            {assemblyProg?.last_actor?.name && `Zuletzt: ${assemblyProg.last_actor.name}`}
+                        </span>
+                        <span className="text-xs font-semibold">{assemblyPct}%</span>
+                    </div>
+                </div>
 
-                {/* Customer Info */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="flex items-center gap-2">
-                            <User className="h-5 w-5 text-primary" />
-                            Kunde
-                        </CardTitle>
+                {/* Kontroll Progress */}
+                <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-lg bg-green-500/10">
+                                <ShieldCheck className="h-3.5 w-3.5 text-green-500" />
+                            </div>
+                            <span className="text-sm font-medium">Kontroll-Fortschritt</span>
+                        </div>
+                        <span className="text-xs font-mono text-muted-foreground">
+                            {controlVerified}/{totalSteps || '?'} geprüft
+                        </span>
+                    </div>
+                    <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
+                        <div
+                            className={cn(
+                                "h-full rounded-full transition-all",
+                                controlPct === 100 ? "bg-green-500" : "bg-indigo-500"
+                            )}
+                            style={{ width: `${controlPct}%` }}
+                        />
+                    </div>
+                    <div className="flex justify-between mt-1.5">
+                        <span className="text-xs text-muted-foreground">
+                            {controlProg?.inspector?.name && `Prüfer: ${controlProg.inspector.name}`}
+                        </span>
+                        <span className="text-xs font-semibold">{controlProg?.completed ? '✓ Abgeschlossen' : `${controlPct}%`}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* ── Main Content Grid ── */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+
+                {/* Fahrrad-Daten */}
+                <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-muted/20">
+                        <div className="flex items-center gap-2">
+                            <Bike className="h-4 w-4 text-primary" />
+                            <h3 className="text-sm font-semibold">Fahrrad</h3>
+                        </div>
                         {userRole !== 'read' && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-muted" onClick={openEditCustomer}>
-                                <Pencil className="h-4 w-4 text-muted-foreground" />
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={openEditBike}>
+                                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                             </Button>
                         )}
-                    </CardHeader>
-                    <CardContent className="space-y-4 pt-4">
+                    </div>
+                    <div className="p-4 space-y-3">
+                        <InfoRow label="Interne Nr." value={build.internal_number} mono />
+                        <InfoRow label="Marke" value={build.brand} />
+                        <InfoRow label="Modell" value={build.model} />
+                        <InfoRow label="Farbe" value={build.color} />
+                        <InfoRow label="Rahmengröße" value={build.frame_size} />
+
+                        {/* E-Bike Section */}
+                        <div className="pt-2 border-t border-border/30">
+                            <div className="flex items-center gap-2 mb-2">
+                                {build.is_ebike ? (
+                                    <Zap className="h-4 w-4 text-amber-500" />
+                                ) : (
+                                    <ZapOff className="h-4 w-4 text-muted-foreground/40" />
+                                )}
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                    {build.is_ebike ? 'E-Bike' : 'Kein E-Bike'}
+                                </span>
+                            </div>
+                            {build.is_ebike && (
+                                <div className="space-y-2 pl-1">
+                                    <InfoRow label="System" value={build.ebike_system} />
+                                    <InfoRow label="Akku-Nr." value={build.battery_serial} mono />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Key Number */}
+                        {build.key_number && (
+                            <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+                                <Key className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground">Schlüssel</span>
+                                <span className="font-mono text-sm ml-auto">{build.key_number}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Kunde */}
+                <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-muted/20">
+                        <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-primary" />
+                            <h3 className="text-sm font-semibold">Kunde</h3>
+                        </div>
+                        {userRole !== 'read' && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={openEditCustomer}>
+                                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                        )}
+                    </div>
+                    <div className="p-4 space-y-3">
                         <div>
-                            <p className="text-sm font-medium text-muted-foreground">Name</p>
-                            <p className="text-base font-medium">{build.customer_name || 'Lagerbestand'}</p>
+                            <p className="text-xs text-muted-foreground mb-0.5">Name</p>
+                            <p className="text-sm font-medium">{build.customer_name || <span className="text-muted-foreground italic text-xs">Lagerbestand</span>}</p>
                         </div>
                         {build.customer_email && (
                             <div>
-                                <p className="text-sm font-medium text-muted-foreground">Email</p>
-                                <p className="text-base">{build.customer_email}</p>
+                                <p className="text-xs text-muted-foreground mb-0.5">Email</p>
+                                <p className="text-sm">{build.customer_email}</p>
                             </div>
                         )}
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Notizen</p>
-                            <p className="text-sm text-muted-foreground italic">
-                                {build.notes || 'Keine Notizen'}
-                            </p>
+
+                        {/* Team Assignment */}
+                        <div className="pt-3 border-t border-border/30 space-y-3">
+                            <AssignmentRow
+                                label="Monteur"
+                                icon={<Wrench className="h-3.5 w-3.5 text-muted-foreground" />}
+                                employeeId={build.assigned_employee_id}
+                                getEmployeeName={getEmployeeName}
+                                canEdit={userRole !== 'read'}
+                                onAssign={() => openSelectionModal('mechanic')}
+                            />
+                            <AssignmentRow
+                                label="QC Prüfer"
+                                icon={<ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />}
+                                employeeId={build.qc_mechanic_id}
+                                getEmployeeName={getEmployeeName}
+                                canEdit={userRole !== 'read'}
+                                onAssign={() => openSelectionModal('qc')}
+                            />
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
-                {/* Status / History (Placeholder) */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-primary" />
-                            Status
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {/* We could show progress summary here */}
-                        <div>
-                            <p className="text-sm font-medium text-muted-foreground">Fortschritt</p>
-                            <div className="flex items-center gap-2 mt-2">
-                                <div className="flex-1 bg-secondary/50 rounded-full h-2">
-                                    <div
-                                        className="bg-primary h-2 rounded-full"
-                                        style={{ width: `${build.assembly_progress?.completed_steps?.length > 0 ? '50%' : '0%'}` }}
-                                    ></div>
-                                </div>
-                                <span className="text-xs text-muted-foreground">
-                                    {build.assembly_progress?.completed_steps?.length || 0} Schritte
-                                </span>
-                            </div>
+                {/* Notizen */}
+                <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-muted/20">
+                        <div className="flex items-center gap-2">
+                            <StickyNote className="h-4 w-4 text-primary" />
+                            <h3 className="text-sm font-semibold">Notizen</h3>
                         </div>
-
-                        <Separator />
-
-                        <div className="space-y-3">
-                            <div>
-                                <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-medium text-muted-foreground">Mechaniker (Aufbau)</p>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 text-xs text-primary hover:text-primary/80 px-2"
-                                        onClick={() => openSelectionModal('mechanic')}
-                                    >
-                                        {build.assigned_employee_id ? 'Ändern' : 'Zuweisen'}
-                                    </Button>
+                        {userRole !== 'read' && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={openEditNotes}>
+                                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                        )}
+                    </div>
+                    <div className="p-4">
+                        {build.notes ? (
+                            <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{build.notes}</p>
+                        ) : (
+                            <div
+                                className="flex flex-col items-center gap-2 py-6 text-center cursor-pointer group"
+                                onClick={userRole !== 'read' ? openEditNotes : undefined}
+                            >
+                                <div className="p-2 rounded-lg bg-muted/40 group-hover:bg-muted/70 transition-colors">
+                                    <StickyNote className="h-5 w-5 text-muted-foreground/40" />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <User className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm font-medium">
-                                        {build.assigned_employee_id ? getEmployeeName(build.assigned_employee_id) : <span className="text-muted-foreground italic">Nicht zugewiesen</span>}
-                                    </span>
-                                </div>
+                                <p className="text-xs text-muted-foreground/60">
+                                    {userRole !== 'read' ? 'Klicken um Notiz hinzuzufügen' : 'Keine Notizen'}
+                                </p>
                             </div>
-
-                            <div>
-                                <div className="flex justify-between items-center mb-1">
-                                    <p className="text-sm font-medium text-muted-foreground">Qualitätskontrolle</p>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 text-xs text-primary hover:text-primary/80 px-2"
-                                        onClick={() => openSelectionModal('qc')}
-                                    >
-                                        {build.qc_mechanic_id ? 'Ändern' : 'Zuweisen'}
-                                    </Button>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm font-medium">
-                                        {build.qc_mechanic_id ? getEmployeeName(build.qc_mechanic_id) : <span className="text-muted-foreground italic">Ausstehend</span>}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        )}
+                    </div>
+                </div>
             </div>
+
+            {/* ── Checklist Vorlage ── */}
+            {build.checklist_template && (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/30 border border-border/40 text-sm">
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Checklisten-Vorlage:</span>
+                    <Badge variant="outline" className="bg-background/60">{build.checklist_template}</Badge>
+                </div>
+            )}
+
+            {/* ── Modals & Dialogs ── */}
 
             <EmployeeSelectionModal
                 open={showSelectionModal}
                 onOpenChange={setShowSelectionModal}
-                triggerAction={assignmentType === 'mechanic' ? "Mechaniker zuweisen" : "QC Mitarbeiter zuweisen"}
+                triggerAction={assignmentType === 'mechanic' ? "Monteur zuweisen" : "QC Prüfer zuweisen"}
                 onEmployeeSelected={handleAssignment}
             />
 
-            {/* Edit Customer Dialog */}
-            <Dialog open={isEditCustomerOpen} onOpenChange={setIsEditCustomerOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Kundendaten bearbeiten</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-2">
-                        <div className="space-y-2">
-                            <Label>Name</Label>
-                            <Input
-                                value={editCustomerName}
-                                onChange={(e) => setEditCustomerName(e.target.value)}
-                                placeholder="Kundenname"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Email</Label>
-                            <Input
-                                value={editCustomerEmail}
-                                onChange={(e) => setEditCustomerEmail(e.target.value)}
-                                placeholder="Email"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Notizen</Label>
-                            <Textarea
-                                value={editNotes}
-                                onChange={(e) => setEditNotes(e.target.value)}
-                                placeholder="Notizen zum Kunden oder Auftrag..."
-                            />
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsEditCustomerOpen(false)}>Abbrechen</Button>
-                        <Button onClick={handleSaveCustomer} disabled={isSaving}>
-                            {isSaving ? "Speichere..." : "Speichern"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
             {/* Edit Bike Dialog */}
             <Dialog open={isEditBikeOpen} onOpenChange={setIsEditBikeOpen}>
-                <DialogContent>
+                <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                         <DialogTitle>Fahrraddaten bearbeiten</DialogTitle>
                     </DialogHeader>
-                    <div className="grid grid-cols-2 gap-4 py-2">
-                        <div className="space-y-2">
-                            <Label>Marke</Label>
-                            <Input
-                                value={editBrand}
-                                onChange={(e) => setEditBrand(e.target.value)}
-                                placeholder="Marke"
-                            />
+                    <div className="grid gap-4 py-2">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Interne Nr.</Label>
+                                <Input value={editInternalNumber} onChange={e => setEditInternalNumber(e.target.value)} placeholder="N-2024-001" className="bg-muted/30" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Schlüssel-Nr.</Label>
+                                <Input value={editKeyNumber} onChange={e => setEditKeyNumber(e.target.value)} placeholder="z.B. 42A" className="bg-muted/30" />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Modell</Label>
-                            <Input
-                                value={editModel}
-                                onChange={(e) => setEditModel(e.target.value)}
-                                placeholder="Modell"
-                            />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Marke</Label>
+                                <Input value={editBrand} onChange={e => setEditBrand(e.target.value)} placeholder="Cube" className="bg-muted/30" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Modell</Label>
+                                <Input value={editModel} onChange={e => setEditModel(e.target.value)} placeholder="Modell" className="bg-muted/30" />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Farbe</Label>
-                            <Input
-                                value={editColor}
-                                onChange={(e) => setEditColor(e.target.value)}
-                                placeholder="Farbe"
-                            />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Farbe</Label>
+                                <Input value={editColor} onChange={e => setEditColor(e.target.value)} placeholder="Farbe" className="bg-muted/30" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs text-muted-foreground">Rahmengröße</Label>
+                                <Input value={editFrameSize} onChange={e => setEditFrameSize(e.target.value)} placeholder="z.B. 54cm / L" className="bg-muted/30" />
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Rahmengröße</Label>
-                            <Input
-                                value={editFrameSize}
-                                onChange={(e) => setEditFrameSize(e.target.value)}
-                                placeholder="Rahmengröße"
-                            />
-                        </div>
-                        <div className="space-y-2 col-span-2">
-                            <Label>Interne Nummer</Label>
-                            <Input
-                                value={editInternalNumber}
-                                onChange={(e) => setEditInternalNumber(e.target.value)}
-                                placeholder="Interne Nummer"
-                            />
+
+                        {/* E-Bike Toggle */}
+                        <div className="rounded-lg border border-border/40 bg-muted/20 p-3 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Zap className={cn("h-4 w-4", editIsEbike ? "text-amber-500" : "text-muted-foreground/40")} />
+                                    <Label className="text-sm font-medium">E-Bike</Label>
+                                </div>
+                                <Switch checked={editIsEbike} onCheckedChange={setEditIsEbike} />
+                            </div>
+                            {editIsEbike && (
+                                <div className="grid grid-cols-2 gap-3 pt-1">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs text-muted-foreground">Antriebssystem</Label>
+                                        <Input value={editEbikeSystem} onChange={e => setEditEbikeSystem(e.target.value)} placeholder="Bosch / Shimano..." className="bg-muted/30" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs text-muted-foreground">Akku-Nummer</Label>
+                                        <Input value={editBatterySerial} onChange={e => setEditBatterySerial(e.target.value)} placeholder="Seriennummer" className="bg-muted/30" />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                     <DialogFooter>
@@ -520,13 +594,62 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
                 </DialogContent>
             </Dialog>
 
+            {/* Edit Customer Dialog */}
+            <Dialog open={isEditCustomerOpen} onOpenChange={setIsEditCustomerOpen}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle>Kundendaten bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Name</Label>
+                            <Input value={editCustomerName} onChange={e => setEditCustomerName(e.target.value)} placeholder="Kundenname" className="bg-muted/30" />
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Email</Label>
+                            <Input value={editCustomerEmail} onChange={e => setEditCustomerEmail(e.target.value)} placeholder="Email (optional)" type="email" className="bg-muted/30" />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditCustomerOpen(false)}>Abbrechen</Button>
+                        <Button onClick={handleSaveCustomer} disabled={isSaving}>
+                            {isSaving ? "Speichere..." : "Speichern"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Notes Dialog */}
+            <Dialog open={isEditNotesOpen} onOpenChange={setIsEditNotesOpen}>
+                <DialogContent className="sm:max-w-[460px]">
+                    <DialogHeader>
+                        <DialogTitle>Notizen bearbeiten</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <Textarea
+                            value={editNotes}
+                            onChange={e => setEditNotes(e.target.value)}
+                            placeholder="Anmerkungen zur Montage, besondere Hinweise..."
+                            className="bg-muted/30 min-h-[160px] resize-none"
+                            autoFocus
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditNotesOpen(false)}>Abbrechen</Button>
+                        <Button onClick={handleSaveNotes} disabled={isSaving}>
+                            {isSaving ? "Speichere..." : "Speichern"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Danger Zone */}
             {(userRole === 'admin' || userRole === 'owner') && (
-                <div className="mt-12 pt-8 border-t border-dashed border-muted-foreground/20">
+                <div className="mt-4 pt-6 border-t border-dashed border-muted-foreground/20">
                     <div className="flex items-center justify-between">
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                             <p className="text-xs text-muted-foreground uppercase tracking-wider">Gefahrenzone</p>
-                            <p className="text-sm text-muted-foreground">Diesem Neurad-Aufbau unwiderruflich löschen</p>
+                            <p className="text-xs text-muted-foreground/60">Diesen Eintrag unwiderruflich löschen</p>
                         </div>
                         <Button
                             variant="ghost"
@@ -534,7 +657,7 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
                             onClick={() => setShowDeleteConfirm(true)}
                             className="text-muted-foreground hover:text-destructive hover:bg-destructive/5"
                         >
-                            <Trash2 className="mr-2 h-4 w-4" />
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />
                             Löschen
                         </Button>
                     </div>
@@ -546,16 +669,12 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
                     <AlertDialogHeader>
                         <AlertDialogTitle>Montage löschen?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Möchten Sie diese Neurad-Montage wirklich unwiderruflich löschen?
-                            Alle Fortschritte und Daten gehen verloren.
+                            Diese Neurad-Montage wird unwiderruflich gelöscht. Alle Fortschritte gehen verloren.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={onDelete}
-                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                        >
+                        <AlertDialogAction onClick={onDelete} className="bg-destructive hover:bg-destructive/90 text-destructive-foreground">
                             Löschen
                         </AlertDialogAction>
                     </AlertDialogFooter>
@@ -565,3 +684,56 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
     )
 }
 
+// ── Helper Sub-Components ─────────────────────────────────────────
+
+function InfoRow({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
+    return (
+        <div className="flex items-start justify-between gap-2">
+            <span className="text-xs text-muted-foreground shrink-0">{label}</span>
+            <span className={cn(
+                "text-sm text-right break-all",
+                mono ? "font-mono" : "font-medium",
+                !value && "text-muted-foreground/40 italic font-normal text-xs"
+            )}>
+                {value || '—'}
+            </span>
+        </div>
+    )
+}
+
+interface AssignmentRowProps {
+    label: string
+    icon: React.ReactNode
+    employeeId?: string | null
+    getEmployeeName: (id: string) => string
+    canEdit: boolean
+    onAssign: () => void
+}
+
+function AssignmentRow({ label, icon, employeeId, getEmployeeName, canEdit, onAssign }: AssignmentRowProps) {
+    return (
+        <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+                {icon}
+                <span className="text-xs text-muted-foreground">{label}</span>
+            </div>
+            <div className="flex items-center gap-2">
+                {employeeId ? (
+                    <span className="text-xs font-medium">{getEmployeeName(employeeId)}</span>
+                ) : (
+                    <span className="text-xs text-muted-foreground/50 italic">Nicht zugewiesen</span>
+                )}
+                {canEdit && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-5 px-1.5 text-[10px] text-primary hover:text-primary/80"
+                        onClick={onAssign}
+                    >
+                        {employeeId ? 'Ändern' : 'Zuweisen'}
+                    </Button>
+                )}
+            </div>
+        </div>
+    )
+}
