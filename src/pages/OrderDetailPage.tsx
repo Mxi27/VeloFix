@@ -147,7 +147,7 @@ export default function OrderDetailPage() {
     const navigate = useNavigate()
     const { workshopId, user, userRole } = useAuth()
     const location = useLocation()
-    const returnPath = location.state?.from || '/dashboard/cockpit'
+    const returnPath = location.state?.from || '/dashboard'
     const [order, setOrder] = useState<Order | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)

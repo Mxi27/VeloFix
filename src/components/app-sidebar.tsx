@@ -54,11 +54,6 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
 
     const navItems = [
         {
-            title: "Cockpit",
-            icon: LayoutTemplate,
-            href: "/dashboard/cockpit",
-        },
-        {
             title: "Dashboard",
             icon: LayoutDashboard,
             href: "/dashboard",
@@ -162,13 +157,16 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                             <div className="h-1" />
 
                             {navItems.map((item) => {
-                                const isActive = location.pathname === item.href
+                                const isActive = location.pathname === item.href || (item.href === "/dashboard/notebook" && location.pathname.startsWith("/dashboard/notebook"))
                                 return (
                                     <SidebarMenuItem key={item.title}>
                                         <SidebarMenuButton
                                             isActive={isActive}
                                             asChild
-                                            onClick={() => navigate(item.href)}
+                                            onClick={() => {
+                                                // For notebook, ensure clean navigation to root
+                                                navigate(item.href)
+                                            }}
                                             className={cn(
                                                 "cursor-pointer rounded-lg h-9",
                                                 isActive && "bg-sidebar-accent font-medium"

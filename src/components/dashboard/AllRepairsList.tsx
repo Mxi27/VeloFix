@@ -44,6 +44,7 @@ export const AllRepairsList = ({ orders, employees }: AllRepairsListProps) => {
     const [search, setSearch] = useState("")
     const [filterStatus, setFilterStatus] = useState<FilterStatus>('all_open')
     const [sortBy, setSortBy] = useState<SortOption>('due_date')
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
     const [myEmployeeId, setMyEmployeeId] = useState<string | null>(null)
 
     // Resolve current employee ID
@@ -95,21 +96,23 @@ export const AllRepairsList = ({ orders, employees }: AllRepairsListProps) => {
                 return true
             })
             .sort((a, b) => {
+                const multiplier = sortDirection === 'asc' ? 1 : -1
+
                 // Primary sort by selected option
                 if (sortBy === 'due_date') {
-                    const dateA = a.due_date ? new Date(a.due_date).getTime() : Number.MAX_SAFE_INTEGER
-                    const dateB = b.due_date ? new Date(b.due_date).getTime() : Number.MAX_SAFE_INTEGER
-                    if (dateA !== dateB) return dateA - dateB
+                    const dateA = a.due_date ? new Date(a.due_date).getTime() : (sortDirection === 'asc' ? Number.MAX_SAFE_INTEGER : 0)
+                    const dateB = b.due_date ? new Date(b.due_date).getTime() : (sortDirection === 'asc' ? Number.MAX_SAFE_INTEGER : 0)
+                    if (dateA !== dateB) return (dateA - dateB) * multiplier
                 } else {
                     const createdA = new Date(a.created_at).getTime()
                     const createdB = new Date(b.created_at).getTime()
-                    if (createdA !== createdB) return createdA - createdB
+                    if (createdA !== createdB) return (createdA - createdB) * multiplier
                 }
 
                 // Secondary sort: always by created_at as fallback
-                return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * multiplier
             })
-    }, [orders, search, filterStatus, sortBy])
+    }, [orders, search, filterStatus, sortBy, sortDirection])
 
 
 
@@ -211,14 +214,40 @@ export const AllRepairsList = ({ orders, employees }: AllRepairsListProps) => {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setSortBy(prev => prev === 'due_date' ? 'created_at' : 'due_date')}
+                        onClick={() => {
+                            if (sortBy === 'due_date') {
+                                setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+                            } else {
+                                setSortBy('due_date')
+                                setSortDirection('asc')
+                            }
+                        }}
                         className={cn(
                             "h-9 text-xs border-input/60 bg-background hover:bg-accent hover:text-accent-foreground",
                             sortBy === 'due_date' && "bg-primary/5 border-primary/20 text-primary hover:bg-primary/10"
                         )}
                     >
-                        <ArrowUpDown className="h-3.5 w-3.5 mr-1.5" />
-                        {sortBy === 'due_date' ? 'Fälligkeit' : 'Erstellung'}
+                        <ArrowUpDown className={cn("h-3.5 w-3.5 mr-1.5 transition-transform", sortBy === 'due_date' && sortDirection === 'desc' && "rotate-180")} />
+                        Fälligkeit
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            if (sortBy === 'created_at') {
+                                setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+                            } else {
+                                setSortBy('created_at')
+                                setSortDirection('asc')
+                            }
+                        }}
+                        className={cn(
+                            "h-9 text-xs border-input/60 bg-background hover:bg-accent hover:text-accent-foreground",
+                            sortBy === 'created_at' && "bg-primary/5 border-primary/20 text-primary hover:bg-primary/10"
+                        )}
+                    >
+                        <ArrowUpDown className={cn("h-3.5 w-3.5 mr-1.5 transition-transform", sortBy === 'created_at' && sortDirection === 'desc' && "rotate-180")} />
+                        Erstellung
                     </Button>
 
                     {/* Clear Filters */}
@@ -244,8 +273,26 @@ export const AllRepairsList = ({ orders, employees }: AllRepairsListProps) => {
                             <span>Nr.</span>
                             <span>Fahrrad / Kunde</span>
                             <span>Mechaniker</span>
-                            <span>Erstellt</span>
-                            <span>Fällig</span>
+                            <button
+                                onClick={() => {
+                                    if (sortBy === 'created_at') setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+                                    else { setSortBy('created_at'); setSortDirection('asc') }
+                                }}
+                                className={cn("flex items-center gap-1 hover:text-foreground transition-colors", sortBy === 'created_at' && "text-primary")}
+                            >
+                                Erstellt
+                                <ArrowUpDown className={cn("h-3 w-3", sortBy === 'created_at' ? "opacity-100" : "opacity-0 group-hover:opacity-50")} />
+                            </button>
+                            <button
+                                onClick={() => {
+                                    if (sortBy === 'due_date') setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+                                    else { setSortBy('due_date'); setSortDirection('asc') }
+                                }}
+                                className={cn("flex items-center gap-1 hover:text-foreground transition-colors", sortBy === 'due_date' && "text-primary")}
+                            >
+                                Fällig
+                                <ArrowUpDown className={cn("h-3 w-3", sortBy === 'due_date' ? "opacity-100" : "opacity-0 group-hover:opacity-50")} />
+                            </button>
                             <span>Status</span>
                             <span></span>
                         </div>

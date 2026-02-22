@@ -113,28 +113,19 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
             }),
             Markdown,
             Placeholder.configure({
-                placeholder: 'Tippe "/" für Befehle...',
+                placeholder: 'Beginne zu schreiben... / für Befehle',
             }),
         ],
         content: content,
         editable,
         onUpdate: ({ editor }) => {
+            // Mark as local update to prevent cursor jump
+            isLocalUpdateRef.current = true
+
             // Persist as Markdown
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const markdown = (editor.storage as Record<string, any>).markdown.getMarkdown()
             onChange(markdown)
-
-            // Check for slash command
-            // Note: Implementing custom Slash command logic in onUpdate is tricky because of loop.
-            // Usually it's better done with a Plugin or handleKeyDown.
-            // For this iteration, we will rely on a simpler "onKeyDown" listener in the component or 
-            // use the existing suggestion extension if we were to install it (tiptap-extension-slash-command).
-            // Since we are manual, let's try to handle it via transaction inspection if possible, 
-            // OR move the detection to onTransaction/onUpdate with careful checks.
-
-            // BUT, the simplest stable way without extra plugins is:
-            // Use a FloatingMenu that triggers on '/'
-            // OR keep our manual logic but apply it carefully.
         },
         editorProps: {
             attributes: {
@@ -202,28 +193,26 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
         }
     }, [editor])
 
-    // Update content if changed externally (e.g. switching pages)
-    // We need to be careful not to loop.
-    // We'll store lastContent to compare.
+    // Track last content to prevent cursor jumps
     const lastContentRef = useRef(content)
+    const isLocalUpdateRef = useRef(false)
+
     useEffect(() => {
-        if (editor && content !== lastContentRef.current) {
-            // Check if actual semantic change or just formatting
-            // Simplest: only set if editor is empty or completely different
-            // But for real-time sync, we might need more.
-            // For now, assume content is the source of truth on page switch.
+        if (!editor) return
 
-            // Only update if the editor content is significantly different 
-            // to avoid resetting cursor on every keystroke save.
-            // Actually, NotebookPage only updates 'content' prop on load or save finish.
-            // But if we are typing, 'onChange' updates the parent state.
-            // So 'content' prop will come back with what we just typed.
-            // We should only setContent if we are NOT the ones who triggered it?
+        // Update editor content only when it's actually different (page switch)
+        // and not when we're the ones who triggered the update
+        if (content !== lastContentRef.current && !isLocalUpdateRef.current) {
+            const currentMarkdown = (editor.storage as Record<string, any>).markdown.getMarkdown()
 
-            // Better: NotebookPage should key the component by pageId
-            // so we get a fresh editor instance for each page.
-            // Then we don't need this useEffect!
+            // Only update if content is meaningfully different
+            if (currentMarkdown !== content) {
+                editor.commands.setContent(content)
+            }
         }
+
+        lastContentRef.current = content
+        isLocalUpdateRef.current = false
     }, [content, editor])
 
     const filteredCommands = SLASH_COMMANDS.filter(cmd =>
@@ -323,7 +312,7 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -4, scale: 0.98 }}
                         transition={{ duration: 0.12 }}
-                        className="fixed z-50 bg-popover border border-border/60 rounded-xl shadow-xl overflow-hidden min-w-[260px]"
+                        className="fixed z-50 bg-card/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl overflow-hidden min-w-[280px]"
                         style={{ top: slashCoordinates.top, left: slashCoordinates.left }}
                     >
                         <div className="py-1.5 w-[260px] max-h-[320px] overflow-y-auto bg-popover">
@@ -371,63 +360,122 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
             </AnimatePresence>
 
             <style>{`
-                /* TipTap Custom Styles to Match Previous Look */
+                /* TipTap Custom Styles - Jony Ive Aesthetic */
                 .ProseMirror {
                     outline: none;
-                    font-family: inherit;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                    line-height: 1.7;
+                }
+                .ProseMirror p {
+                    margin-bottom: 0.75em;
                 }
                 .ProseMirror p.is-editor-empty:first-child::before {
-                    color: #adb5bd;
+                    color: rgba(120, 120, 128, 0.3);
                     content: attr(data-placeholder);
                     float: left;
                     height: 0;
                     pointer-events: none;
                 }
+                /* Lists */
+                .ProseMirror ul, .ProseMirror ol {
+                    padding-left: 1.25em;
+                    margin-bottom: 0.75em;
+                }
+                .ProseMirror li {
+                    margin-bottom: 0.35em;
+                }
+                .ProseMirror li p {
+                    margin-bottom: 0;
+                }
+                /* Task Lists - Apple Notes Style */
                 ul[data-type="taskList"] {
                     list-style: none;
                     padding: 0;
+                    margin-bottom: 0.5em;
                 }
                 ul[data-type="taskList"] li {
                     display: flex;
-                    align-items: flex-start; /* Correct alignment */
-                    margin-bottom: 0.2rem; /* Spacing between items */
+                    align-items: center; /* Vertically center checkbox with text */
+                    margin-bottom: 0.35em;
+                    min-height: 24px; /* Ensure consistent height */
                 }
                 ul[data-type="taskList"] li > label {
                     flex: 0 0 auto;
-                    margin-right: 0.5rem;
+                    margin-right: 0.6rem;
                     user-select: none;
-                    margin-top: 0.2rem; /* Align checkbox visually with text */
+                    display: flex;
+                    align-items: center;
                 }
                 ul[data-type="taskList"] li > div {
                     flex: 1 1 auto;
+                    line-height: 1.5; /* Better vertical spacing */
+                }
+                /* Apple Notes Style Checkbox */
+                ul[data-type="taskList"] li > label > input {
+                    appearance: none;
+                    -webkit-appearance: none;
+                    width: 18px;
+                    height: 18px;
+                    border: 1.5px solid rgba(120, 120, 128, 0.25);
+                    border-radius: 50%;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                    position: relative;
+                    flex-shrink: 0;
+                }
+                ul[data-type="taskList"] li > label > input:hover {
+                    border-color: rgba(120, 120, 128, 0.4);
+                }
+                ul[data-type="taskList"] li > label > input:checked {
+                    background: rgb(0, 122, 255);
+                    border-color: rgb(0, 122, 255);
+                }
+                ul[data-type="taskList"] li > label > input:checked::after {
+                    content: '';
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%) rotate(45deg);
+                    width: 4px;
+                    height: 8px;
+                    border: solid white;
+                    border-width: 0 2px 2px 0;
                 }
                 ul[data-type="taskList"] li[data-checked="true"] > div > p {
                     text-decoration: line-through;
-                    color: #a1a1aa; /* text-muted-foreground / gray-400 */
-                    text-decoration-color: #a1a1aa;
+                    color: rgba(120, 120, 128, 0.4);
+                    text-decoration-color: rgba(120, 120, 128, 0.2);
                     opacity: 0.8;
                 }
-                /* Ensure prose headings are visible and distinct */
+                /* Headings - Clean & Hierarchical */
                 .ProseMirror h1 {
-                    font-size: 2.25em;
-                    font-weight: 800;
-                    margin-top: 0.8em;
-                    margin-bottom: 0.4em;
-                    line-height: 1.1;
+                    font-size: 2em;
+                    font-weight: 700;
+                    margin-top: 1.2em;
+                    margin-bottom: 0.5em;
+                    line-height: 1.2;
+                    letter-spacing: -0.02em;
                 }
                 .ProseMirror h2 {
                     font-size: 1.5em;
-                    font-weight: 700;
-                    margin-top: 0.8em;
+                    font-weight: 600;
+                    margin-top: 1em;
                     margin-bottom: 0.4em;
                     line-height: 1.3;
+                    letter-spacing: -0.01em;
                 }
                 .ProseMirror h3 {
                     font-size: 1.25em;
                     font-weight: 600;
-                    margin-top: 0.6em;
-                    margin-bottom: 0.2em;
+                    margin-top: 0.8em;
+                    margin-bottom: 0.3em;
                     line-height: 1.4;
+                }
+                /* Horizontal Rule */
+                .ProseMirror hr {
+                    border: none;
+                    border-top: 1px solid rgba(120, 120, 128, 0.15);
+                    margin: 1.5em 0;
                 }
             `}</style>
         </div>

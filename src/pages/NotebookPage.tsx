@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useLocation } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { PageTransition } from "@/components/PageTransition"
@@ -9,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import {
     Plus,
     ChevronRight,
-    ChevronDown,
     FileText,
     MoreHorizontal,
     Trash2,
@@ -22,6 +22,7 @@ import {
     Folder,
     StickyNote,
     BookOpen,
+    GripVertical,
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -35,8 +36,21 @@ import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
+import {
+    DndContext,
+    closestCorners,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    useDroppable,
+    type DragEndEvent,
+    type DragOverEvent,
+} from "@dnd-kit/core"
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
-// ── Types ───────────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────
 
 interface NotebookPage {
     id: string
@@ -104,6 +118,7 @@ function getBreadcrumbs(pages: NotebookPage[], pageId: string): NotebookPage[] {
 
 export default function NotebookPageView() {
     const { workshopId, user } = useAuth()
+    const location = useLocation()
     const [pages, setPages] = useState<NotebookPage[]>([])
     const [loading, setLoading] = useState(true)
     const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
@@ -116,10 +131,23 @@ export default function NotebookPageView() {
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const titleRef = useRef<HTMLInputElement>(null)
 
+    // Drag & Drop state - track hovered folder for highlighting
+    const [draggedOverFolderId, setDraggedOverFolderId] = useState<string | null>(null)
+
     // Inline rename state
     const [renamingId, setRenamingId] = useState<string | null>(null)
     const [renameValue, setRenameValue] = useState("")
     const renameInputRef = useRef<HTMLInputElement>(null)
+
+    // ── Reset to root when navigating from sidebar ────────────────────────
+
+    useEffect(() => {
+        // Check if we should reset to root (when clicking sidebar link without search params)
+        if (location.pathname === "/dashboard/notebook" && !location.search) {
+            setSelectedPageId(null)
+            setExpandedIds(new Set())
+        }
+    }, [location.pathname, location.search])
 
     const selectedPage = useMemo(() =>
         pages.find(p => p.id === selectedPageId) || null
@@ -199,11 +227,12 @@ export default function NotebookPageView() {
                 toast.error("Fehler beim Speichern")
                 console.error(error)
             } else {
+                // CRITICAL: Update pages state immediately to reflect changes in UI
                 setPages(prev => prev.map(p =>
                     p.id === pageId ? { ...p, title, content, updated_at: new Date().toISOString() } : p
                 ))
             }
-        }, 800)
+        }, 500) // Reduced from 800ms for snappier feel
     }, [])
 
     const handleTitleChange = (value: string) => {
@@ -244,10 +273,14 @@ export default function NotebookPageView() {
             return
         }
 
+        // CRITICAL: Add to pages state immediately
         setPages(prev => [...prev, data])
 
         if (!isFolder) {
             setSelectedPageId(data.id)
+            // Initialize editor state for new page
+            setEditTitle(data.title)
+            setEditContent(data.content || "")
             setTimeout(() => titleRef.current?.select(), 100)
         }
 
@@ -332,6 +365,187 @@ export default function NotebookPageView() {
         })
     }
 
+    // ── Drag & Drop Handlers ─────────────────────────────────────────────
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    )
+
+    const handleDragStart = useCallback(() => {
+        // Could add visual feedback here
+    }, [])
+
+    const handleDragOver = useCallback((event: DragOverEvent) => {
+        const { active, over } = event
+        if (!over) {
+            setDraggedOverFolderId(null)
+            return
+        }
+
+        const activePage = pages.find(p => p.id === active.id)
+        const overPage = pages.find(p => p.id === over.id)
+
+        if (!activePage || !overPage) return
+
+        // Don't allow dropping a parent into its own descendant
+        const isDescendant = (parentId: string, childId: string): boolean => {
+            const parent = pages.find(p => p.id === parentId)
+            if (!parent) return false
+            if (parent.id === childId) return true
+            if (parent.parent_id) return isDescendant(parent.parent_id, childId)
+            return false
+        }
+
+        if (isDescendant(activePage.id, overPage.id)) {
+            setDraggedOverFolderId(null)
+            return
+        }
+
+        // Highlight folder if hovering over a folder
+        if (overPage.is_folder) {
+            setDraggedOverFolderId(overPage.id)
+        } else {
+            setDraggedOverFolderId(null)
+        }
+    }, [pages])
+
+    // ── Breadcrumb Navigation Handler ────────────────────────────────────
+
+    const handleBreadcrumbClick = useCallback((crumb: NotebookPage) => {
+        if (!crumb.is_folder) {
+            // For pages, just select them
+            setSelectedPageId(crumb.id)
+        } else {
+            // For folders, select the folder (shows folder view)
+            setSelectedPageId(crumb.id)
+            setExpandedIds(prev => new Set([...prev, crumb.id]))
+        }
+    }, [])
+
+    // Breadcrumb drop handler - move item to breadcrumb folder level
+    const handleBreadcrumbDrop = useCallback(async (crumb: NotebookPage, draggedPageId: string) => {
+        const draggedPage = pages.find(p => p.id === draggedPageId)
+        if (!draggedPage) return
+
+        // Don't allow dropping a parent into its own descendant
+        const isDescendant = (parentId: string, childId: string): boolean => {
+            const parent = pages.find(p => p.id === parentId)
+            if (!parent) return false
+            if (parent.id === childId) return true
+            if (parent.parent_id) return isDescendant(parent.parent_id, childId)
+            return false
+        }
+
+        if (isDescendant(crumb.id, draggedPageId)) {
+            toast.error("Kann Ordner nicht in sich selbst verschieben")
+            return
+        }
+
+        // Only folders can accept items
+        if (!crumb.is_folder) {
+            toast.error("Nur Ordner können Elemente aufnehmen")
+            return
+        }
+
+        const newParentId = crumb.id
+
+        // Optimistic update
+        const oldPages = [...pages]
+        setPages(prev => prev.map(p =>
+            p.id === draggedPage.id
+                ? { ...p, parent_id: newParentId }
+                : p
+        ))
+
+        const { error } = await supabase
+            .from("notebook_pages")
+            .update({ parent_id: newParentId })
+            .eq("id", draggedPage.id)
+
+        if (error) {
+            toast.error("Fehler beim Verschieben")
+            setPages(oldPages)
+        } else {
+            toast.success(`Nach "${crumb.title}" verschoben`)
+            setExpandedIds(prev => new Set([...prev, newParentId]))
+        }
+
+        setDraggedOverFolderId(null)
+    }, [pages])
+
+    const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+        const { active, over } = event
+
+        // Clear drag over state
+        setDraggedOverFolderId(null)
+
+        if (!over || active.id === over.id) return
+
+        const activePage = pages.find(p => p.id === active.id)
+        if (!activePage) return
+
+        // Check if dropping on breadcrumb
+        if (over.id.toString().startsWith('breadcrumb-')) {
+            const breadcrumbId = over.id.toString().replace('breadcrumb-', '')
+            const breadcrumbPage = pages.find(p => p.id === breadcrumbId)
+
+            if (breadcrumbPage && breadcrumbPage.is_folder) {
+                await handleBreadcrumbDrop(breadcrumbPage, activePage.id)
+            }
+            return
+        }
+
+        const overPage = pages.find(p => p.id === over.id)
+        if (!overPage) return
+
+        // Don't allow dropping a parent into its own descendant
+        const isDescendant = (parentId: string, childId: string): boolean => {
+            const parent = pages.find(p => p.id === parentId)
+            if (!parent) return false
+            if (parent.id === childId) return true
+            if (parent.parent_id) return isDescendant(parent.parent_id, childId)
+            return false
+        }
+
+        if (isDescendant(activePage.id, overPage.id)) {
+            toast.error("Kann Ordner nicht in sich selbst verschieben")
+            return
+        }
+
+        // MOVE LOGIC: If dropped on a folder, move into it. Otherwise, keep same parent.
+        const newParentId = overPage.is_folder ? overPage.id : overPage.parent_id
+
+        // Optimistic update
+        const oldPages = [...pages]
+        setPages(prev => prev.map(p =>
+            p.id === activePage.id
+                ? { ...p, parent_id: newParentId }
+                : p
+        ))
+
+        // Update in database
+        const { error } = await supabase
+            .from("notebook_pages")
+            .update({ parent_id: newParentId })
+            .eq("id", activePage.id)
+
+        if (error) {
+            toast.error("Fehler beim Verschieben")
+            setPages(oldPages) // Revert
+        } else {
+            const targetName = newParentId
+                ? pages.find(p => p.id === newParentId)?.title || "Ordner"
+                : "Root"
+            toast.success(`Nach "${targetName}" verschoben`)
+
+            // Auto-expand the target folder if needed
+            if (newParentId) {
+                setExpandedIds(prev => new Set([...prev, newParentId]))
+            }
+        }
+    }, [pages, handleBreadcrumbDrop])
+
     // ── Search filter ───────────────────────────────────────────────────
 
     const filteredTree = useMemo(() => {
@@ -368,14 +582,14 @@ export default function NotebookPageView() {
                 <div className="flex gap-0 h-full overflow-hidden w-full">
 
                     {/* ── Tree Sidebar ── */}
-                    <div className="flex-shrink-0 w-[260px] bg-card border border-border/50 border-r-0 overflow-hidden flex flex-col">
+                    <div className="flex-shrink-0 w-[280px] bg-background/95 backdrop-blur-sm border-r border-border/20 overflow-hidden flex flex-col">
                         {/* Search */}
-                        <div className="p-3 border-b border-border/30">
+                        <div className="p-5 border-b border-border/10">
                             <div className="relative">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/30" />
                                 <Input
-                                    placeholder="Seiten suchen..."
-                                    className="pl-8 h-8 text-xs bg-muted/30 border-border/30 rounded-lg"
+                                    placeholder="Suchen..."
+                                    className="pl-9 h-9 text-xs bg-muted/20 border-transparent focus:bg-muted/30 focus:border-border/20 rounded-lg"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -383,53 +597,68 @@ export default function NotebookPageView() {
                         </div>
 
                         {/* Pages Tree */}
-                        <div className="flex-1 overflow-y-auto p-2 space-y-0.5 scrollbar-thin scrollbar-thumb-muted/10 hover:scrollbar-thumb-muted/20">
+                        <div className="flex-1 overflow-y-auto px-4 py-3 scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-muted/5">
                             {loading ? (
-                                <div className="space-y-2 p-2">
+                                <div className="space-y-2 px-2 py-4">
                                     {[1, 2, 3, 4].map(i => (
-                                        <div key={i} className="h-7 bg-muted/20 animate-pulse rounded-lg" />
+                                        <div key={i} className="h-8 bg-muted/10 animate-pulse rounded-lg" />
                                     ))}
                                 </div>
                             ) : filteredTree.length > 0 ? (
-                                <AnimatePresence mode="popLayout">
-                                    {filteredTree.map(node => (
-                                        <TreeItem
-                                            key={node.id}
-                                            node={node}
-                                            depth={0}
-                                            selectedId={selectedPageId}
-                                            expandedIds={expandedIds}
-                                            renamingId={renamingId}
-                                            renameValue={renameValue}
-                                            renameInputRef={renameInputRef}
-                                            onSelect={(id) => {
-                                                const page = pages.find(p => p.id === id)
-                                                if (page?.is_folder) {
-                                                    toggleExpand(id)
-                                                } else {
-                                                    setSelectedPageId(id)
-                                                }
-                                            }}
-                                            onToggleExpand={toggleExpand}
-                                            onCreateSubpage={createPage}
-                                            onCreateFolder={(parentId) => createPage(parentId, true)}
-                                            onDelete={deletePage}
-                                            onStartRename={startRename}
-                                            onRenameChange={setRenameValue}
-                                            onCommitRename={commitRename}
-                                        />
-                                    ))}
-                                </AnimatePresence>
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCorners}
+                                    onDragStart={handleDragStart}
+                                    onDragOver={handleDragOver}
+                                    onDragEnd={handleDragEnd}
+                                >
+                                    <SortableContext
+                                        items={filteredTree.map(n => n.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        <AnimatePresence mode="popLayout">
+                                            {filteredTree.map(node => (
+                                                <SortableTreeItem
+                                                    key={node.id}
+                                                    node={node}
+                                                    depth={0}
+                                                    selectedId={selectedPageId}
+                                                    expandedIds={expandedIds}
+                                                    renamingId={renamingId}
+                                                    renameValue={renameValue}
+                                                    renameInputRef={renameInputRef}
+                                                    onSelect={(id) => {
+                                                        const page = pages.find(p => p.id === id)
+                                                        if (page?.is_folder) {
+                                                            toggleExpand(id)
+                                                        } else {
+                                                            setSelectedPageId(id)
+                                                        }
+                                                    }}
+                                                    onToggleExpand={toggleExpand}
+                                                    onCreateSubpage={createPage}
+                                                    onCreateFolder={(parentId) => createPage(parentId, true)}
+                                                    onDelete={deletePage}
+                                                    onStartRename={startRename}
+                                                    onRenameChange={setRenameValue}
+                                                    onCommitRename={commitRename}
+                                                    pages={pages}
+                                                    draggedOverFolderId={draggedOverFolderId}
+                                                />
+                                            ))}
+                                        </AnimatePresence>
+                                    </SortableContext>
+                                </DndContext>
                             ) : (
-                                <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-                                    <div className="p-4 rounded-2xl bg-muted/20 mb-4">
-                                        <StickyNote className="h-8 w-8 text-muted-foreground/30" />
+                                <div className="flex flex-col items-center justify-center py-20 text-center px-6">
+                                    <div className="p-5 rounded-2xl bg-muted/5 mb-5 border border-border/10">
+                                        <StickyNote className="h-9 w-9 text-muted-foreground/20" />
                                     </div>
-                                    <p className="text-sm text-muted-foreground/60 mb-1">
+                                    <p className="text-sm text-muted-foreground/40 mb-2">
                                         {searchTerm ? "Keine Ergebnisse" : "Noch keine Seiten"}
                                     </p>
                                     {!searchTerm && (
-                                        <p className="text-xs text-muted-foreground/40">
+                                        <p className="text-xs text-muted-foreground/30">
                                             Erstelle deine erste Seite
                                         </p>
                                     )}
@@ -438,87 +667,78 @@ export default function NotebookPageView() {
                         </div>
 
                         {/* Bottom Actions — pinned at bottom, always visible */}
-                        <div className="flex-shrink-0 p-2 border-t border-border/30 space-y-0.5 bg-card z-10">
+                        <div className="flex-shrink-0 p-4 border-t border-border/10 space-y-1.5 bg-background z-10">
                             <Button
                                 variant="ghost"
-                                className="w-full h-7 text-xs text-muted-foreground hover:text-foreground justify-start gap-2 rounded-lg"
+                                className="w-full h-9 text-xs text-muted-foreground hover:text-foreground justify-start gap-2 rounded-lg hover:bg-muted/10"
                                 onClick={() => createPage(null)}
                             >
-                                <Plus className="h-3.5 w-3.5" />
+                                <Plus className="h-4 w-4" />
                                 Neue Seite
                             </Button>
                             <Button
                                 variant="ghost"
-                                className="w-full h-7 text-xs text-muted-foreground hover:text-foreground justify-start gap-2 rounded-lg"
+                                className="w-full h-9 text-xs text-muted-foreground hover:text-foreground justify-start gap-2 rounded-lg hover:bg-muted/10"
                                 onClick={() => createPage(null, true)}
                             >
-                                <FolderPlus className="h-3.5 w-3.5" />
+                                <FolderPlus className="h-4 w-4" />
                                 Neuer Ordner
                             </Button>
                         </div>
                     </div>
 
                     {/* ── Editor Area ── */}
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 bg-background">
                         {selectedPage && !selectedPage.is_folder ? (
                             <motion.div
                                 key={selectedPageId}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ duration: 0.15 }}
-                                className="bg-card border border-l-0 border-border/50 rounded-r-2xl flex flex-col h-full overflow-hidden"
+                                className="flex flex-col h-full overflow-hidden"
                             >
                                 {/* Breadcrumbs - Fixed at top */}
-                                {breadcrumbs.length > 1 && (
-                                    <div className="px-12 pt-6 flex-shrink-0 flex items-center gap-1.5 text-xs text-muted-foreground/50">
+                                {breadcrumbs.length > 0 && (
+                                    <div className="px-12 pt-12 pb-4 flex-shrink-0 flex items-center gap-2 text-xs">
                                         {breadcrumbs.map((crumb, i) => (
-                                            <span key={crumb.id} className="flex items-center gap-1.5">
-                                                {i > 0 && <ChevronRight className="h-3 w-3" />}
-                                                <button
-                                                    className={cn(
-                                                        "hover:text-foreground transition-colors",
-                                                        i === breadcrumbs.length - 1 && "text-muted-foreground font-medium"
-                                                    )}
-                                                    onClick={() => {
-                                                        const p = pages.find(pp => pp.id === crumb.id)
-                                                        if (p && !p.is_folder) setSelectedPageId(crumb.id)
-                                                    }}
-                                                >
-                                                    {crumb.is_folder && <Folder className="h-3 w-3 inline mr-1" />}
-                                                    {crumb.title}
-                                                </button>
-                                            </span>
+                                            <BreadcrumbItem
+                                                key={crumb.id}
+                                                crumb={crumb}
+                                                index={i}
+                                                isLast={i === breadcrumbs.length - 1}
+                                                onClick={handleBreadcrumbClick}
+                                            />
                                         ))}
                                     </div>
                                 )}
 
                                 {/* Title Area - Fixed at top */}
-                                <div className="px-12 pt-8 pb-4 max-w-4xl flex-shrink-0">
+                                <div className="px-12 pt-12 pb-8 max-w-3xl flex-shrink-0">
                                     <input
                                         ref={titleRef}
                                         type="text"
                                         value={editTitle}
                                         onChange={(e) => handleTitleChange(e.target.value)}
-                                        className="w-full text-4xl font-bold tracking-tight bg-transparent border-none outline-none placeholder:text-muted-foreground/20"
+                                        className="w-full text-3xl font-semibold tracking-tight bg-transparent border-none outline-none placeholder:text-muted-foreground/20 text-foreground"
                                         placeholder="Ohne Titel"
                                     />
-                                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground/35">
+                                    <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground/30">
                                         <span className="flex items-center gap-1.5">
                                             <Clock className="h-3 w-3" />
-                                            {format(new Date(selectedPage.updated_at), "dd. MMMM yyyy, HH:mm 'Uhr'", { locale: de })}
+                                            {format(new Date(selectedPage.updated_at), "dd. MMM yyyy, HH:mm", { locale: de })}
                                         </span>
-                                        <span className="text-muted-foreground/20">·</span>
-                                        <span>Tipp: Tippe <kbd className="px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground/50 font-mono text-[10px]">/</kbd> für Befehle</span>
+                                        <span className="text-muted-foreground/10">·</span>
+                                        <span className="text-muted-foreground/20">/ für Befehle</span>
                                     </div>
                                 </div>
 
-                                <div className="mx-12 max-w-4xl flex-shrink-0">
-                                    <div className="h-px bg-border/20" />
+                                <div className="mx-12 max-w-3xl flex-shrink-0">
+                                    <div className="h-px bg-border/10" />
                                 </div>
 
                                 {/* Content Editor - SCROLLABLE AREA */}
-                                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-muted/10 hover:scrollbar-thumb-muted/20">
-                                    <div className="px-12 pb-12 relative max-w-4xl">
+                                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-muted/5">
+                                    <div className="px-12 py-12 relative max-w-3xl">
                                         <NotebookEditor
                                             key={selectedPageId}
                                             content={editContent}
@@ -534,79 +754,83 @@ export default function NotebookPageView() {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ duration: 0.15 }}
-                                className="bg-card border border-l-0 border-border/50 rounded-r-2xl flex flex-col h-full p-12 overflow-y-auto"
+                                className="flex flex-col h-full overflow-y-auto"
                             >
-                                <div className="flex items-center gap-4 mb-8">
-                                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                                        <FolderOpen className="h-6 w-6 text-amber-500" />
-                                    </div>
-                                    <div>
-                                        <h2 className="text-2xl font-bold tracking-tight">{selectedPage.title}</h2>
-                                        <p className="text-sm text-muted-foreground/50 mt-0.5">
-                                            {pages.filter(p => p.parent_id === selectedPage.id).length} Einträge
-                                        </p>
+                                <div className="px-12 pt-12 pb-8 max-w-5xl">
+                                    <div className="flex items-center gap-5 mb-3">
+                                        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
+                                            <FolderOpen className="h-7 w-7 text-amber-500/60" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-2xl font-semibold tracking-tight text-foreground">{selectedPage.title}</h2>
+                                            <p className="text-sm text-muted-foreground/40 mt-1">
+                                                {pages.filter(p => p.parent_id === selectedPage.id).length} Einträge
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Folder Contents Grid */}
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                    {pages.filter(p => p.parent_id === selectedPage.id)
-                                        .sort((a, b) => {
-                                            if (a.is_folder !== b.is_folder) return a.is_folder ? -1 : 1
-                                            return a.sort_order - b.sort_order
-                                        })
-                                        .map(child => (
-                                            <button
-                                                key={child.id}
-                                                onClick={() => {
-                                                    if (child.is_folder) {
-                                                        setSelectedPageId(child.id)
-                                                        setExpandedIds(prev => new Set([...prev, child.id]))
-                                                    } else {
-                                                        setSelectedPageId(child.id)
-                                                    }
-                                                }}
-                                                className="p-4 rounded-xl border border-border/40 bg-muted/10 hover:bg-muted/30 hover:border-primary/20 transition-all text-left group"
-                                            >
-                                                {child.is_folder ? (
-                                                    <Folder className="h-5 w-5 text-amber-500 mb-2" />
-                                                ) : (
-                                                    <FileText className="h-5 w-5 text-primary/60 mb-2" />
-                                                )}
-                                                <div className="font-medium text-sm truncate">{child.title}</div>
-                                                <div className="text-[11px] text-muted-foreground/40 mt-1">
-                                                    {format(new Date(child.updated_at), "dd. MMM yyyy", { locale: de })}
-                                                </div>
-                                            </button>
-                                        ))
-                                    }
+                                <div className="px-12 pb-16 max-w-5xl">
+                                    {/* Folder Contents Grid */}
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                                        {pages.filter(p => p.parent_id === selectedPage.id)
+                                            .sort((a, b) => {
+                                                if (a.is_folder !== b.is_folder) return a.is_folder ? -1 : 1
+                                                return a.sort_order - b.sort_order
+                                            })
+                                            .map(child => (
+                                                <button
+                                                    key={child.id}
+                                                    onClick={() => {
+                                                        if (child.is_folder) {
+                                                            setSelectedPageId(child.id)
+                                                            setExpandedIds(prev => new Set([...prev, child.id]))
+                                                        } else {
+                                                            setSelectedPageId(child.id)
+                                                        }
+                                                    }}
+                                                    className="p-6 rounded-xl border border-border/10 bg-muted/5 hover:bg-muted/10 hover:border-border/20 transition-all text-left group"
+                                                >
+                                                    {child.is_folder ? (
+                                                        <Folder className="h-5 w-5 text-amber-500/50 mb-3 group-hover:text-amber-500/70 transition-colors" />
+                                                    ) : (
+                                                        <FileText className="h-5 w-5 text-muted-foreground/30 mb-3 group-hover:text-muted-foreground/50 transition-colors" />
+                                                    )}
+                                                    <div className="font-medium text-sm truncate text-foreground/80 group-hover:text-foreground transition-colors">{child.title}</div>
+                                                    <div className="text-[11px] text-muted-foreground/30 mt-2">
+                                                        {format(new Date(child.updated_at), "dd. MMM yyyy", { locale: de })}
+                                                    </div>
+                                                </button>
+                                            ))
+                                        }
 
-                                    {/* Add buttons inside folder */}
-                                    <button
-                                        onClick={() => createPage(selectedPage.id)}
-                                        className="p-4 rounded-xl border-2 border-dashed border-border/30 hover:border-primary/30 hover:bg-primary/5 transition-all flex flex-col items-center justify-center gap-2 min-h-[100px] text-muted-foreground/40 hover:text-primary"
-                                    >
-                                        <Plus className="h-5 w-5" />
-                                        <span className="text-xs font-medium">Neue Seite</span>
-                                    </button>
+                                        {/* Add button */}
+                                        <button
+                                            onClick={() => createPage(selectedPage.id)}
+                                            className="p-6 rounded-xl border border-dashed border-border/10 hover:border-border/20 hover:bg-muted/5 transition-all flex flex-col items-center justify-center gap-2 min-h-[130px] text-muted-foreground/30 hover:text-muted-foreground/50"
+                                        >
+                                            <Plus className="h-5 w-5" />
+                                            <span className="text-xs font-medium">Neue Seite</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </motion.div>
                         ) : (
-                            <div className="bg-card border border-l-0 border-border/50 rounded-r-2xl flex flex-col items-center justify-center h-full min-h-[600px]">
-                                <div className="p-8 rounded-3xl bg-gradient-to-br from-primary/5 to-amber-500/5 mb-8">
-                                    <BookOpen className="h-14 w-14 text-muted-foreground/15" />
+                            <div className="flex flex-col items-center justify-center h-full">
+                                <div className="p-10 rounded-3xl bg-muted/5 mb-10 border border-border/10">
+                                    <BookOpen className="h-16 w-16 text-muted-foreground/15" />
                                 </div>
-                                <h3 className="text-xl font-semibold text-muted-foreground/30 mb-3">
+                                <h3 className="text-xl font-medium text-muted-foreground/30 mb-4">
                                     Keine Seite ausgewählt
                                 </h3>
-                                <p className="text-sm text-muted-foreground/25 mb-8 text-center max-w-sm leading-relaxed">
+                                <p className="text-sm text-muted-foreground/20 mb-10 text-center max-w-sm leading-relaxed">
                                     Wähle eine Seite aus der Seitenleiste oder erstelle eine neue.
                                 </p>
-                                <div className="flex gap-3">
+                                <div className="flex gap-4">
                                     <Button
                                         onClick={() => createPage(null, true)}
                                         variant="outline"
-                                        className="rounded-xl gap-2 border-border/40"
+                                        className="rounded-xl gap-2 border-border/20 bg-background hover:bg-muted/10"
                                     >
                                         <FolderPlus className="h-4 w-4" />
                                         Ordner
@@ -628,6 +852,50 @@ export default function NotebookPageView() {
     )
 }
 
+// ── Breadcrumb Item Component ─────────────────────────────────────────────
+
+interface BreadcrumbItemProps {
+    crumb: NotebookPage
+    index: number
+    isLast: boolean
+    onClick: (crumb: NotebookPage) => void
+}
+
+function BreadcrumbItem({ crumb, index, isLast, onClick }: BreadcrumbItemProps) {
+    const isFolder = crumb.is_folder
+
+    // Create droppable for folders only
+    const { setNodeRef, isOver } = useDroppable({
+        id: `breadcrumb-${crumb.id}`,
+        data: {
+            type: 'breadcrumb',
+            page: crumb
+        },
+        disabled: !isFolder
+    })
+
+    return (
+        <span className="flex items-center gap-2">
+            {index > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground/15" />}
+            <button
+                ref={isFolder ? setNodeRef : undefined}
+                className={cn(
+                    "transition-all",
+                    isLast
+                        ? "text-foreground font-medium"
+                        : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/20 px-2 py-1 -ml-2 rounded-md",
+                    // Highlight when dragging over folder breadcrumb
+                    isFolder && isOver && "bg-amber-500/15 ring-1 ring-amber-500/30 rounded-md"
+                )}
+                onClick={() => onClick(crumb)}
+            >
+                {isFolder && <Folder className="h-3 w-3 inline mr-1 opacity-50" />}
+                {crumb.title}
+            </button>
+        </span>
+    )
+}
+
 // ── Tree Item Component ─────────────────────────────────────────────────
 
 interface TreeItemProps {
@@ -646,9 +914,11 @@ interface TreeItemProps {
     onStartRename: (id: string) => void
     onRenameChange: (value: string) => void
     onCommitRename: () => void
+    pages: NotebookPage[]
+    draggedOverFolderId: string | null
 }
 
-function TreeItem({
+function SortableTreeItem({
     node,
     depth,
     selectedId,
@@ -664,181 +934,222 @@ function TreeItem({
     onStartRename,
     onRenameChange,
     onCommitRename,
+    pages,
+    draggedOverFolderId,
 }: TreeItemProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: node.id })
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+    }
+
     const isExpanded = expandedIds.has(node.id)
     const isSelected = selectedId === node.id
     const hasChildren = node.children.length > 0
     const isRenaming = renamingId === node.id
     const isFolder = node.is_folder
+    const isDragTarget = draggedOverFolderId === node.id && isFolder
 
     return (
-        <motion.div
-            initial={{ opacity: 0, x: -4 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -4 }}
-            transition={{ duration: 0.12 }}
-        >
-            <div
-                className={cn(
-                    "group flex items-center gap-1 h-7 rounded-lg px-1.5 cursor-pointer transition-all duration-150 text-[13px]",
-                    isSelected
-                        ? isFolder
-                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
-                            : "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                )}
-                style={{ paddingLeft: `${depth * 16 + 6}px` }}
-                onClick={() => onSelect(node.id)}
+        <div ref={setNodeRef} style={style} {...attributes}>
+            <motion.div
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: isDragging ? 0.5 : 1, x: 0 }}
+                transition={{ duration: 0.12 }}
             >
-                {/* Expand/Collapse */}
-                {(hasChildren || isFolder) ? (
-                    <button
-                        className="flex-shrink-0 h-4 w-4 flex items-center justify-center rounded hover:bg-muted/80 transition-colors"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            onToggleExpand(node.id)
-                        }}
+                <div
+                    className={cn(
+                        "group flex items-center gap-2 h-9 rounded-lg px-2.5 cursor-pointer transition-all duration-150 text-[13px]",
+                        isSelected
+                            ? isFolder
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
+                                : "bg-primary/10 text-primary font-medium"
+                            : "text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground",
+                        // Highlight when dragging over this folder
+                        isDragTarget && "bg-amber-500/15 ring-1 ring-amber-500/30"
+                    )}
+                    style={{ paddingLeft: `${depth * 18 + 8}px` }}
+                    onClick={() => onSelect(node.id)}
+                >
+                    {/* Drag Handle */}
+                    <div
+                        {...listeners}
+                        className="flex-shrink-0 h-4 w-4 flex items-center justify-center rounded hover:bg-muted/50 transition-colors cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-40"
                     >
-                        {isExpanded ? (
-                            <ChevronDown className="h-3 w-3" />
-                        ) : (
-                            <ChevronRight className="h-3 w-3" />
-                        )}
-                    </button>
-                ) : (
-                    <span className="w-4 h-4 flex-shrink-0" />
-                )}
+                        <GripVertical className="h-3 w-3" />
+                    </div>
 
-                {/* Icon */}
-                {isFolder ? (
-                    isExpanded ? (
-                        <FolderOpen className={cn("h-3.5 w-3.5 flex-shrink-0", isSelected ? "text-amber-500" : "text-amber-500/50")} />
-                    ) : (
-                        <Folder className={cn("h-3.5 w-3.5 flex-shrink-0", isSelected ? "text-amber-500" : "text-amber-500/50")} />
-                    )
-                ) : (
-                    <FileText className={cn("h-3.5 w-3.5 flex-shrink-0", isSelected ? "text-primary" : "text-muted-foreground/40")} />
-                )}
-
-                {/* Title or Rename Input */}
-                {isRenaming ? (
-                    <input
-                        ref={renameInputRef}
-                        type="text"
-                        value={renameValue}
-                        onChange={(e) => onRenameChange(e.target.value)}
-                        onBlur={onCommitRename}
-                        onKeyDown={(e) => {
-                            if (e.key === "Enter") onCommitRename()
-                            if (e.key === "Escape") { onRenameChange(""); onCommitRename() }
-                        }}
-                        className="flex-1 min-w-0 bg-background border border-primary/30 rounded px-1.5 py-0.5 text-xs outline-none focus:ring-1 focus:ring-primary/40"
-                        onClick={(e) => e.stopPropagation()}
-                    />
-                ) : (
-                    <span className="flex-1 min-w-0 truncate">
-                        {node.title}
-                    </span>
-                )}
-
-                {/* Hover Actions */}
-                {!isRenaming && (
-                    <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Expand/Collapse */}
+                    {(hasChildren || isFolder) ? (
                         <button
-                            className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted/80 text-muted-foreground/40 hover:text-foreground transition-colors"
+                            className="flex-shrink-0 h-5 w-5 flex items-center justify-center rounded hover:bg-muted/50 transition-colors"
                             onClick={(e) => {
                                 e.stopPropagation()
-                                onCreateSubpage(node.id)
+                                onToggleExpand(node.id)
                             }}
-                            title="Unterseite erstellen"
                         >
-                            <FilePlus className="h-3 w-3" />
+                            {isExpanded ? (
+                                <ChevronRight className="h-3 w-3 rotate-90 transition-transform" />
+                            ) : (
+                                <ChevronRight className="h-3 w-3 transition-transform" />
+                            )}
                         </button>
+                    ) : (
+                        <span className="w-5 h-5 flex-shrink-0" />
+                    )}
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <button
-                                    className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted/80 text-muted-foreground/40 hover:text-foreground transition-colors"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <MoreHorizontal className="h-3 w-3" />
-                                </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem
-                                    onClick={(e) => { e.stopPropagation(); onStartRename(node.id) }}
-                                    className="text-xs gap-2"
-                                >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                    Umbenennen
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={(e) => { e.stopPropagation(); onCreateSubpage(node.id) }}
-                                    className="text-xs gap-2"
-                                >
-                                    <FilePlus className="h-3.5 w-3.5" />
-                                    Unterseite erstellen
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                    onClick={(e) => { e.stopPropagation(); onCreateFolder(node.id) }}
-                                    className="text-xs gap-2"
-                                >
-                                    <FolderPlus className="h-3.5 w-3.5" />
-                                    Unterordner erstellen
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onClick={(e) => { e.stopPropagation(); onDelete(node.id) }}
-                                    className="text-xs gap-2 text-red-600"
-                                >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    Löschen
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                )}
-            </div>
+                    {/* Icon */}
+                    {isFolder ? (
+                        isExpanded ? (
+                            <FolderOpen className={cn("h-4 w-4 flex-shrink-0", isSelected ? "text-amber-500" : "text-amber-500/40")} />
+                        ) : (
+                            <Folder className={cn("h-4 w-4 flex-shrink-0", isSelected ? "text-amber-500" : "text-amber-500/40")} />
+                        )
+                    ) : (
+                        <FileText className={cn("h-4 w-4 flex-shrink-0", isSelected ? "text-primary" : "text-muted-foreground/30")} />
+                    )}
 
-            {/* Children */}
-            <AnimatePresence>
-                {(hasChildren || isFolder) && isExpanded && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.12 }}
-                    >
-                        {hasChildren ? node.children.map(child => (
-                            <TreeItem
-                                key={child.id}
-                                node={child}
-                                depth={depth + 1}
-                                selectedId={selectedId}
-                                expandedIds={expandedIds}
-                                renamingId={renamingId}
-                                renameValue={renameValue}
-                                renameInputRef={renameInputRef}
-                                onSelect={onSelect}
-                                onToggleExpand={onToggleExpand}
-                                onCreateSubpage={onCreateSubpage}
-                                onCreateFolder={onCreateFolder}
-                                onDelete={onDelete}
-                                onStartRename={onStartRename}
-                                onRenameChange={onRenameChange}
-                                onCommitRename={onCommitRename}
-                            />
-                        )) : (
-                            <div
-                                className="text-[11px] text-muted-foreground/30 py-2 text-center"
-                                style={{ paddingLeft: `${(depth + 1) * 16 + 6}px` }}
+                    {/* Title or Rename Input */}
+                    {isRenaming ? (
+                        <input
+                            ref={renameInputRef}
+                            type="text"
+                            value={renameValue}
+                            onChange={(e) => onRenameChange(e.target.value)}
+                            onBlur={onCommitRename}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") onCommitRename()
+                                if (e.key === "Escape") { onRenameChange(""); onCommitRename() }
+                            }}
+                            className="flex-1 min-w-0 bg-background border border-border/40 rounded-md px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-primary/30"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    ) : (
+                        <span className="flex-1 min-w-0 truncate">{node.title}</span>
+                    )}
+
+                    {/* Hover Actions */}
+                    {!isRenaming && (
+                        <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted/50 text-muted-foreground/30 hover:text-foreground transition-colors"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    onCreateSubpage(node.id)
+                                }}
+                                title="Unterseite erstellen"
                             >
-                                Leer
-                            </div>
-                        )}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </motion.div>
+                                <FilePlus className="h-3 w-3" />
+                            </button>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <button
+                                        className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted/50 text-muted-foreground/30 hover:text-foreground transition-colors"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        <MoreHorizontal className="h-3 w-3" />
+                                    </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                    <DropdownMenuItem
+                                        onClick={(e) => { e.stopPropagation(); onStartRename(node.id) }}
+                                        className="text-xs gap-2"
+                                    >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                        Umbenennen
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={(e) => { e.stopPropagation(); onCreateSubpage(node.id) }}
+                                        className="text-xs gap-2"
+                                    >
+                                        <FilePlus className="h-3.5 w-3.5" />
+                                        Unterseite erstellen
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={(e) => { e.stopPropagation(); onCreateFolder(node.id) }}
+                                        className="text-xs gap-2"
+                                    >
+                                        <FolderPlus className="h-3.5 w-3.5" />
+                                        Unterordner erstellen
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        onClick={(e) => { e.stopPropagation(); onDelete(node.id) }}
+                                        className="text-xs gap-2 text-red-600"
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                        Löschen
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    )}
+                </div>
+
+                {/* Children */}
+                <AnimatePresence>
+                    {(hasChildren || isFolder) && isExpanded && (
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.12 }}
+                        >
+                            {hasChildren ? (
+                                node.children.map(child => (
+                                    <SortableTreeItem
+                                        key={child.id}
+                                        node={child}
+                                        depth={depth + 1}
+                                        selectedId={selectedId}
+                                        expandedIds={expandedIds}
+                                        renamingId={renamingId}
+                                        renameValue={renameValue}
+                                        renameInputRef={renameInputRef}
+                                        onSelect={onSelect}
+                                        onToggleExpand={onToggleExpand}
+                                        onCreateSubpage={onCreateSubpage}
+                                        onCreateFolder={onCreateFolder}
+                                        onDelete={onDelete}
+                                        onStartRename={onStartRename}
+                                        onRenameChange={onRenameChange}
+                                        onCommitRename={onCommitRename}
+                                        pages={pages}
+                                        draggedOverFolderId={draggedOverFolderId}
+                                    />
+                                ))
+                            ) : (
+                                <div
+                                    className="text-[11px] text-muted-foreground/20 py-4 text-center italic"
+                                    style={{ paddingLeft: `${(depth + 1) * 18 + 8}px` }}
+                                >
+                                    Leer
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </motion.div>
+
+            {/* Drop zone indicator when dragging over folder */}
+            {isDragTarget && (
+                <motion.div
+                    initial={{ opacity: 0, scaleY: 0.8 }}
+                    animate={{ opacity: 1, scaleY: 1 }}
+                    exit={{ opacity: 0, scaleY: 0.8 }}
+                    className="ml-7 mr-3 h-1 bg-amber-500/30 rounded-full"
+                    style={{ marginBottom: "3px" }}
+                />
+            )}
+        </div>
     )
 }
