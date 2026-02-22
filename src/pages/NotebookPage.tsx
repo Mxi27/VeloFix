@@ -201,17 +201,13 @@ export default function NotebookPageView() {
     // Keep track of the last selected page ID to avoid resetting state on auto-save updates
     const lastSelectedPageIdRef = useRef<string | null>(null)
 
-    useEffect(() => {
-        // Only update if the page ID has changed (navigation)
-        // or if it's the first load of the content
-        if (selectedPage && selectedPage.id !== lastSelectedPageIdRef.current) {
-            if (!selectedPage.is_folder) {
-                setEditTitle(selectedPage.title)
-                setEditContent(selectedPage.content || "")
-            }
-            lastSelectedPageIdRef.current = selectedPage.id
+    if (selectedPage && selectedPage.id !== lastSelectedPageIdRef.current) {
+        lastSelectedPageIdRef.current = selectedPage.id
+        if (!selectedPage.is_folder) {
+            setEditTitle(selectedPage.title)
+            setEditContent(selectedPage.content || "")
         }
-    }, [selectedPage])
+    }
 
     // ── Auto-Save (debounced) ───────────────────────────────────────────
 
@@ -582,14 +578,14 @@ export default function NotebookPageView() {
                 <div className="flex gap-0 h-full overflow-hidden w-full">
 
                     {/* ── Tree Sidebar ── */}
-                    <div className="flex-shrink-0 w-[280px] bg-background/95 backdrop-blur-sm border-r border-border/20 overflow-hidden flex flex-col">
+                    <div className="flex-shrink-0 w-[320px] xl:w-[350px] bg-background/90 backdrop-blur-2xl border-r border-border/20 overflow-hidden flex flex-col z-10">
                         {/* Search */}
                         <div className="p-5 border-b border-border/10">
-                            <div className="relative">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/30" />
+                            <div className="relative group">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/30 group-focus-within:text-primary/50 transition-colors" />
                                 <Input
                                     placeholder="Suchen..."
-                                    className="pl-9 h-9 text-xs bg-muted/20 border-transparent focus:bg-muted/30 focus:border-border/20 rounded-lg"
+                                    className="pl-9 h-9 text-xs bg-muted/20 border-transparent focus:bg-background focus:border-primary/20 focus:ring-1 focus:ring-primary/20 rounded-xl transition-all shadow-sm"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
@@ -597,7 +593,7 @@ export default function NotebookPageView() {
                         </div>
 
                         {/* Pages Tree */}
-                        <div className="flex-1 overflow-y-auto px-4 py-3 scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-muted/5">
+                        <div className="flex-1 overflow-y-auto px-4 py-3 scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-muted/10">
                             {loading ? (
                                 <div className="space-y-2 px-2 py-4">
                                     {[1, 2, 3, 4].map(i => (
@@ -630,7 +626,12 @@ export default function NotebookPageView() {
                                                     onSelect={(id) => {
                                                         const page = pages.find(p => p.id === id)
                                                         if (page?.is_folder) {
-                                                            toggleExpand(id)
+                                                            setSelectedPageId(id)
+                                                            setExpandedIds(prev => {
+                                                                const newSet = new Set(prev)
+                                                                newSet.add(id)
+                                                                return newSet
+                                                            })
                                                         } else {
                                                             setSelectedPageId(id)
                                                         }
@@ -650,15 +651,18 @@ export default function NotebookPageView() {
                                     </SortableContext>
                                 </DndContext>
                             ) : (
-                                <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-                                    <div className="p-5 rounded-2xl bg-muted/5 mb-5 border border-border/10">
-                                        <StickyNote className="h-9 w-9 text-muted-foreground/20" />
+                                <div className="flex flex-col items-center justify-center py-20 text-center px-6 relative">
+                                    {/* Ambient Glow */}
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-primary/10 rounded-full blur-3xl opacity-50 z-0 pointer-events-none" />
+
+                                    <div className="p-5 rounded-2xl bg-muted/5 mb-5 border border-border/10 relative z-10 shadow-sm backdrop-blur-sm">
+                                        <StickyNote className="h-8 w-8 text-muted-foreground/30" />
                                     </div>
-                                    <p className="text-sm text-muted-foreground/40 mb-2">
+                                    <p className="text-sm font-medium text-muted-foreground/50 mb-1 relative z-10">
                                         {searchTerm ? "Keine Ergebnisse" : "Noch keine Seiten"}
                                     </p>
                                     {!searchTerm && (
-                                        <p className="text-xs text-muted-foreground/30">
+                                        <p className="text-xs text-muted-foreground/30 relative z-10">
                                             Erstelle deine erste Seite
                                         </p>
                                     )}
@@ -667,28 +671,28 @@ export default function NotebookPageView() {
                         </div>
 
                         {/* Bottom Actions — pinned at bottom, always visible */}
-                        <div className="flex-shrink-0 p-4 border-t border-border/10 space-y-1.5 bg-background z-10">
+                        <div className="flex-shrink-0 p-4 border-t border-border/10 space-y-2 bg-background/50 backdrop-blur-md z-10">
                             <Button
                                 variant="ghost"
-                                className="w-full h-9 text-xs text-muted-foreground hover:text-foreground justify-start gap-2 rounded-lg hover:bg-muted/10"
+                                className="w-full h-9 text-xs font-medium text-muted-foreground hover:text-foreground justify-start gap-2.5 rounded-xl hover:bg-muted/30 transition-colors"
                                 onClick={() => createPage(null)}
                             >
-                                <Plus className="h-4 w-4" />
+                                <Plus className="h-3.5 w-3.5" />
                                 Neue Seite
                             </Button>
                             <Button
                                 variant="ghost"
-                                className="w-full h-9 text-xs text-muted-foreground hover:text-foreground justify-start gap-2 rounded-lg hover:bg-muted/10"
+                                className="w-full h-9 text-xs font-medium text-muted-foreground hover:text-foreground justify-start gap-2.5 rounded-xl hover:bg-muted/30 transition-colors"
                                 onClick={() => createPage(null, true)}
                             >
-                                <FolderPlus className="h-4 w-4" />
+                                <FolderPlus className="h-3.5 w-3.5" />
                                 Neuer Ordner
                             </Button>
                         </div>
                     </div>
 
                     {/* ── Editor Area ── */}
-                    <div className="flex-1 min-w-0 bg-background">
+                    <div className="flex-1 min-w-0 bg-background/50 relative">
                         {selectedPage && !selectedPage.is_folder ? (
                             <motion.div
                                 key={selectedPageId}
@@ -699,7 +703,7 @@ export default function NotebookPageView() {
                             >
                                 {/* Breadcrumbs - Fixed at top */}
                                 {breadcrumbs.length > 0 && (
-                                    <div className="px-12 pt-12 pb-4 flex-shrink-0 flex items-center gap-2 text-xs">
+                                    <div className="px-8 pt-12 pb-2 flex-shrink-0 flex items-center gap-2 text-[13px]">
                                         {breadcrumbs.map((crumb, i) => (
                                             <BreadcrumbItem
                                                 key={crumb.id}
@@ -713,32 +717,35 @@ export default function NotebookPageView() {
                                 )}
 
                                 {/* Title Area - Fixed at top */}
-                                <div className="px-12 pt-12 pb-8 max-w-3xl flex-shrink-0">
+                                <div className={cn("px-8 pb-6 max-w-[850px] mx-auto w-full flex-shrink-0 transition-all", breadcrumbs.length === 0 ? "pt-12" : "pt-2")}>
                                     <input
                                         ref={titleRef}
                                         type="text"
                                         value={editTitle}
                                         onChange={(e) => handleTitleChange(e.target.value)}
-                                        className="w-full text-3xl font-semibold tracking-tight bg-transparent border-none outline-none placeholder:text-muted-foreground/20 text-foreground"
+                                        className="w-full text-[2.75rem] md:text-[3rem] leading-tight font-bold tracking-tight bg-transparent border-none outline-none placeholder:text-muted-foreground/25 text-foreground transition-all duration-200 focus:placeholder:opacity-50"
                                         placeholder="Ohne Titel"
                                     />
-                                    <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground/30">
+                                    <div className="flex items-center gap-4 mt-4 text-[13px] text-muted-foreground/40 font-medium">
                                         <span className="flex items-center gap-1.5">
-                                            <Clock className="h-3 w-3" />
-                                            {format(new Date(selectedPage.updated_at), "dd. MMM yyyy, HH:mm", { locale: de })}
+                                            <Clock className="h-3.5 w-3.5" />
+                                            Zuletzt bearbeitet: {format(new Date(selectedPage.updated_at), "dd. MMM, HH:mm", { locale: de })}
                                         </span>
-                                        <span className="text-muted-foreground/10">·</span>
-                                        <span className="text-muted-foreground/20">/ für Befehle</span>
+                                        <span className="w-1 h-1 rounded-full bg-border/40" />
+                                        <span className="text-muted-foreground/30 flex items-center gap-1.5">
+                                            <span className="px-1.5 py-0.5 rounded bg-muted/20 border border-border/10 text-[10px] font-mono leading-none">/</span>
+                                            für Befehle
+                                        </span>
                                     </div>
                                 </div>
 
-                                <div className="mx-12 max-w-3xl flex-shrink-0">
-                                    <div className="h-px bg-border/10" />
+                                <div className="px-8 max-w-[850px] mx-auto w-full flex-shrink-0 pb-6 pt-2">
+                                    <div className="h-px w-full bg-border shadow-[0_1px_0_rgba(255,255,255,0.02)] dark:shadow-none" />
                                 </div>
 
                                 {/* Content Editor - SCROLLABLE AREA */}
-                                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-muted/5">
-                                    <div className="px-12 py-12 relative max-w-3xl">
+                                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-muted/10 relative">
+                                    <div className="py-12 px-8 max-w-[850px] mx-auto w-full">
                                         <NotebookEditor
                                             key={selectedPageId}
                                             content={editContent}
@@ -756,23 +763,38 @@ export default function NotebookPageView() {
                                 transition={{ duration: 0.15 }}
                                 className="flex flex-col h-full overflow-y-auto"
                             >
-                                <div className="px-12 pt-12 pb-8 max-w-5xl">
+                                {/* Breadcrumbs - Fixed at top */}
+                                {breadcrumbs.length > 0 && (
+                                    <div className="px-8 pt-12 pb-2 max-w-5xl mx-auto w-full flex-shrink-0 flex items-center gap-2 text-[13px]">
+                                        {breadcrumbs.map((crumb, i) => (
+                                            <BreadcrumbItem
+                                                key={crumb.id}
+                                                crumb={crumb}
+                                                index={i}
+                                                isLast={i === breadcrumbs.length - 1}
+                                                onClick={handleBreadcrumbClick}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className={cn("px-8 pb-8 max-w-5xl mx-auto w-full", breadcrumbs.length === 0 ? "pt-16" : "pt-4")}>
                                     <div className="flex items-center gap-5 mb-3">
-                                        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                                            <FolderOpen className="h-7 w-7 text-amber-500/60" />
+                                        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                                            <FolderOpen className="h-8 w-8 text-amber-500/80" />
                                         </div>
                                         <div>
-                                            <h2 className="text-2xl font-semibold tracking-tight text-foreground">{selectedPage.title}</h2>
-                                            <p className="text-sm text-muted-foreground/40 mt-1">
+                                            <h2 className="text-3xl font-bold tracking-tight text-foreground">{selectedPage.title}</h2>
+                                            <p className="text-[13px] font-medium text-muted-foreground/40 mt-1">
                                                 {pages.filter(p => p.parent_id === selectedPage.id).length} Einträge
                                             </p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="px-12 pb-16 max-w-5xl">
+                                <div className="px-8 pb-16 max-w-5xl mx-auto w-full">
                                     {/* Folder Contents Grid */}
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+                                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                         {pages.filter(p => p.parent_id === selectedPage.id)
                                             .sort((a, b) => {
                                                 if (a.is_folder !== b.is_folder) return a.is_folder ? -1 : 1
@@ -789,15 +811,21 @@ export default function NotebookPageView() {
                                                             setSelectedPageId(child.id)
                                                         }
                                                     }}
-                                                    className="p-6 rounded-xl border border-border/10 bg-muted/5 hover:bg-muted/10 hover:border-border/20 transition-all text-left group"
+                                                    className="p-6 rounded-2xl border border-border/10 bg-background/50 backdrop-blur-sm card-hover text-left flex flex-col h-full group"
                                                 >
-                                                    {child.is_folder ? (
-                                                        <Folder className="h-5 w-5 text-amber-500/50 mb-3 group-hover:text-amber-500/70 transition-colors" />
-                                                    ) : (
-                                                        <FileText className="h-5 w-5 text-muted-foreground/30 mb-3 group-hover:text-muted-foreground/50 transition-colors" />
-                                                    )}
-                                                    <div className="font-medium text-sm truncate text-foreground/80 group-hover:text-foreground transition-colors">{child.title}</div>
-                                                    <div className="text-[11px] text-muted-foreground/30 mt-2">
+                                                    <div className="flex items-start justify-between mb-4">
+                                                        {child.is_folder ? (
+                                                            <div className="p-2.5 rounded-xl bg-amber-500/5 group-hover:bg-amber-500/10 transition-colors">
+                                                                <Folder className="h-6 w-6 text-amber-500/60 group-hover:text-amber-500/80 transition-colors" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="p-2.5 rounded-xl bg-primary/5 group-hover:bg-primary/10 transition-colors">
+                                                                <FileText className="h-6 w-6 text-primary/40 group-hover:text-primary/60 transition-colors" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="font-semibold text-[15px] truncate text-foreground/90 group-hover:text-foreground transition-colors mb-1">{child.title}</div>
+                                                    <div className="text-[12px] font-medium text-muted-foreground/40 mt-auto pt-2">
                                                         {format(new Date(child.updated_at), "dd. MMM yyyy", { locale: de })}
                                                     </div>
                                                 </button>
@@ -807,37 +835,42 @@ export default function NotebookPageView() {
                                         {/* Add button */}
                                         <button
                                             onClick={() => createPage(selectedPage.id)}
-                                            className="p-6 rounded-xl border border-dashed border-border/10 hover:border-border/20 hover:bg-muted/5 transition-all flex flex-col items-center justify-center gap-2 min-h-[130px] text-muted-foreground/30 hover:text-muted-foreground/50"
+                                            className="p-6 rounded-2xl border-2 border-dashed border-border/10 hover:border-border/20 hover:bg-muted/5 transition-all flex flex-col items-center justify-center gap-3 min-h-[140px] text-muted-foreground/30 hover:text-muted-foreground/50 group"
                                         >
-                                            <Plus className="h-5 w-5" />
-                                            <span className="text-xs font-medium">Neue Seite</span>
+                                            <div className="p-3 rounded-xl bg-background border border-border/5 shadow-sm group-hover:scale-105 transition-transform">
+                                                <Plus className="h-5 w-5" />
+                                            </div>
+                                            <span className="text-[13px] font-medium">Neue Seite</span>
                                         </button>
                                     </div>
                                 </div>
                             </motion.div>
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-full">
-                                <div className="p-10 rounded-3xl bg-muted/5 mb-10 border border-border/10">
-                                    <BookOpen className="h-16 w-16 text-muted-foreground/15" />
+                            <div className="flex flex-col items-center justify-center h-full relative overflow-hidden">
+                                {/* Ambient Glow Background */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30rem] h-[30rem] bg-gradient-to-br from-primary/5 to-indigo-500/5 blur-3xl rounded-full opacity-50 pointer-events-none z-0" />
+
+                                <div className="p-10 rounded-[2rem] bg-background/40 backdrop-blur-xl mb-8 border border-border/5 shadow-xl shadow-black/5 relative z-10 card-hover">
+                                    <BookOpen className="h-16 w-16 text-primary/30" />
                                 </div>
-                                <h3 className="text-xl font-medium text-muted-foreground/30 mb-4">
-                                    Keine Seite ausgewählt
+                                <h3 className="text-2xl font-semibold tracking-tight text-foreground relative z-10 mb-2">
+                                    Notizbuch
                                 </h3>
-                                <p className="text-sm text-muted-foreground/20 mb-10 text-center max-w-sm leading-relaxed">
+                                <p className="text-[15px] font-medium text-muted-foreground/40 mb-10 text-center max-w-sm leading-relaxed relative z-10">
                                     Wähle eine Seite aus der Seitenleiste oder erstelle eine neue.
                                 </p>
-                                <div className="flex gap-4">
+                                <div className="flex gap-4 relative z-10">
                                     <Button
                                         onClick={() => createPage(null, true)}
                                         variant="outline"
-                                        className="rounded-xl gap-2 border-border/20 bg-background hover:bg-muted/10"
+                                        className="rounded-xl gap-2 border-border/10 bg-background/50 backdrop-blur-md hover:bg-muted/10 h-11 px-6 shadow-sm font-medium"
                                     >
                                         <FolderPlus className="h-4 w-4" />
-                                        Ordner
+                                        Ordnung schaffen
                                     </Button>
                                     <Button
                                         onClick={() => createPage(null)}
-                                        className="rounded-xl gap-2"
+                                        className="rounded-xl gap-2 bg-gradient-to-r from-primary to-primary/90 shadow-md shadow-primary/20 h-11 px-6 font-medium hover:-translate-y-0.5 transition-transform"
                                     >
                                         <Plus className="h-4 w-4" />
                                         Neue Seite
@@ -882,10 +915,10 @@ function BreadcrumbItem({ crumb, index, isLast, onClick }: BreadcrumbItemProps) 
                 className={cn(
                     "transition-all",
                     isLast
-                        ? "text-foreground font-medium"
-                        : "text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/20 px-2 py-1 -ml-2 rounded-md",
+                        ? "text-foreground font-medium bg-muted/5 px-2.5 py-1 -ml-2.5 rounded-lg border border-border/5"
+                        : "text-muted-foreground/50 hover:text-foreground font-medium hover:bg-muted/30 px-2.5 py-1 -ml-2.5 rounded-lg",
                     // Highlight when dragging over folder breadcrumb
-                    isFolder && isOver && "bg-amber-500/15 ring-1 ring-amber-500/30 rounded-md"
+                    isFolder && isOver && "bg-amber-500/15 ring-1 ring-amber-500/30 text-amber-600 rounded-lg"
                 )}
                 onClick={() => onClick(crumb)}
             >
@@ -963,26 +996,26 @@ function SortableTreeItem({
             <motion.div
                 initial={{ opacity: 0, x: -4 }}
                 animate={{ opacity: isDragging ? 0.5 : 1, x: 0 }}
-                transition={{ duration: 0.12 }}
+                transition={{ duration: 0.15, ease: [0.25, 0.46, 0.45, 0.94] }}
             >
                 <div
                     className={cn(
-                        "group flex items-center gap-2 h-9 rounded-lg px-2.5 cursor-pointer transition-all duration-150 text-[13px]",
+                        "group flex items-center gap-1.5 h-10 rounded-xl px-2 cursor-pointer transition-all duration-200 text-[13px] relative mx-2 mb-0.5",
                         isSelected
                             ? isFolder
-                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
-                                : "bg-primary/10 text-primary font-medium"
-                            : "text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground",
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium shadow-[0_4px_12px_rgba(245,158,11,0.08)] border border-amber-500/20"
+                                : "bg-primary/10 text-primary font-medium shadow-[0_4px_12px_rgba(var(--primary),0.08)] border border-primary/20"
+                            : "text-muted-foreground/70 hover:bg-muted/40 hover:text-foreground font-medium border border-transparent",
                         // Highlight when dragging over this folder
-                        isDragTarget && "bg-amber-500/15 ring-1 ring-amber-500/30"
+                        isDragTarget && "bg-amber-500/15 ring-2 ring-amber-500/30 border-amber-500/20"
                     )}
-                    style={{ paddingLeft: `${depth * 18 + 8}px` }}
+                    style={{ paddingLeft: `${depth * 14 + 6}px` }}
                     onClick={() => onSelect(node.id)}
                 >
                     {/* Drag Handle */}
                     <div
                         {...listeners}
-                        className="flex-shrink-0 h-4 w-4 flex items-center justify-center rounded hover:bg-muted/50 transition-colors cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-40"
+                        className="flex-shrink-0 h-4 w-4 flex items-center justify-center rounded hover:bg-muted/50 transition-colors cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-40 -ml-1"
                     >
                         <GripVertical className="h-3 w-3" />
                     </div>
@@ -1019,28 +1052,30 @@ function SortableTreeItem({
 
                     {/* Title or Rename Input */}
                     {isRenaming ? (
-                        <input
-                            ref={renameInputRef}
-                            type="text"
-                            value={renameValue}
-                            onChange={(e) => onRenameChange(e.target.value)}
-                            onBlur={onCommitRename}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") onCommitRename()
-                                if (e.key === "Escape") { onRenameChange(""); onCommitRename() }
-                            }}
-                            className="flex-1 min-w-0 bg-background border border-border/40 rounded-md px-2 py-0.5 text-xs outline-none focus:ring-1 focus:ring-primary/30"
-                            onClick={(e) => e.stopPropagation()}
-                        />
+                        <div className="flex-1 min-w-0 relative z-20 mr-12">
+                            <input
+                                ref={renameInputRef}
+                                type="text"
+                                value={renameValue}
+                                onChange={(e) => onRenameChange(e.target.value)}
+                                onBlur={onCommitRename}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") onCommitRename()
+                                    if (e.key === "Escape") { onRenameChange(""); onCommitRename() }
+                                }}
+                                className="w-full bg-background/90 backdrop-blur-md border border-primary/30 shadow-[0_4px_12px_rgba(0,0,0,0.05)] rounded-md px-2 py-1.5 text-[13px] outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/50 transition-all font-medium text-foreground -ml-2"
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </div>
                     ) : (
-                        <span className="flex-1 min-w-0 truncate">{node.title}</span>
+                        <span className="flex-1 min-w-0 pr-2 group-hover:pr-14 truncate transition-all duration-200">{node.title}</span>
                     )}
 
                     {/* Hover Actions */}
                     {!isRenaming && (
-                        <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity absolute right-2">
                             <button
-                                className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted/50 text-muted-foreground/30 hover:text-foreground transition-colors"
+                                className="h-6 w-6 flex items-center justify-center rounded-lg hover:bg-muted/80 text-muted-foreground/40 hover:text-foreground transition-colors"
                                 onClick={(e) => {
                                     e.stopPropagation()
                                     onCreateSubpage(node.id)
@@ -1053,13 +1088,13 @@ function SortableTreeItem({
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <button
-                                        className="h-6 w-6 flex items-center justify-center rounded hover:bg-muted/50 text-muted-foreground/30 hover:text-foreground transition-colors"
+                                        className="h-6 w-6 flex items-center justify-center rounded-lg hover:bg-muted/80 text-muted-foreground/40 hover:text-foreground transition-colors"
                                         onClick={(e) => e.stopPropagation()}
                                     >
                                         <MoreHorizontal className="h-3 w-3" />
                                     </button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuContent align="end" className="w-[200px] glass border-border/20 rounded-xl p-1 shadow-xl">
                                     <DropdownMenuItem
                                         onClick={(e) => { e.stopPropagation(); onStartRename(node.id) }}
                                         className="text-xs gap-2"

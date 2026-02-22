@@ -4,7 +4,7 @@ import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from 'tiptap-markdown'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import {
     Heading1,
@@ -129,7 +129,7 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
         },
         editorProps: {
             attributes: {
-                class: 'prose prose-sm sm:prose-base lg:prose-lg xl:prose-2xl m-5 focus:outline-none max-w-none',
+                class: 'prose prose-sm sm:prose-base lg:prose-lg xl:prose-2xl focus:outline-none max-w-none',
             },
 
         },
@@ -203,6 +203,7 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
         // Update editor content only when it's actually different (page switch)
         // and not when we're the ones who triggered the update
         if (content !== lastContentRef.current && !isLocalUpdateRef.current) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const currentMarkdown = (editor.storage as Record<string, any>).markdown.getMarkdown()
 
             // Only update if content is meaningfully different
@@ -220,7 +221,7 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
         cmd.description.toLowerCase().includes(slashFilter.toLowerCase())
     )
 
-    const executeCommand = (cmd: SlashCommand) => {
+    const executeCommand = useCallback((cmd: SlashCommand) => {
         if (!editor) return
 
         const { state } = editor
@@ -245,7 +246,7 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
 
             setSlashMenuOpen(false)
         }
-    }
+    }, [editor])
 
     // Custom Key Handler to solve stale closure issues
     useEffect(() => {
@@ -279,22 +280,55 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
                         }
                     }
 
-                    // Backspace Behavior
+                    // Enter Behavior: Create a new list item instead of escaping
+                    if (event.key === 'Enter' && !event.shiftKey && !slashMenuOpen) {
+                        const { state } = view
+                        const { selection } = state
+                        const { empty, $from } = selection
+
+                        if (empty) {
+                            const depth = $from.depth
+                            if (depth > 1) {
+                                const parent = $from.parent
+                                const node = $from.node(depth - 1)
+                                if (parent.textContent.length === 0 && (node.type.name === 'taskItem' || node.type.name === 'listItem')) {
+                                    const tr = state.tr
+                                    const pos = $from.after(depth - 1)
+                                    const attrs = node.type.name === 'taskItem' ? { checked: false } : {}
+                                    const newNode = node.type.createAndFill(attrs)
+                                    if (newNode) {
+                                        tr.insert(pos, newNode)
+                                        view.dispatch(tr)
+                                        editor.commands.focus(pos + 2)
+                                        return true
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Backspace Behavior: Lift empty list item instead of toggling the whole list
                     if (event.key === 'Backspace') {
                         const { state } = view
                         const { selection } = state
                         const { empty, $from } = selection
 
-                        if (empty && $from.parent.type.name === 'taskItem' && $from.parent.textContent.length === 0) {
-                            editor.chain().focus().toggleTaskList().run()
-                            return true
+                        if (empty && $from.parent.textContent.length === 0) {
+                            const depth = $from.depth
+                            if (depth > 1) {
+                                const node = $from.node(depth - 1)
+                                if (node.type.name === 'taskItem' || node.type.name === 'listItem') {
+                                    editor.chain().focus().liftListItem(node.type.name).run()
+                                    return true
+                                }
+                            }
                         }
                     }
                     return false
                 }
             }
         })
-    }, [editor, slashMenuOpen, selectedIndex, filteredCommands])
+    }, [editor, slashMenuOpen, selectedIndex, filteredCommands, executeCommand])
 
     if (!editor) {
         return null
@@ -308,15 +342,15 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
                 {slashMenuOpen && (
                     <motion.div
                         ref={menuRef}
-                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                        initial={{ opacity: 0, y: -8, scale: 0.96 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                        transition={{ duration: 0.12 }}
-                        className="fixed z-50 bg-card/95 backdrop-blur-xl border border-border/30 rounded-xl shadow-2xl overflow-hidden min-w-[280px]"
+                        transition={{ duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        className="fixed z-50 bg-background/80 backdrop-blur-3xl border border-white/10 dark:border-white/5 rounded-[1.25rem] shadow-[0_16px_40px_-12px_rgba(0,0,0,0.15),0_0_0_1px_rgba(0,0,0,0.05)] overflow-hidden min-w-[280px]"
                         style={{ top: slashCoordinates.top, left: slashCoordinates.left }}
                     >
-                        <div className="py-1.5 w-[260px] max-h-[320px] overflow-y-auto bg-popover">
-                            <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-medium select-none">
+                        <div className="p-1.5 w-[260px] max-h-[320px] overflow-y-auto scrollbar-thin scrollbar-thumb-muted/20">
+                            <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground/40 font-semibold select-none">
                                 Elemente
                             </div>
                             {filteredCommands.length > 0 ? (
@@ -324,10 +358,10 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
                                     <button
                                         key={cmd.label}
                                         className={cn(
-                                            "w-full text-left px-3 py-2 flex items-center gap-3 text-sm transition-colors",
+                                            "w-full text-left px-3 py-2.5 flex items-center gap-3.5 transition-all rounded-xl",
                                             i === selectedIndex
                                                 ? "bg-primary/10 text-primary"
-                                                : "text-foreground hover:bg-muted/50"
+                                                : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
                                         )}
                                         onClick={(e) => {
                                             e.preventDefault()
@@ -336,21 +370,21 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
                                         onMouseEnter={() => setSelectedIndex(i)}
                                     >
                                         <div className={cn(
-                                            "h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                                            "h-9 w-9 rounded-[0.6rem] flex items-center justify-center flex-shrink-0 transition-colors bg-background border border-border/5 shadow-sm",
                                             i === selectedIndex
-                                                ? "bg-primary/15 text-primary"
-                                                : "bg-muted/40 text-muted-foreground"
+                                                ? "text-primary border-primary/10 shadow-primary/5"
+                                                : "text-muted-foreground/60"
                                         )}>
-                                            <cmd.icon className="h-4 w-4" />
+                                            <cmd.icon className="h-[18px] w-[18px]" />
                                         </div>
-                                        <div className="min-w-0">
-                                            <div className="font-medium text-[13px]">{cmd.label}</div>
-                                            <div className="text-[11px] text-muted-foreground/50">{cmd.description}</div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-semibold text-[13px] leading-none mb-1.5">{cmd.label}</div>
+                                            <div className="text-[11px] text-muted-foreground/50 leading-none">{cmd.description}</div>
                                         </div>
                                     </button>
                                 ))
                             ) : (
-                                <div className="px-3 py-4 text-center text-xs text-muted-foreground/60">
+                                <div className="px-3 py-6 text-center text-xs text-muted-foreground/40 font-medium">
                                     Keine Befehle gefunden
                                 </div>
                             )}
@@ -363,119 +397,154 @@ export default function NotebookEditor({ content, onChange, editable = true }: N
                 /* TipTap Custom Styles - Jony Ive Aesthetic */
                 .ProseMirror {
                     outline: none;
-                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                    line-height: 1.7;
+                    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter Variable", "Segoe UI", Roboto, sans-serif;
+                    line-height: 1.75;
+                    color: color-mix(in srgb, var(--foreground) 95%, transparent);
+                    font-size: 1.05rem;
                 }
                 .ProseMirror p {
-                    margin-bottom: 0.75em;
+                    margin-bottom: 0.85em;
+                    letter-spacing: -0.015em;
                 }
                 .ProseMirror p.is-editor-empty:first-child::before {
-                    color: rgba(120, 120, 128, 0.3);
+                    color: color-mix(in srgb, var(--muted-foreground) 35%, transparent);
                     content: attr(data-placeholder);
                     float: left;
                     height: 0;
                     pointer-events: none;
                 }
                 /* Lists */
-                .ProseMirror ul, .ProseMirror ol {
-                    padding-left: 1.25em;
-                    margin-bottom: 0.75em;
+                .ProseMirror ul {
+                    list-style-type: disc;
+                    padding-left: 1.5em;
+                    margin-bottom: 0.85em;
+                }
+                .ProseMirror ol {
+                    list-style-type: decimal;
+                    padding-left: 1.5em;
+                    margin-bottom: 0.85em;
                 }
                 .ProseMirror li {
-                    margin-bottom: 0.35em;
+                    margin-bottom: 0.4em;
                 }
                 .ProseMirror li p {
                     margin-bottom: 0;
                 }
+                .ProseMirror ul li::marker, .ProseMirror ol li::marker {
+                    color: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+                }
+                
                 /* Task Lists - Apple Notes Style */
-                ul[data-type="taskList"] {
-                    list-style: none;
-                    padding: 0;
-                    margin-bottom: 0.5em;
+                .ProseMirror ul[data-type="taskList"] {
+                    list-style: none !important;
+                    padding: 0 !important;
+                    margin-bottom: 0.75em !important;
                 }
-                ul[data-type="taskList"] li {
-                    display: flex;
-                    align-items: center; /* Vertically center checkbox with text */
-                    margin-bottom: 0.35em;
-                    min-height: 24px; /* Ensure consistent height */
+                .ProseMirror ul[data-type="taskList"] li::before,
+                .ProseMirror ul[data-type="taskList"] li::marker {
+                    display: none !important;
+                    content: none !important;
+                    color: transparent !important;
                 }
-                ul[data-type="taskList"] li > label {
+                .ProseMirror ul[data-type="taskList"] li {
+                    display: flex !important;
+                    align-items: flex-start !important;
+                    margin-bottom: 0.4em !important;
+                    min-height: 24px !important;
+                    list-style-type: none !important;
+                }
+                .ProseMirror ul[data-type="taskList"] li > label {
                     flex: 0 0 auto;
-                    margin-right: 0.6rem;
+                    margin-right: 0.75rem;
+                    margin-top: 0.2rem;
                     user-select: none;
                     display: flex;
                     align-items: center;
                 }
-                ul[data-type="taskList"] li > div {
+                .ProseMirror ul[data-type="taskList"] li > div {
                     flex: 1 1 auto;
-                    line-height: 1.5; /* Better vertical spacing */
+                    line-height: 1.6;
                 }
                 /* Apple Notes Style Checkbox */
-                ul[data-type="taskList"] li > label > input {
-                    appearance: none;
-                    -webkit-appearance: none;
-                    width: 18px;
-                    height: 18px;
-                    border: 1.5px solid rgba(120, 120, 128, 0.25);
-                    border-radius: 50%;
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                    position: relative;
-                    flex-shrink: 0;
+                .ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"] {
+                    appearance: none !important;
+                    -webkit-appearance: none !important;
+                    width: 20px !important;
+                    height: 20px !important;
+                    border: 2px solid color-mix(in srgb, var(--muted-foreground) 40%, transparent) !important;
+                    background-color: transparent !important;
+                    border-radius: 5px !important; /* Rounded corners but not full circle for checkboxes */
+                    cursor: pointer !important;
+                    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
+                    position: relative !important;
+                    flex-shrink: 0 !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
                 }
-                ul[data-type="taskList"] li > label > input:hover {
-                    border-color: rgba(120, 120, 128, 0.4);
+                .ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"]:hover {
+                    border-color: color-mix(in srgb, var(--primary) 60%, transparent) !important;
+                    background-color: color-mix(in srgb, var(--primary) 5%, transparent) !important;
                 }
-                ul[data-type="taskList"] li > label > input:checked {
-                    background: rgb(0, 122, 255);
-                    border-color: rgb(0, 122, 255);
+                .ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"]:checked {
+                    background-color: var(--primary) !important;
+                    border-color: var(--primary) !important;
                 }
-                ul[data-type="taskList"] li > label > input:checked::after {
-                    content: '';
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%) rotate(45deg);
-                    width: 4px;
-                    height: 8px;
-                    border: solid white;
-                    border-width: 0 2px 2px 0;
+                .ProseMirror ul[data-type="taskList"] li > label > input[type="checkbox"]:checked::after {
+                    content: '' !important;
+                    position: absolute !important;
+                    top: 45% !important;
+                    left: 50% !important;
+                    transform: translate(-50%, -50%) rotate(45deg) !important;
+                    width: 5px !important;
+                    height: 10px !important;
+                    border: solid white !important;
+                    border-width: 0 2px 2px 0 !important;
+                    border-radius: 1px !important;
                 }
-                ul[data-type="taskList"] li[data-checked="true"] > div > p {
+                .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div > p {
                     text-decoration: line-through;
-                    color: rgba(120, 120, 128, 0.4);
-                    text-decoration-color: rgba(120, 120, 128, 0.2);
+                    color: color-mix(in srgb, var(--muted-foreground) 50%, transparent);
+                    text-decoration-color: color-mix(in srgb, var(--muted-foreground) 30%, transparent);
                     opacity: 0.8;
                 }
                 /* Headings - Clean & Hierarchical */
                 .ProseMirror h1 {
-                    font-size: 2em;
+                    font-size: 2.25em;
                     font-weight: 700;
                     margin-top: 1.2em;
                     margin-bottom: 0.5em;
-                    line-height: 1.2;
-                    letter-spacing: -0.02em;
+                    line-height: 1.15;
+                    letter-spacing: -0.035em;
+                    color: var(--foreground);
                 }
                 .ProseMirror h2 {
-                    font-size: 1.5em;
+                    font-size: 1.6em;
                     font-weight: 600;
-                    margin-top: 1em;
-                    margin-bottom: 0.4em;
-                    line-height: 1.3;
-                    letter-spacing: -0.01em;
+                    margin-top: 1.2em;
+                    margin-bottom: 0.5em;
+                    line-height: 1.25;
+                    letter-spacing: -0.025em;
+                    color: hsl(var(--foreground) / 0.95);
                 }
                 .ProseMirror h3 {
                     font-size: 1.25em;
                     font-weight: 600;
-                    margin-top: 0.8em;
-                    margin-bottom: 0.3em;
-                    line-height: 1.4;
+                    margin-top: 1.2em;
+                    margin-bottom: 0.4em;
+                    line-height: 1.3;
+                    letter-spacing: -0.015em;
+                    color: hsl(var(--foreground) / 0.9);
                 }
                 /* Horizontal Rule */
                 .ProseMirror hr {
-                    border: none;
-                    border-top: 1px solid rgba(120, 120, 128, 0.15);
-                    margin: 1.5em 0;
+                    border: none !important;
+                    height: 2px !important;
+                    background-color: var(--border) !important;
+                    margin: 2.5em 0 !important;
+                    opacity: 1 !important;
+                    clear: both !important;
+                    display: block !important;
                 }
             `}</style>
         </div>
