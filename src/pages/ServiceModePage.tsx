@@ -4,11 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
     Plus, Check, ArrowLeft,
     X, CheckCircle2, Download, SkipForward, AlertTriangle,
-    Pencil, User, Bike, Clock, Pause, Play, PackageCheck, Archive
+    Clock, Pause, Play, PackageCheck, Archive
 } from 'lucide-react'
-import { Card } from '@/components/ui/card'
+
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog'
 import {
     AlertDialog,
@@ -635,387 +635,317 @@ export default function ServiceModePage() {
         toast.success("PDF erstellt", "Neues Design angewendet.")
     }
 
-    // ... (rest of render code)
+    // Render section — Jony Ive redesign
+    const completedCount = items.filter(i => i.completed || i.skipped).length
+    const currentStatus = STATUS_FLOW.find(s => s.value === order?.status)
 
-    // Render Helpers
     const renderCompletionScreen = () => (
-        <main className="flex-1 px-4 pb-12 w-full max-w-5xl mx-auto flex items-center justify-center min-h-[50vh]">
+        <div className="flex-1 flex items-center justify-center px-6 pb-16">
             <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="w-full max-w-md"
+                initial={{ opacity: 0, scale: 0.94, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                className="w-full max-w-sm flex flex-col items-center text-center gap-6"
             >
-                <Card className="p-8 flex flex-col items-center text-center bg-card/60 backdrop-blur-md border-primary/20 shadow-neon">
-                    <div className="h-24 w-24 rounded-full bg-green-500/10 flex items-center justify-center mb-6 shadow-[0_0_30px_-5px_rgba(34,197,94,0.3)]">
+                <div className="relative">
+                    <div className="absolute inset-0 rounded-full bg-green-500/20 blur-2xl scale-150" />
+                    <div className="relative h-24 w-24 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center">
                         <CheckCircle2 className="h-12 w-12 text-green-500" />
                     </div>
-
-                    <h2 className="text-3xl font-bold mb-2">Service abgeschlossen!</h2>
-                    <p className="text-muted-foreground mb-8">
-                        Alle {items.length} Arbeitsschritte wurden erfolgreich dokumentiert.
+                </div>
+                <div className="space-y-2">
+                    <h2 className="text-3xl font-bold tracking-tight">Fertig!</h2>
+                    <p className="text-muted-foreground">
+                        Alle {items.length} Arbeitsschritte dokumentiert.
                     </p>
-
-                    <div className="w-full space-y-3">
-                        <Button
-                            className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
-                            onClick={generatePDF}
-                        >
-                            <Download className="mr-2 h-5 w-5" />
-                            Protokoll herunterladen (PDF)
-                        </Button>
-
-                        <Button
-                            variant="outline"
-                            className="w-full"
-                            onClick={() => navigate(-1)}
-                        >
-                            Zurück zur Übersicht
-                        </Button>
-                    </div>
-
-                    <div className="mt-8 pt-6 border-t border-border/50 w-full">
-                        <p className="text-xs text-muted-foreground">
-                            Sie können jederzeit zurückkehren, um Notizen zu bearbeiten.
-                        </p>
-                    </div>
-                </Card>
+                </div>
+                <div className="w-full flex flex-col gap-3 pt-2">
+                    <button
+                        onClick={generatePDF}
+                        className="w-full h-14 rounded-2xl bg-primary text-primary-foreground text-base font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all"
+                    >
+                        <Download className="h-5 w-5" />
+                        Protokoll herunterladen
+                    </button>
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="w-full h-11 rounded-2xl text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        Zurück zur Übersicht
+                    </button>
+                </div>
             </motion.div>
-        </main>
+        </div>
     )
 
     const renderActiveStep = () => (
-        <main className="flex-1 px-4 pb-32 w-full max-w-5xl mx-auto flex flex-col">
+        <div className="flex-1 flex flex-col px-4 pb-6 w-full max-w-2xl mx-auto">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={currentStepIndex}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex-1 flex flex-col"
+                    initial={{ opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -24 }}
+                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                    className="flex flex-col gap-4 flex-1"
                 >
-                    <Card className="flex-1 flex flex-col bg-gradient-to-b from-card to-card/95 border-border/60 shadow-elevated-lg">
-                        <div className="p-6 sm:p-8 flex-1 flex flex-col gap-8">
-
-                            {/* Header */}
-                            <div className="flex justify-between items-start">
-                                <div className="space-y-4 max-w-[80%]">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Badge variant="secondary">Schritt {currentStepIndex + 1} von {items.length}</Badge>
-                                        {!isReadOnly && (
-                                            <button
-                                                onClick={handleDeleteClick}
-                                                className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                                                title="Schritt löschen"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </button>
-                                        )}
-                                    </div>
-                                    <h2 className="text-2xl sm:text-4xl font-bold tracking-tight leading-tight">
-                                        {currentItem?.text}
-                                    </h2>
-                                    {currentItem?.description && (
-                                        <div className="text-lg text-muted-foreground leading-relaxed bg-muted/20 p-4 rounded-lg border border-border/40">
-                                            {currentItem.description}
-                                        </div>
-                                    )}
-                                </div>
-                                {currentItem?.completed && (
-                                    <div className="bg-green-500/10 text-green-600 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1.5 whitespace-nowrap">
-                                        <CheckCircle2 className="h-4 w-4" />
-                                        Erledigt
-                                    </div>
+                    {/* Step Card */}
+                    <div className={cn(
+                        "flex-1 flex flex-col rounded-3xl border bg-card/60 backdrop-blur-xl overflow-hidden",
+                        currentItem?.warning ? "border-red-500/30" : "border-border/40"
+                    )}>
+                        {/* Card header */}
+                        <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0 space-y-3">
+                                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                                    Schritt {currentStepIndex + 1} von {items.length}
+                                </p>
+                                <h2 className="text-3xl font-bold tracking-tight leading-tight">
+                                    {currentItem?.text}
+                                </h2>
+                                {currentItem?.description && (
+                                    <p className="text-base text-muted-foreground leading-relaxed">
+                                        {currentItem.description}
+                                    </p>
                                 )}
                             </div>
-
-                            {/* Notes Section */}
-                            <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-sm font-medium text-muted-foreground">Notiz für diesen Schritt (optional)</h3>
-                                    <Button
-                                        variant={currentItem?.warning ? "destructive" : "outline"}
-                                        size="sm"
-                                        onClick={handleToggleWarning}
-                                        disabled={isSaving || isReadOnly}
+                            <div className="flex items-center gap-2 shrink-0 pt-1">
+                                {currentItem?.completed && (
+                                    <span className="flex items-center gap-1 text-xs font-medium text-green-600 bg-green-500/10 border border-green-500/20 px-2.5 py-1 rounded-full">
+                                        <Check className="h-3 w-3" /> Erledigt
+                                    </span>
+                                )}
+                                {!isReadOnly && (
+                                    <button
+                                        onClick={() => handleToggleWarning()}
+                                        title="Warnung setzen"
                                         className={cn(
-                                            "gap-1.5 h-8",
+                                            "h-8 w-8 rounded-full flex items-center justify-center transition-all",
                                             currentItem?.warning
-                                                ? "bg-red-500/10 text-red-600 border-red-200 hover:bg-red-500/20"
-                                                : "text-muted-foreground border-border/50 hover:text-red-600 hover:border-red-200"
+                                                ? "bg-red-500/15 text-red-500"
+                                                : "text-muted-foreground/40 hover:text-muted-foreground"
                                         )}
                                     >
-                                        <AlertTriangle className="h-3.5 w-3.5" />
-                                        {currentItem?.warning ? "Warnung aktiv" : "Als Warnung"}
-                                    </Button>
-                                </div>
-                                <Textarea
-                                    value={currentItem?.notes}
-                                    onChange={(e) => handleNoteChange(e.target.value)}
-                                    placeholder={isReadOnly ? "Keine Notizen" : "z.B. Bremsbeläge erneuert, Kette geölt..."}
-                                    className="bg-muted/30 resize-none min-h-[150px] border-border/50 focus:bg-background transition-all text-base"
-                                    disabled={isReadOnly}
-                                />
+                                        <AlertTriangle className="h-4 w-4" />
+                                    </button>
+                                )}
+                                {!isReadOnly && (
+                                    <button
+                                        onClick={handleDeleteClick}
+                                        className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-red-500 transition-colors"
+                                        title="Schritt löschen"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                )}
                             </div>
                         </div>
 
+                        {/* Divider */}
+                        <div className="h-px bg-border/30 mx-6" />
 
-                        {/* Footer Actions */}
-                        <div className="p-4 sm:p-6 bg-muted/10 border-t border-border/50 flex flex-col sm:flex-row gap-3 sm:justify-between items-center">
-                            <Button
-                                variant="ghost"
-                                onClick={() => jumpToStep(currentStepIndex - 1)}
-                                disabled={currentStepIndex === 0}
-                                className="w-full sm:w-auto text-muted-foreground"
-                            >
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Zurück
-                            </Button>
-
-                            <div className="flex gap-3 w-full sm:w-auto">
-                                {currentItem?.completed && (
-                                    <Button
-                                        variant="ghost"
-                                        onClick={handleRevertStep}
-                                        disabled={isSaving || isReadOnly}
-                                        className="flex-1 sm:flex-none text-muted-foreground hover:text-foreground"
-                                    >
-                                        Als unerledigt markieren
-                                    </Button>
+                        {/* Note area — borderless, integrated */}
+                        <div className="flex-1 px-6 py-4">
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40 mb-2">
+                                Notiz
+                            </p>
+                            <textarea
+                                value={currentItem?.notes || ''}
+                                onChange={(e) => handleNoteChange(e.target.value)}
+                                placeholder={isReadOnly ? "—" : "Befunde, verwendete Teile, Auffälligkeiten…"}
+                                disabled={isReadOnly}
+                                className={cn(
+                                    "w-full bg-transparent text-sm leading-relaxed resize-none outline-none text-foreground placeholder:text-muted-foreground/30 min-h-[80px]",
+                                    "disabled:cursor-not-allowed"
                                 )}
+                                rows={4}
+                            />
+                        </div>
 
-                                {!currentItem?.completed && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleSkipStep}
-                                        disabled={isSaving || isReadOnly}
-                                        className="flex-1 sm:flex-none border-border/50"
-                                    >
-                                        Überspringen
-                                    </Button>
-                                )}
-
-                                <Button
-                                    onClick={handleCompleteStep}
-                                    disabled={isSaving || isReadOnly}
-                                    className={cn(
-                                        "flex-1 sm:flex-none min-w-[140px]",
-                                        currentItem?.completed ? "bg-green-600 hover:bg-green-700" : ""
-                                    )}
+                        {/* Actions footer */}
+                        <div className="px-4 pb-5 flex flex-col gap-2">
+                            {/* Secondary row */}
+                            <div className="flex items-center justify-between px-2">
+                                <button
+                                    onClick={() => jumpToStep(currentStepIndex - 1)}
+                                    disabled={currentStepIndex === 0}
+                                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
                                 >
-                                    {isSaving ? "Speichere..." : (currentItem?.completed ? (
-                                        <>
-                                            <Check className="mr-2 h-4 w-4" />
-                                            Aktualisieren
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Check className="mr-2 h-4 w-4" />
-                                            Abschließen
-                                        </>
-                                    ))}
-                                </Button>
+                                    <ArrowLeft className="h-3.5 w-3.5" />
+                                    Zurück
+                                </button>
+                                {!currentItem?.completed && !isReadOnly && (
+                                    <button
+                                        onClick={handleSkipStep}
+                                        disabled={isSaving}
+                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        Überspringen →
+                                    </button>
+                                )}
+                                {currentItem?.completed && !isReadOnly && (
+                                    <button
+                                        onClick={handleRevertStep}
+                                        disabled={isSaving}
+                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        Als unerledigt
+                                    </button>
+                                )}
                             </div>
+
+                            {/* Primary CTA */}
+                            <button
+                                onClick={handleCompleteStep}
+                                disabled={isSaving || isReadOnly}
+                                className={cn(
+                                    "w-full h-14 rounded-2xl text-base font-semibold transition-all active:scale-[0.98]",
+                                    "flex items-center justify-center gap-2 shadow-lg",
+                                    currentItem?.completed
+                                        ? "bg-green-600 text-white shadow-green-600/20 hover:bg-green-700"
+                                        : "bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90",
+                                    (isSaving || isReadOnly) && "opacity-50 cursor-not-allowed"
+                                )}
+                            >
+                                {isSaving ? (
+                                    <div className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                                ) : (
+                                    <>
+                                        <Check className="h-5 w-5" />
+                                        {currentItem?.completed ? 'Aktualisieren' : 'Abschließen'}
+                                    </>
+                                )}
+                            </button>
                         </div>
-                    </Card>
+                    </div>
                 </motion.div>
             </AnimatePresence>
-        </main>
+        </div>
     )
 
-
     return (
-        <div className="flex flex-col min-h-[100dvh] bg-background relative">
-            {/* Ambient Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5 -z-10" />
+        <div className="flex flex-col h-[100dvh] bg-background">
+            {/* Ambient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-transparent pointer-events-none -z-10" />
 
-            {/* Header */}
-            <header className="flex-none bg-glass-bg backdrop-blur-md border-b border-glass-border px-4 py-3 sm:px-6">
-                <div className="max-w-6xl mx-auto flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="mr-2">
-                                <ArrowLeft className="h-4 w-4 mr-2" />
-                                Zurück
-                            </Button>
-                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 h-7">
-                                Service-Modus
-                            </Badge>
-                            {isReadOnly && (
-                                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
-                                    Nur Lesen
-                                </Badge>
-                            )}
-                        </div>
+            {/* ── Sticky Header ── */}
+            <header className="flex-none border-b border-border/40 bg-background/80 backdrop-blur-xl px-4 py-3">
+                <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        <span className="text-sm">Zurück</span>
+                    </button>
 
-                        <div className="flex items-center gap-2">
-                            {/* Status Selector */}
-                            <Select
-                                value={order.status}
-                                onValueChange={handleStatusChange}
-                                disabled={isReadOnly || isSaving}
-                            >
-                                <SelectTrigger className="w-[180px] h-9 bg-background/50 border-input shadow-sm">
-                                    <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {STATUS_FLOW.map((status) => (
-                                        <SelectItem key={status.value} value={status.value}>
-                                            <div className="flex items-center gap-2">
-                                                <status.icon className={`h-4 w-4 ${status.color.split(' ')[0]}`} />
-                                                <span>{status.label}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    <div className="flex-1 text-center min-w-0">
+                        <p className="text-sm font-semibold truncate">
+                            {order?.bike_model || '—'}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                            {order?.customer_name} · {order?.order_number}
+                        </p>
                     </div>
 
-                    {/* Customer & Bike Info Row */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-card/40 p-4 rounded-lg border border-border/40">
-                        {/* Customer */}
-                        <div className="flex items-start justify-between group">
-                            <div className="space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground uppercase flex items-center gap-1.5">
-                                    <User className="h-3 w-3" />
-                                    Kunde
-                                </p>
-                                <div className="font-semibold text-sm sm:text-base">
-                                    {order.customer_name}
-                                </div>
-                                <div className="text-xs text-muted-foreground flex flex-col">
-                                    {order.customer_email && <span>{order.customer_email}</span>}
-                                    {order.customer_phone && <span>{order.customer_phone}</span>}
-                                </div>
-                            </div>
-                            {!isReadOnly && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => setIsEditCustomerOpen(true)}
-                                >
-                                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                </Button>
-                            )}
-                        </div>
-
-                        {/* Bike */}
-                        <div className="flex items-start justify-between group border-t sm:border-t-0 sm:border-l border-border/40 pt-4 sm:pt-0 sm:pl-4">
-                            <div className="space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground uppercase flex items-center gap-1.5">
-                                    <Bike className="h-3 w-3" />
-                                    Fahrrad
-                                </p>
-                                <div className="font-semibold text-sm sm:text-base">
-                                    {order.bike_model} <span className="text-muted-foreground font-normal">({order.bike_type || 'Typ n.a.'})</span>
-                                </div>
-                                <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3">
-                                    {order.frame_number && (
-                                        <span title="Rahmennummer"># {order.frame_number}</span>
-                                    )}
-                                    {order.frame_size && (
-                                        <span title="Rahmengröße">Größe: {order.frame_size}</span>
-                                    )}
-                                    {order.bike_color && (
-                                        <span className="flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full border border-border" style={{ backgroundColor: order.bike_color }}></span>
-                                            {order.bike_color}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                            {!isReadOnly && (
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => setIsEditBikeOpen(true)}
-                                >
-                                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                </Button>
-                            )}
-                        </div>
-                    </div>
+                    {/* Status pill */}
+                    {currentStatus && (
+                        <Select
+                            value={order?.status}
+                            onValueChange={handleStatusChange}
+                            disabled={isReadOnly || isSaving}
+                        >
+                            <SelectTrigger className={cn(
+                                "h-7 text-xs font-medium border rounded-full px-3 w-auto gap-1.5 shadow-none",
+                                currentStatus.color
+                            )}>
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {STATUS_FLOW.map(s => (
+                                    <SelectItem key={s.value} value={s.value}>
+                                        <div className="flex items-center gap-2">
+                                            <s.icon className={cn("h-3.5 w-3.5", s.color.split(' ')[0])} />
+                                            {s.label}
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    )}
                 </div>
             </header>
 
-            {/* Progress Bar Area - Show only if NOT finished */}
-            {!isFinished ? (
-                <div className="flex-none px-4 py-6 sm:px-6 max-w-5xl mx-auto w-full space-y-6">
-                    <Card className="p-4 sm:p-6 bg-card/60 backdrop-blur-sm border-border/50">
-                        <div className="flex justify-between items-end mb-2">
-                            <span className="text-sm font-medium text-muted-foreground">Fortschritt</span>
-                            <span className="text-sm font-bold">{currentStepIndex + 1} / {items.length} Schritte</span>
+            {/* ── Progress section ── */}
+            {!isFinished && (
+                <div className="flex-none px-4 pt-4 pb-2 w-full max-w-2xl mx-auto space-y-3">
+                    {/* Hairline progress */}
+                    <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                            <span className="text-[11px] text-muted-foreground/60">Fortschritt</span>
+                            <span className="text-[11px] font-medium text-muted-foreground">{progressPercent}% · {completedCount}/{items.length}</span>
                         </div>
-                        <div className="h-3 w-full bg-secondary/50 rounded-full overflow-hidden">
+                        <div className="h-0.5 w-full bg-border/60 rounded-full overflow-hidden">
                             <motion.div
-                                className="h-full bg-primary"
+                                className="h-full bg-primary rounded-full"
                                 initial={{ width: 0 }}
                                 animate={{ width: `${progressPercent}%` }}
-                                transition={{ duration: 0.3 }}
+                                transition={{ duration: 0.4 }}
                             />
                         </div>
-                    </Card>
+                    </div>
 
-                    {/* Step Navigation Bubbles */}
-                    <div className="flex flex-wrap gap-2 justify-center sm:justify-start items-center">
-                        {items.map((item, idx) => {
-                            let statusColor = "bg-muted text-muted-foreground border-border"
-                            if (idx === currentStepIndex) statusColor = "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
-                            else if (item.completed) statusColor = "bg-green-500/20 text-green-600 border-green-500/30"
-                            else if (item.skipped) statusColor = "bg-yellow-500/20 text-yellow-600 border-yellow-500/30"
-
-                            return (
-                                <button
-                                    key={idx}
-                                    onClick={() => jumpToStep(idx)}
-                                    className={cn(
-                                        "h-10 w-10 flex items-center justify-center rounded-lg border text-sm font-medium transition-all hover:scale-105 active:scale-95",
-                                        statusColor
-                                    )}
-                                >
-                                    {item.completed ? <Check className="h-5 w-5" /> : (
-                                        item.skipped ? <SkipForward className="h-4 w-4" /> : (idx + 1)
-                                    )}
-                                </button>
-                            )
-                        })}
-
-                        {/* Add Step Button */}
+                    {/* Step pills — horizontal scroll */}
+                    <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
+                        {items.map((item, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => jumpToStep(idx)}
+                                className={cn(
+                                    "flex-none h-8 min-w-[32px] px-2 rounded-xl text-xs font-semibold border transition-all",
+                                    idx === currentStepIndex
+                                        ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30"
+                                        : item.completed
+                                            ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                            : item.skipped
+                                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                                : "bg-muted/40 text-muted-foreground border-border/40 hover:border-border"
+                                )}
+                            >
+                                {item.completed ? <Check className="h-3.5 w-3.5" /> :
+                                    item.skipped ? <SkipForward className="h-3 w-3" /> : idx + 1}
+                            </button>
+                        ))}
                         {!isReadOnly && (
                             <button
                                 onClick={() => setIsAddStepOpen(true)}
-                                className="h-10 w-10 flex items-center justify-center rounded-lg border border-dashed border-primary/50 text-primary hover:bg-primary/5 transition-all"
-                                title="Schritt hinzufügen"
+                                className="flex-none h-8 w-8 rounded-xl border border-dashed border-primary/30 text-primary hover:bg-primary/5 transition-colors flex items-center justify-center"
                             >
-                                <Plus className="h-5 w-5" />
+                                <Plus className="h-3.5 w-3.5" />
                             </button>
                         )}
                     </div>
                 </div>
-            ) : null}
+            )}
 
+            {/* ── Main content ── */}
+            <div className="flex-1 overflow-y-auto">
+                {isFinished ? renderCompletionScreen() : renderActiveStep()}
+            </div>
 
-            {/* Main Content Area */}
-            {isFinished ? renderCompletionScreen() : renderActiveStep()}
+            {/* ── Dialogs (unchanged logic) ── */}
 
-
-            {/* Add Step Dialog */}
+            {/* Add Step */}
             <Dialog open={isAddStepOpen} onOpenChange={setIsAddStepOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Extra Schritt hinzufügen</DialogTitle>
-                        <DialogDescription>
-                            Fügen Sie einen neuen Arbeitsschritt am Ende der Liste hinzu.
-                        </DialogDescription>
+                        <DialogTitle>Schritt hinzufügen</DialogTitle>
+                        <DialogDescription>Neuer Schritt am Ende der Liste</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="step-name">Bezeichnung</Label>
+                            <Label>Bezeichnung</Label>
                             <Input
-                                id="step-name"
                                 value={newStepText}
                                 onChange={(e) => setNewStepText(e.target.value)}
                                 placeholder="z.B. Probefahrt durchführen"
@@ -1023,43 +953,33 @@ export default function ServiceModePage() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="step-desc">Beschreibung (Optional)</Label>
+                            <Label>Beschreibung (optional)</Label>
                             <Textarea
-                                id="step-desc"
                                 value={newStepDescription}
                                 onChange={(e) => setNewStepDescription(e.target.value)}
-                                placeholder="Zusätzliche Anweisungen oder Details..."
-                                className="resize-none h-24"
+                                placeholder="Zusätzliche Anweisungen…"
+                                className="resize-none h-20"
                             />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAddStepOpen(false)}>
-                            Abbrechen
-                        </Button>
-                        <Button onClick={handleAddStep} disabled={!newStepText.trim() || isSaving}>
-                            Hinzufügen
-                        </Button>
+                        <Button variant="outline" onClick={() => setIsAddStepOpen(false)}>Abbrechen</Button>
+                        <Button onClick={handleAddStep} disabled={!newStepText.trim() || isSaving}>Hinzufügen</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
+            {/* Delete Confirm */}
             <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Schritt löschen</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Möchten Sie den Schritt "{currentItem?.text}" wirklich löschen? Dies kann nicht rückgängig gemacht werden.
-                        </AlertDialogDescription>
+                        <AlertDialogTitle>Schritt löschen?</AlertDialogTitle>
+                        <AlertDialogDescription>„{currentItem?.text}" wird unwiderruflich entfernt.</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isSaving}>Abbrechen</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={(e) => {
-                                e.preventDefault()
-                                confirmDeleteStep()
-                            }}
+                            onClick={(e) => { e.preventDefault(); confirmDeleteStep() }}
                             disabled={isSaving}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
@@ -1069,25 +989,14 @@ export default function ServiceModePage() {
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* Edit Customer Dialog */}
+            {/* Edit Customer */}
             <Dialog open={isEditCustomerOpen} onOpenChange={setIsEditCustomerOpen}>
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Kundendaten bearbeiten</DialogTitle>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>Kundendaten bearbeiten</DialogTitle></DialogHeader>
                     <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="c-name">Name</Label>
-                            <Input id="c-name" value={editCustomerName} onChange={e => setEditCustomerName(e.target.value)} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="c-email">E-Mail</Label>
-                            <Input id="c-email" value={editCustomerEmail} onChange={e => setEditCustomerEmail(e.target.value)} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="c-phone">Telefon</Label>
-                            <Input id="c-phone" value={editCustomerPhone} onChange={e => setEditCustomerPhone(e.target.value)} />
-                        </div>
+                        <div className="grid gap-2"><Label>Name</Label><Input value={editCustomerName} onChange={e => setEditCustomerName(e.target.value)} /></div>
+                        <div className="grid gap-2"><Label>E-Mail</Label><Input value={editCustomerEmail} onChange={e => setEditCustomerEmail(e.target.value)} /></div>
+                        <div className="grid gap-2"><Label>Telefon</Label><Input value={editCustomerPhone} onChange={e => setEditCustomerPhone(e.target.value)} /></div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsEditCustomerOpen(false)}>Abbrechen</Button>
@@ -1096,37 +1005,20 @@ export default function ServiceModePage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Edit Bike Dialog */}
+            {/* Edit Bike */}
             <Dialog open={isEditBikeOpen} onOpenChange={setIsEditBikeOpen}>
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Fahrraddaten bearbeiten</DialogTitle>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>Fahrraddaten bearbeiten</DialogTitle></DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="b-model">Modell</Label>
-                                <Input id="b-model" value={editBikeModel} onChange={e => setEditBikeModel(e.target.value)} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="b-type">Typ</Label>
-                                <Input id="b-type" value={editBikeType} onChange={e => setEditBikeType(e.target.value)} />
-                            </div>
+                            <div className="grid gap-2"><Label>Modell</Label><Input value={editBikeModel} onChange={e => setEditBikeModel(e.target.value)} /></div>
+                            <div className="grid gap-2"><Label>Typ</Label><Input value={editBikeType} onChange={e => setEditBikeType(e.target.value)} /></div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="grid gap-2">
-                                <Label htmlFor="b-frame">Rahmennummer</Label>
-                                <Input id="b-frame" value={editFrameNumber} onChange={e => setEditFrameNumber(e.target.value)} />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="b-size">Rahmengröße</Label>
-                                <Input id="b-size" value={editFrameSize} onChange={e => setEditFrameSize(e.target.value)} />
-                            </div>
+                            <div className="grid gap-2"><Label>Rahmennummer</Label><Input value={editFrameNumber} onChange={e => setEditFrameNumber(e.target.value)} /></div>
+                            <div className="grid gap-2"><Label>Rahmengröße</Label><Input value={editFrameSize} onChange={e => setEditFrameSize(e.target.value)} /></div>
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="b-color">Farbe</Label>
-                            <Input id="b-color" value={editColor} onChange={e => setEditColor(e.target.value)} />
-                        </div>
+                        <div className="grid gap-2"><Label>Farbe</Label><Input value={editColor} onChange={e => setEditColor(e.target.value)} /></div>
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsEditBikeOpen(false)}>Abbrechen</Button>
@@ -1134,11 +1026,11 @@ export default function ServiceModePage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
             {/* Kiosk Employee Selection */}
             <EmployeeSelectionModal
                 open={showEmployeeSelect}
                 onOpenChange={(open) => {
-                    // Only allow closing if selection was made or if we decide to exit
                     if (!open && !selectionMade.current) {
                         navigate('/dashboard/orders')
                     } else {
