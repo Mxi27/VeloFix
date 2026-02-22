@@ -8,7 +8,6 @@ import {
     CreditCard,
     Trash2,
     Star,
-    LayoutTemplate,
     CheckSquare,
     BookOpen,
 } from "lucide-react"
