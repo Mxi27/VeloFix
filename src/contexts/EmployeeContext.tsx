@@ -16,6 +16,8 @@ interface EmployeeContextType {
     loading: boolean
 }
 
+const COCKPIT_EMPLOYEE_KEY = 'velofix-cockpit-employee'
+
 const EmployeeContext = createContext<EmployeeContextType>({} as EmployeeContextType)
 
 export function useEmployee() {
@@ -29,7 +31,6 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
     const [isKioskMode, setIsKioskMode] = useState(false)
     const [loading, setLoading] = useState(true)
 
-    // On user change/load, identify if this is a Kiosk account
     useEffect(() => {
         let mounted = true
         const abortController = new AbortController()
@@ -56,22 +57,11 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
                 if (!mounted || abortController.signal.aborted) return
 
                 if (myError || !myEmployee) {
-                    // User might not have an employee record yet (new signup)
                     setLoading(false)
                     return
                 }
 
-                if (myEmployee.is_kiosk_mode) {
-                    // I am a Kiosk!
-                    setIsKioskMode(true)
-                    setActiveEmployee(null) // Reset active employee, force selection
-                } else {
-                    // I am a regular user
-                    setIsKioskMode(false)
-                    setActiveEmployee(myEmployee)
-                }
-
-                // 2. Fetch all employees for this workshop (for selection list)
+                // 2. Fetch all employees for this workshop
                 const { data: allEmployees, error: allError } = await supabase
                     .from('employees')
                     .select('*')
@@ -81,12 +71,25 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
 
                 if (!mounted || abortController.signal.aborted) return
 
-                if (!allError && allEmployees) {
-                    setEmployees(allEmployees)
+                const employeeList = (!allError && allEmployees) ? allEmployees : []
+                setEmployees(employeeList)
+
+                if (myEmployee.is_kiosk_mode) {
+                    setIsKioskMode(true)
+                    // Try to restore previously selected employee from localStorage
+                    const savedId = localStorage.getItem(COCKPIT_EMPLOYEE_KEY)
+                    const saved = savedId ? employeeList.find(e => e.id === savedId) : null
+                    setActiveEmployee(saved || null)
+                } else {
+                    setIsKioskMode(false)
+                    // Non-kiosk: check if user has manually switched in cockpit (localStorage override)
+                    const savedId = localStorage.getItem(COCKPIT_EMPLOYEE_KEY)
+                    const saved = savedId ? employeeList.find(e => e.id === savedId) : null
+                    // Default to own employee record, but allow cockpit override
+                    setActiveEmployee(saved || myEmployee)
                 }
 
             } catch (err) {
-                // Silent fail - don't log errors in production
                 if (!mounted || abortController.signal.aborted) return
             } finally {
                 if (mounted && !abortController.signal.aborted) {
@@ -103,29 +106,27 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         }
     }, [user])
 
+    // Select employee: works in both kiosk and non-kiosk mode (for cockpit switcher)
+    // Persists to localStorage so navigation away and back restores selection
     const selectEmployee = (employeeId: string) => {
-        if (!isKioskMode) return // Regular users can't switch identity easily (unless admin override?)
-
         const selected = employees.find(e => e.id === employeeId)
         if (selected) {
             setActiveEmployee(selected)
-            // Optional: Persist selection to sessionStorage so refresh doesn't lose it immediately?
-            // sessionStorage.setItem('kiosk_selected_employee', employeeId)
+            localStorage.setItem(COCKPIT_EMPLOYEE_KEY, employeeId)
         }
     }
 
     const clearSelectedEmployee = () => {
         if (isKioskMode) {
             setActiveEmployee(null)
-            // sessionStorage.removeItem('kiosk_selected_employee')
+            localStorage.removeItem(COCKPIT_EMPLOYEE_KEY)
         }
     }
 
     const refreshEmployees = async () => {
         if (!user) return
-        // simplistic re-fetch (could be optimized)
-        await supabase.from('employees').select('*').eq('active', true)
-        // ... simplified for brevity, relying on main effect mostly
+        const { data } = await supabase.from('employees').select('*').eq('active', true).order('name')
+        if (data) setEmployees(data)
     }
 
     return (

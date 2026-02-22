@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-    ArrowLeft, Wrench, User, Bike, ShieldCheck, Trash2, Pencil, Clock,
-    CheckCircle2, Zap, Key, StickyNote, TrendingUp, AlertCircle, ZapOff
+    ArrowLeft, Wrench, User, Bike, ShieldCheck, Trash2, Pencil,
+    Zap, Key, StickyNote, TrendingUp, ZapOff
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
@@ -38,28 +38,14 @@ import useSWR from "swr"
 
 interface BikeBuildOverviewProps {
     build: any
+    returnPath?: string
     onStartWorkshop: () => void
     onStartControl: () => void
     onDelete: () => void
     onUpdate?: () => void
 }
 
-// Progress from assembly_progress JSON
-function parseProgress(prog: any) {
-    if (!prog) return { done: 0, skipped: 0, total: 0, pct: 0 }
-    const done = prog.completed_steps?.length || 0
-    const skipped = prog.skipped_steps?.length || 0
-    // We don't store total in the JSON, so we use done+skipped as a floor
-    return { done, skipped, total: done + skipped, pct: done + skipped > 0 ? 100 : 0 }
-}
-
-function parseControlProgress(ctrl: any) {
-    if (!ctrl) return { done: 0, total: 0, pct: 0 }
-    const done = ctrl.verified_steps?.length || 0
-    return { done, total: done, pct: ctrl.completed ? 100 : (done > 0 ? 60 : 0) }
-}
-
-export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDelete, onUpdate }: BikeBuildOverviewProps) {
+export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds', onStartWorkshop, onStartControl, onDelete, onUpdate }: BikeBuildOverviewProps) {
     const navigate = useNavigate()
     const { userRole, workshopId } = useAuth()
     const { employees } = useEmployee()
@@ -231,7 +217,7 @@ export function BikeBuildOverview({ build, onStartWorkshop, onStartControl, onDe
                     <Button
                         variant="ghost"
                         className="pl-0 gap-2 text-muted-foreground hover:text-foreground mb-3 h-8 text-sm"
-                        onClick={() => navigate("/dashboard/bike-builds")}
+                        onClick={() => navigate(returnPath)}
                     >
                         <ArrowLeft className="h-3.5 w-3.5" />
                         Zurück

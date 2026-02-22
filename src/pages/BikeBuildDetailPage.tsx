@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { PageTransition } from "@/components/PageTransition"
 import { Loader2 } from "lucide-react"
@@ -13,6 +13,8 @@ import { BikeBuildControl } from "@/components/neurad/BikeBuildControl"
 export default function BikeBuildDetailPage() {
     const { id } = useParams()
     const navigate = useNavigate()
+    const location = useLocation()
+    const returnPath = (location.state as any)?.from || '/dashboard/bike-builds'
     const { workshopId } = useAuth()
 
     const [build, setBuild] = useState<any | null>(null)
@@ -61,7 +63,7 @@ export default function BikeBuildDetailPage() {
             if (error) throw error
 
             toast.success("Neurad-Montage gelöscht")
-            navigate("/dashboard/bike-builds")
+            navigate(returnPath)
         } catch (error) {
             console.error(error)
             toast.error("Fehler beim Löschen")
@@ -118,6 +120,7 @@ export default function BikeBuildDetailPage() {
                 ) : (
                     <BikeBuildOverview
                         build={build}
+                        returnPath={returnPath}
                         onStartWorkshop={() => setViewMode('workshop')}
                         onStartControl={() => setViewMode('control')}
                         onDelete={handleDelete}
