@@ -33,9 +33,10 @@ function groupEvents(events: OrderHistoryEvent[]) {
         const isServiceStep = event.type === 'service_step'
         const isControlStep = event.type === 'control_step'
         const isControlCompletion = event.type === 'control'
+        const isStatusChange = event.type === 'status_change'
 
-        if (isServiceStep || isControlStep || isControlCompletion) {
-            const groupType = isServiceStep ? 'service' : 'control'
+        if (isServiceStep || isControlStep || isControlCompletion || isStatusChange) {
+            const groupType = isServiceStep ? 'service' : (isStatusChange ? 'status' : 'control')
 
             // Check if we can add to current group
             if (currentGroup && currentGroup.type === groupType) {
@@ -64,7 +65,7 @@ function groupEvents(events: OrderHistoryEvent[]) {
                 currentGroup = {
                     id: `group-${event.id}`,
                     type: groupType,
-                    title: isServiceStep ? 'Service-Arbeiten' : 'Endkontrolle',
+                    title: isServiceStep ? 'Service-Arbeiten' : (isStatusChange ? 'Status-Verlauf' : 'Endkontrolle'),
                     timestamp: event.timestamp,
                     actor: event.actor,
                     hasMixedActors: false,
@@ -80,7 +81,7 @@ function groupEvents(events: OrderHistoryEvent[]) {
                     currentGroup.description = event.description
                 } else {
                     currentGroup.metadata.items.push({
-                        text: event.title,
+                        text: isStatusChange ? event.description : event.title,
                         actor: event.actor,
                         timestamp: event.timestamp
                     })
@@ -142,6 +143,7 @@ function HistoryItem({ event }: { event: OrderHistoryEvent & { hasMixedActors?: 
             case 'assignment': return User
             case 'service': return Wrench
             case 'status_change': return CheckCircle2
+            case 'status': return CheckCircle2
             case 'control': return CheckCircle2
             default: return Circle
         }
@@ -150,7 +152,7 @@ function HistoryItem({ event }: { event: OrderHistoryEvent & { hasMixedActors?: 
     const Icon = getIcon()
 
     // Determine if this item has expandable content
-    const hasDetails = (event.type === 'service' || event.type === 'control') &&
+    const hasDetails = (event.type === 'service' || event.type === 'control' || event.type === 'status') &&
         ((event.metadata?.checklist_count ?? 0) > 0 || !!event.metadata?.rating)
 
     return (
@@ -160,7 +162,7 @@ function HistoryItem({ event }: { event: OrderHistoryEvent & { hasMixedActors?: 
                 <div className={cn(
                     "relative z-10 w-8 h-8 rounded-full flex items-center justify-center border ring-4 ring-background",
                     event.type === 'creation' && "bg-blue-500/20 border-blue-500/50 text-blue-500",
-                    event.type === 'status_change' && "bg-green-500/20 border-green-500/50 text-green-500",
+                    (event.type === 'status_change' || event.type === 'status') && "bg-indigo-500/20 border-indigo-500/50 text-indigo-500",
                     event.type === 'service' && "bg-orange-500/20 border-orange-500/50 text-orange-500",
                     event.type === 'assignment' && "bg-purple-500/20 border-purple-500/50 text-purple-500",
                     event.type === 'info' && "bg-gray-500/20 border-gray-500/50 text-gray-500",
@@ -180,20 +182,17 @@ function HistoryItem({ event }: { event: OrderHistoryEvent & { hasMixedActors?: 
 
                             {/* Metadata Row */}
                             <div className="flex items-center gap-2 text-xs text-muted-foreground/80">
-                                {/* Metadata Row */}
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground/80">
-                                    {event.hasMixedActors ? (
-                                        <div className="flex items-center gap-1.5">
-                                            <User className="w-3 h-3 opacity-70" />
-                                            <span>Diverse Mitarbeiter</span>
-                                        </div>
-                                    ) : event.actor ? (
-                                        <div className="flex items-center gap-1.5">
-                                            <User className="w-3 h-3 opacity-70" />
-                                            <span>{event.actor.name}</span>
-                                        </div>
-                                    ) : null}
-                                </div>
+                                {event.hasMixedActors ? (
+                                    <div className="flex items-center gap-1.5">
+                                        <User className="w-3 h-3 opacity-70" />
+                                        <span>Diverse Mitarbeiter</span>
+                                    </div>
+                                ) : event.actor ? (
+                                    <div className="flex items-center gap-1.5">
+                                        <User className="w-3 h-3 opacity-70" />
+                                        <span>{event.actor.name}</span>
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
 
@@ -214,9 +213,10 @@ function HistoryItem({ event }: { event: OrderHistoryEvent & { hasMixedActors?: 
                                         {event.metadata?.checklist_count && event.metadata.checklist_count > 0 && (
                                             <div className={cn(
                                                 "bg-primary/10 text-primary px-2 py-0.5 rounded text-xs font-medium border border-primary/20",
-                                                event.type === 'control' && "bg-green-500/10 text-green-500 border-green-500/20"
+                                                event.type === 'control' && "bg-green-500/10 text-green-500 border-green-500/20",
+                                                event.type === 'status' && "bg-indigo-500/10 text-indigo-500 border-indigo-500/20"
                                             )}>
-                                                {event.metadata.checklist_count} {event.type === 'control' ? 'geprüft' : 'Punkte'}
+                                                {event.metadata.checklist_count} {event.type === 'control' ? 'geprüft' : (event.type === 'status' ? 'Änderungen' : 'Punkte')}
                                             </div>
                                         )}
                                         {event.metadata?.rating && (

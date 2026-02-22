@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase"
 
 export interface OrderHistoryEvent {
     id: string
-    type: 'creation' | 'status_change' | 'assignment' | 'service' | 'info' | 'control' | 'service_step' | 'control_step' | 'checklist_update'
+    type: 'creation' | 'status_change' | 'assignment' | 'service' | 'info' | 'control' | 'service_step' | 'control_step' | 'checklist_update' | 'status'
     title: string
     description?: string
     timestamp: string
