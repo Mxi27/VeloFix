@@ -31,6 +31,7 @@ import { SecuritySettings } from '@/components/SecuritySettings'
 import { DisplaySettings } from '@/components/DisplaySettings'
 import { DataExport } from '@/components/DataExport'
 import { DataManagementSettings } from '@/components/DataManagementSettings'
+import { RecycleBin } from '@/components/RecycleBin'
 import { NeuradSettings } from '@/components/NeuradSettings'
 import { CustomerInquiriesSettings } from '@/components/CustomerInquiriesSettings'
 import {
@@ -48,6 +49,7 @@ import {
     Database as DatabaseIcon,
     Wrench,
     MessageSquare,
+    Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/supabase'
@@ -68,6 +70,7 @@ type SettingsSection =
     | 'display'
     | 'data'
     | 'export'
+    | 'trash'
 
 interface NavItem {
     id: SettingsSection
@@ -107,6 +110,7 @@ const navGroups: NavGroup[] = [
         label: 'System',
         items: [
             { id: 'data', label: 'Datenverwaltung', icon: DatabaseIcon, adminOnly: true },
+            { id: 'trash', label: 'Papierkorb', icon: Trash2, adminOnly: true },
             { id: 'export', label: 'Datenexport', icon: FileSpreadsheet, adminOnly: true },
         ],
     },
@@ -587,6 +591,9 @@ export default function SettingsPage() {
 
             case 'export':
                 return <DataExport />
+
+            case 'trash':
+                return <RecycleBin />
 
             default:
                 return null

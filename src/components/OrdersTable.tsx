@@ -27,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, Eye, UserPlus, Users, X, Check, SlidersHorizontal } from "lucide-react"
+import { Search, Filter, Eye, UserPlus, Users, X, Check, SlidersHorizontal, RotateCcw as Restore } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -113,6 +113,21 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
             toastError('Fehler beim Löschen', 'Der Auftrag konnte nicht gelöscht werden.')
         } finally {
             setOrderToDelete(null)
+        }
+    }
+
+    const handleRestoreOrder = async (orderId: string) => {
+        try {
+            const { error } = await supabase
+                .from('orders')
+                .update({ status: 'eingegangen' }) // Defaulting to 'eingegangen' on restore
+                .eq('id', orderId)
+
+            if (error) throw error
+            mutate()
+            toastSuccess('Auftrag wiederhergestellt', 'Der Auftrag wurde aus dem Papierkorb wiederhergestellt.')
+        } catch (error) {
+            toastError('Fehler', 'Auftrag konnte nicht wiederhergestellt werden.')
         }
     }
 
@@ -241,17 +256,17 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     ].filter(Boolean).length
 
     const renderTable = (ordersToRender: Order[]) => (
-        <div className="rounded-xl border border-border/60 bg-background overflow-x-auto shadow-sm">
-            <Table>
+        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-sm">
+            <Table className="w-full min-w-[600px] md:min-w-full table-fixed">
                 <TableHeader>
                     <TableRow className="hover:bg-transparent bg-muted/40">
                         <TableHead className="w-[110px] pl-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Kunde</TableHead>
-                        <TableHead className="hidden md:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fahrrad</TableHead>
-                        <TableHead className="hidden sm:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Mitarbeiter</TableHead>
+                        <TableHead className="hidden md:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground lg:max-w-[150px]">Kunde</TableHead>
+                        <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fahrrad</TableHead>
+                        <TableHead className="hidden xl:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Mitarbeiter</TableHead>
                         <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fertig bis</TableHead>
                         <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                        <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Erstellt</TableHead>
+                        <TableHead className="hidden xl:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Erstellt</TableHead>
                         <TableHead className="text-right pr-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Aktion</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -272,21 +287,23 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 className="hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
                                 onClick={() => handleViewOrder(order.id)}
                             >
-                                <TableCell className="pl-4 py-4 font-mono text-sm font-medium text-primary">
+                                <TableCell className="w-[110px] pl-4 py-4 font-mono text-sm font-medium text-primary">
                                     {order.order_number}
                                 </TableCell>
-                                <TableCell className="py-4">
-                                    <div className="flex flex-col">
-                                        <span className="font-medium text-sm text-foreground">{order.customer_name}</span>
-                                        <span className="text-xs text-muted-foreground/80 truncate max-w-[120px]">
+                                <TableCell className="hidden md:table-cell py-4">
+                                    <div className="flex flex-col max-w-[140px] md:max-w-[200px]">
+                                        <span className="font-medium text-sm text-foreground truncate">{order.customer_name}</span>
+                                        <span className="text-xs text-muted-foreground/80 truncate">
                                             {order.customer_email || '—'}
                                         </span>
                                     </div>
                                 </TableCell>
-                                <TableCell className="hidden md:table-cell py-4 text-sm text-muted-foreground">
-                                    {order.bike_model || '—'}
+                                <TableCell className="hidden lg:table-cell py-4 text-sm text-muted-foreground">
+                                    <div className="max-w-[120px] truncate">
+                                        {order.bike_model || '—'}
+                                    </div>
                                 </TableCell>
-                                <TableCell className="hidden sm:table-cell py-4" onClick={(e) => e.stopPropagation()}>
+                                <TableCell className="hidden xl:table-cell py-4" onClick={(e) => e.stopPropagation()}>
                                     {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
                                             {order.mechanic_ids.map(mid => (
@@ -316,47 +333,62 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                         {order.status.replace(/_/g, ' ')}
                                     </Badge>
                                 </TableCell>
-                                <TableCell className="hidden lg:table-cell py-4 text-xs text-muted-foreground font-mono">
+                                <TableCell className="hidden xl:table-cell py-4 text-xs text-muted-foreground font-mono">
                                     {new Date(order.created_at).toLocaleDateString('de-DE')}
                                 </TableCell>
                                 <TableCell className="text-right pr-4 py-4">
                                     <div className="flex justify-end gap-2">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    <UserPlus className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DropdownMenuLabel>Mitarbeiter zuweisen</DropdownMenuLabel>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem onClick={(e) => {
+                                        {effectiveMode === 'trash' ? (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 w-8 p-0 text-primary hover:bg-primary/10 rounded-full"
+                                                onClick={(e) => {
                                                     e.stopPropagation()
-                                                    handleAssignEmployee(order.id, null)
-                                                }}>
-                                                    <X className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                    <span>Keine Zuweisung</span>
-                                                </DropdownMenuItem>
-                                                {employees.map(emp => (
-                                                    <DropdownMenuItem
-                                                        key={emp.id}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            handleAssignEmployee(order.id, emp.id)
-                                                        }}
+                                                    handleRestoreOrder(order.id)
+                                                }}
+                                                title="Wiederherstellen"
+                                            >
+                                                <Restore className="h-4 w-4" />
+                                            </Button>
+                                        ) : (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
+                                                        onClick={(e) => e.stopPropagation()}
                                                     >
-                                                        <Users className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                        <span>{emp.name}</span>
-                                                        {order.mechanic_ids && order.mechanic_ids.includes(emp.id) && <Check className="ml-auto h-4 w-4" />}
+                                                        <UserPlus className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Mitarbeiter zuweisen</DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleAssignEmployee(order.id, null)
+                                                    }}>
+                                                        <X className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                        <span>Keine Zuweisung</span>
                                                     </DropdownMenuItem>
-                                                ))}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                                    {employees.map(emp => (
+                                                        <DropdownMenuItem
+                                                            key={emp.id}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                handleAssignEmployee(order.id, emp.id)
+                                                            }}
+                                                        >
+                                                            <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                            <span>{emp.name}</span>
+                                                            {order.mechanic_ids && order.mechanic_ids.includes(emp.id) && <Check className="ml-auto h-4 w-4" />}
+                                                        </DropdownMenuItem>
+                                                    ))}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        )}
 
                                         <Button
                                             variant="ghost"

@@ -57,12 +57,12 @@ export default function BikeBuildDetailPage() {
         try {
             const { error } = await supabase
                 .from('bike_builds')
-                .delete()
+                .update({ status: 'trash' })
                 .eq('id', id)
 
             if (error) throw error
 
-            toast.success("Neurad-Montage gelöscht")
+            toast.success("Neurad-Montage in den Papierkorb verschoben")
             navigate(returnPath)
         } catch (error) {
             console.error(error)

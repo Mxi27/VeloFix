@@ -18,6 +18,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
+import { RotateCcw as Restore, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 interface BikeBuild {
     id: string
@@ -32,7 +34,7 @@ interface BikeBuild {
     mechanic_name: string | null
 }
 
-export function BikeBuildsTable() {
+export function BikeBuildsTable({ mode = 'active' }: { mode?: 'active' | 'trash' }) {
     const { workshopId } = useAuth()
     const navigate = useNavigate()
     const [searchTerm, setSearchTerm] = useState("")
@@ -40,20 +42,58 @@ export function BikeBuildsTable() {
     const fetchBuilds = async () => {
         if (!workshopId) return []
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('bike_builds')
             .select('*')
             .eq('workshop_id', workshopId)
+
+        if (mode === 'trash') {
+            query = query.eq('status', 'trash')
+        } else {
+            query = query.neq('status', 'trash')
+        }
+
+        const { data, error } = await query
             .order('created_at', { ascending: false })
 
         if (error) throw error
         return data as BikeBuild[]
     }
 
-    const { data: builds = [], isLoading } = useSWR(
-        workshopId ? ['bike_builds', workshopId] : null,
+    const { data: builds = [], isLoading, mutate } = useSWR(
+        workshopId ? ['bike_builds', workshopId, mode] : null,
         fetchBuilds
     )
+
+    const handleRestore = async (id: string) => {
+        try {
+            const { error } = await supabase
+                .from('bike_builds')
+                .update({ status: 'offen' })
+                .eq('id', id)
+
+            if (error) throw error
+            toast.success("Wiederhergestellt")
+            mutate()
+        } catch (error) {
+            toast.error("Fehler beim Wiederherstellen")
+        }
+    }
+
+    const handlePermanentDelete = async (id: string) => {
+        try {
+            const { error } = await supabase
+                .from('bike_builds')
+                .delete()
+                .eq('id', id)
+
+            if (error) throw error
+            toast.success("Endgültig gelöscht")
+            mutate()
+        } catch (error) {
+            toast.error("Fehler beim Löschen")
+        }
+    }
 
 
     const filteredBuilds = builds.filter(build => {
@@ -76,7 +116,7 @@ export function BikeBuildsTable() {
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="space-y-1 text-center sm:text-left">
                         <CardTitle className="text-xl font-bold tracking-tight">
-                            Neuradaufbau Liste
+                            {mode === 'trash' ? "Papierkorb: Neuradaufbau" : "Neuradaufbau Liste"}
                         </CardTitle>
                     </div>
                 </div>
@@ -94,16 +134,16 @@ export function BikeBuildsTable() {
                     </div>
 
                     {/* Desktop View */}
-                    <div className="hidden md:block rounded-xl border border-border/60 bg-background overflow-hidden shadow-sm">
-                        <Table>
+                    <div className="hidden md:block w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-sm">
+                        <Table className="w-full min-w-[600px] md:min-w-full table-fixed">
                             <TableHeader>
                                 <TableRow className="hover:bg-transparent bg-muted/40">
-                                    <TableHead className="pl-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Datum</TableHead>
-                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
-                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Marke & Modell</TableHead>
-                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Eigenschaften</TableHead>
-                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Akku Nr.</TableHead>
-                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Mechaniker</TableHead>
+                                    <TableHead className="pl-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Datum</TableHead>
+                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground w-[100px]">Nr.</TableHead>
+                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell">Marke & Modell</TableHead>
+                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden xl:table-cell">Eigenschaften</TableHead>
+                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden xl:table-cell">Akku Nr.</TableHead>
+                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Mechaniker</TableHead>
                                     <TableHead className="text-right pr-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Aktion</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -124,21 +164,19 @@ export function BikeBuildsTable() {
                                             className="hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
                                             onClick={() => navigate(`/dashboard/bike-builds/${build.id}`)}
                                         >
-                                            <TableCell className="pl-4 py-4 text-xs text-muted-foreground font-mono">
+                                            <TableCell className="pl-4 py-4 text-xs text-muted-foreground font-mono hidden lg:table-cell">
                                                 {format(new Date(build.created_at), 'dd.MM.yyyy', { locale: de })}
                                             </TableCell>
-                                            <TableCell className="py-4">
-                                                <span className="font-mono text-sm font-medium text-primary">
-                                                    {build.internal_number}
-                                                </span>
+                                            <TableCell className="py-4 font-mono text-sm font-medium text-primary w-[100px]">
+                                                {build.internal_number}
                                             </TableCell>
-                                            <TableCell className="py-4">
-                                                <div className="flex flex-col">
-                                                    <span className="font-medium text-sm text-foreground">{build.brand}</span>
-                                                    <span className="text-xs text-muted-foreground/80">{build.model}</span>
+                                            <TableCell className="py-4 hidden md:table-cell">
+                                                <div className="flex flex-col max-w-[150px] md:max-w-[250px]">
+                                                    <span className="font-medium text-sm text-foreground truncate">{build.brand}</span>
+                                                    <span className="text-xs text-muted-foreground/80 truncate">{build.model}</span>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="py-4">
+                                            <TableCell className="py-4 hidden xl:table-cell">
                                                 <div className="flex gap-2">
                                                     <Badge variant="outline" className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-400 border-cyan-500/20 px-2 py-0.5 text-[10px] uppercase">
                                                         {build.frame_size}
@@ -148,25 +186,54 @@ export function BikeBuildsTable() {
                                                     </Badge>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="py-4 font-mono text-sm text-muted-foreground">
+                                            <TableCell className="py-4 font-mono text-sm text-muted-foreground hidden xl:table-cell">
                                                 {build.battery_serial || '—'}
                                             </TableCell>
-                                            <TableCell className="py-4 text-sm text-muted-foreground">
+                                            <TableCell className="py-4 text-sm text-muted-foreground hidden lg:table-cell">
                                                 {build.mechanic_name || '—'}
                                             </TableCell>
                                             <TableCell className="text-right pr-4 py-4">
                                                 <div className="flex justify-end gap-2">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            navigate(`/dashboard/bike-builds/${build.id}`);
-                                                        }}
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
+                                                    {mode === 'trash' ? (
+                                                        <>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 text-primary hover:bg-primary/10 rounded-full"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleRestore(build.id);
+                                                                }}
+                                                                title="Wiederherstellen"
+                                                            >
+                                                                <Restore className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 rounded-full"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handlePermanentDelete(build.id);
+                                                                }}
+                                                                title="Endgültig löschen"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </>
+                                                    ) : (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigate(`/dashboard/bike-builds/${build.id}`);
+                                                            }}
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>
