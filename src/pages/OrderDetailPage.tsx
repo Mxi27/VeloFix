@@ -9,8 +9,7 @@ import type { OrderHistoryEvent } from "@/lib/history"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -68,6 +67,15 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Calendar } from "@/components/ui/calendar"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import { CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
+import { de } from "date-fns/locale"
 
 
 const STATUS_FLOW = [
@@ -80,6 +88,23 @@ const STATUS_FLOW = [
 
 const LEASING_STATUS = { value: 'abgeholt', label: 'Abgeholt', icon: Check, color: STATUS_COLORS.abgeholt }
 const COMPLETED_STATUS = { value: 'abgeschlossen', label: 'Abgeschlossen', icon: Archive, color: STATUS_COLORS.abgeschlossen }
+
+const BIKE_TYPE_LABELS: Record<string, string> = {
+    road: 'Rennrad',
+    mtb: 'Mountainbike',
+    city: 'Citybike',
+    ebike: 'E-Bike'
+}
+
+const STATUS_SOLID_COLORS: Record<string, string> = {
+    eingegangen: "bg-blue-500 shadow-blue-500/40",
+    warten_auf_teile: "bg-rose-500 shadow-rose-500/40",
+    in_bearbeitung: "bg-indigo-500 shadow-indigo-500/40",
+    kontrolle_offen: "bg-amber-500 shadow-amber-500/40",
+    abholbereit: "bg-sky-500 shadow-sky-500/40",
+    abgeholt: "bg-emerald-500 shadow-emerald-500/40",
+    abgeschlossen: "bg-slate-500 shadow-slate-500/40",
+}
 
 interface ChecklistItem {
     text: string
@@ -125,22 +150,9 @@ interface Order {
     due_date: string | null
 }
 
-const BIKE_TYPE_LABELS: Record<string, string> = {
-    road: 'Rennrad',
-    mtb: 'Mountainbike',
-    city: 'Citybike',
-    ebike: 'E-Bike'
-}
 
-import { Calendar } from "@/components/ui/calendar"
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
-import { de } from "date-fns/locale"
+
+
 
 export default function OrderDetailPage() {
     const { orderId } = useParams<{ orderId: string }>()
@@ -157,7 +169,6 @@ export default function OrderDetailPage() {
 
     const isReadOnly = userRole === 'read'
 
-    // Editable fields
     // Editable fields
     const [internalNote, setInternalNote] = useState("")
     const [customerNote, setCustomerNote] = useState("")
@@ -229,7 +240,7 @@ export default function OrderDetailPage() {
                 type: 'info',
                 title: 'Zuweisung geändert',
                 description: `${empName} wurde als ${fieldName} zugewiesen.`,
-                actor: user ? { id: user.id, name: user.email || 'User' } : undefined
+                actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : (user ? { id: user.id, name: user.email || 'User' } : undefined)
             }, user).catch(console.error)
         }
     }
@@ -253,7 +264,7 @@ export default function OrderDetailPage() {
     }
 
     // Kiosk Interception
-    const { isKioskMode, employees } = useEmployee()
+    const { isKioskMode, employees, activeEmployee } = useEmployee()
     const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
     const [pendingAction, setPendingAction] = useState<{
         type: 'status' | 'save_notes_data' | 'save_leasing' | 'save_price_data' | 'toggle_checklist' | 'save_customer' | 'save_bike' | 'save_customer_note',
@@ -536,15 +547,15 @@ export default function OrderDetailPage() {
 
             // Auto-assign QC mechanic if status changed to 'kontrolle_offen'
             if (newStatus === 'kontrolle_offen') {
-                const actingUserId = actorOverride?.id || user?.id
+                const actingEmployeeId = actorOverride?.id || activeEmployee?.id
                 // Verify we have a valid ID before assigning
-                if (actingUserId) {
-                    updates.qc_mechanic_id = actingUserId
+                if (actingEmployeeId) {
+                    updates.qc_mechanic_id = actingEmployeeId
 
                     // Also ensure this user is in the mechanic_ids list (as they worked on it)
                     const currentMechanics = order.mechanic_ids || []
-                    if (!currentMechanics.includes(actingUserId)) {
-                        updates.mechanic_ids = [...currentMechanics, actingUserId]
+                    if (!currentMechanics.includes(actingEmployeeId)) {
+                        updates.mechanic_ids = [...currentMechanics, actingEmployeeId]
                     }
                 }
             }
@@ -927,48 +938,121 @@ export default function OrderDetailPage() {
     return (
         <PageTransition>
             <DashboardLayout>
-                <div className="space-y-6">
-                    {/* Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                    navigate(returnPath)
-                                }}
-                            >
-                                <ArrowLeft className="mr-2 h-4 w-4" />
-                                Zurück
-                            </Button>
-                            <div>
-                                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                                    {order.order_number}
-                                </h1>
-                                <p className="text-sm text-muted-foreground">
-                                    Erstellt am {new Date(order.created_at).toLocaleDateString('de-DE', {
-                                        day: '2-digit',
-                                        month: 'long',
-                                        year: 'numeric'
-                                    })}
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
+                <div className="space-y-6 pb-8">
+
+                    {/* ── Hero Header ─────────────────────────────────────────── */}
+                    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card">
+                        {/* Ambient background glow */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/4 via-transparent to-primary/2 pointer-events-none" />
+                        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/6 blur-3xl pointer-events-none" />
+
+                        <div className="relative px-6 py-5">
+                            {/* Top row: back + actions */}
+                            <div className="flex items-center justify-between gap-4 mb-5">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1.5 text-muted-foreground hover:text-foreground -ml-1 h-8"
+                                    onClick={() => navigate(returnPath)}
+                                >
+                                    <ArrowLeft className="h-3.5 w-3.5" />
+                                    Zurück
+                                </Button>
+
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 gap-1.5 text-xs"
+                                        onClick={() => {
+                                            const url = `${window.location.origin}/status/${order.id}`
+                                            navigator.clipboard.writeText(url)
+                                            toastSuccess('Link kopiert', 'Der Status-Link wurde in die Zwischenablage kopiert.')
+                                        }}
+                                    >
+                                        <Copy className="h-3.5 w-3.5" />
+                                        <span className="hidden sm:inline">Status-Link</span>
+                                    </Button>
+
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
+                                        className="h-8 gap-1.5 text-xs bg-green-500/10 text-green-600 border-green-200/60 hover:bg-green-500/20 hover:border-green-300"
+                                    >
+                                        <ShieldCheck className="h-3.5 w-3.5" />
+                                        <span className="hidden sm:inline">Kontrolle</span>
+                                    </Button>
+
+                                    <Button
+                                        size="sm"
+                                        onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
+                                        className="h-8 gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/20"
+                                    >
+                                        <Wrench className="h-3.5 w-3.5" />
+                                        {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
+                                            ? "Weiterarbeiten"
+                                            : "Arbeitsmodus"}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Order identity */}
+                            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                                            {order.order_number}
+                                        </h1>
+                                        <Badge
+                                            variant="outline"
+                                            className={cn(
+                                                "text-xs font-medium",
+                                                order.is_leasing
+                                                    ? "bg-primary/10 text-primary border-primary/25"
+                                                    : "bg-muted text-muted-foreground border-border"
+                                            )}
+                                        >
+                                            {order.is_leasing ? "Leasing" : "Standard"}
+                                        </Badge>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                        <span className="flex items-center gap-1.5">
+                                            <Clock className="h-3.5 w-3.5" />
+                                            Erstellt {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                        </span>
+                                        <span className="text-border">·</span>
+                                        <span className="flex items-center gap-1.5">
+                                            <Bike className="h-3.5 w-3.5" />
+                                            {order.bike_model || 'Fahrrad'}
+                                            {order.bike_type && <span className="text-xs">({BIKE_TYPE_LABELS[order.bike_type] || order.bike_type})</span>}
+                                        </span>
+                                        <span className="text-border">·</span>
+                                        <span className="flex items-center gap-1.5">
+                                            <User className="h-3.5 w-3.5" />
+                                            {order.customer_name}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Due Date Picker */}
+                                <div className="shrink-0">
                                     <Popover>
                                         <PopoverTrigger asChild>
                                             <Button
                                                 variant="outline"
                                                 size="sm"
                                                 className={cn(
-                                                    "h-7 gap-2 px-2 font-normal",
+                                                    "h-8 gap-2 text-xs font-normal",
                                                     !order.due_date && "text-muted-foreground border-dashed",
-                                                    order.due_date && new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' && "text-red-600 border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 hover:border-red-300"
+                                                    order.due_date && new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' && "text-red-600 border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 dark:bg-red-950/20 dark:border-red-900/40"
                                                 )}
                                             >
                                                 <CalendarIcon className="h-3.5 w-3.5" />
-                                                {order.due_date ? format(new Date(order.due_date), "PPP", { locale: de }) : "Fertigstellungstermin setzen"}
+                                                {order.due_date ? format(new Date(order.due_date), "PPP", { locale: de }) : "Termin setzen"}
                                             </Button>
                                         </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="start">
+                                        <PopoverContent className="w-auto p-0" align="end">
                                             <Calendar
                                                 mode="single"
                                                 selected={order.due_date ? new Date(order.due_date) : undefined}
@@ -980,169 +1064,219 @@ export default function OrderDetailPage() {
                                     </Popover>
                                 </div>
                             </div>
-                        </div>
-                        <div className="flex gap-2 self-start sm:self-center ml-12 sm:ml-0 items-center">
-                            <Badge
-                                variant="outline"
-                                className={order.is_leasing
-                                    ? "bg-primary/10 text-primary border-primary/20"
-                                    : "bg-muted text-muted-foreground border-border"
-                                }
-                            >
-                                {order.is_leasing ? "Leasing" : "Standard"}
-                            </Badge>
 
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-2"
-                                onClick={() => {
-                                    const url = `${window.location.origin}/status/${order.id}`
-                                    navigator.clipboard.writeText(url)
-                                    toastSuccess('Link kopiert', 'Der Status-Link wurde in die Zwischenablage kopiert.')
-                                }}
-                            >
-                                <Copy className="h-4 w-4" />
-                                <span className="hidden sm:inline">Status-Link</span>
-                            </Button>
+                            {/* ── Status Progress Timeline ── */}
+                            <div className="mt-6 pt-5 border-t border-border/40">
+                                <div className="flex items-center gap-0">
+                                    {STATUS_FLOW.map((step, idx) => {
+                                        const stepIdx = STATUS_FLOW.findIndex(s => s.value === order.status)
+                                        const isDone = idx < stepIdx
+                                        const isActive = step.value === order.status
+                                        const isLast = idx === STATUS_FLOW.length - 1
+                                        const Icon = step.icon
+                                        return (
+                                            <div key={step.value} className="flex items-center flex-1 min-w-0">
+                                                <button
+                                                    onClick={() => !saving && !isReadOnly && handleStatusChange(step.value)}
+                                                    disabled={saving || isReadOnly || isActive}
+                                                    className={cn(
+                                                        "flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 cursor-pointer select-none group",
+                                                        "disabled:cursor-default",
+                                                        isActive && "cursor-default"
+                                                    )}
+                                                >
+                                                    <div className={cn(
+                                                        "relative h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
+                                                        isDone && "bg-primary/15 border border-primary/30",
+                                                        isActive && cn(STATUS_SOLID_COLORS[step.value], "text-primary-foreground shadow-sm scale-110 border-transparent"),
+                                                        !isDone && !isActive && "bg-muted/60 border border-border/50 text-muted-foreground group-hover:border-primary/30 group-hover:bg-primary/5"
+                                                    )}>
+                                                        {isDone
+                                                            ? <Check className="h-4 w-4 text-primary" />
+                                                            : <Icon className={cn("h-4 w-4", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
+                                                        }
+                                                    </div>
+                                                    <span className={cn(
+                                                        "text-[10px] font-medium leading-tight text-center hidden sm:block max-w-[64px] whitespace-nowrap overflow-hidden text-ellipsis",
+                                                        isActive && "text-primary font-semibold",
+                                                        isDone && "text-primary/70",
+                                                        !isDone && !isActive && "text-muted-foreground"
+                                                    )}>
+                                                        {step.label}
+                                                    </span>
+                                                </button>
+                                                {!isLast && (
+                                                    <div className={cn(
+                                                        "flex-1 h-px mx-0.5 transition-all duration-300",
+                                                        idx < stepIdx ? "bg-primary/40" : "bg-border/60"
+                                                    )} />
+                                                )}
+                                            </div>
+                                        )
+                                    })}
 
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
-                                className="bg-green-500/10 text-green-600 border-green-200 hover:bg-green-500/20"
-                            >
-                                <ShieldCheck className="mr-2 h-4 w-4" />
-                                Kontrolle
-                            </Button>
+                                    {/* Separator */}
+                                    <div className="w-3 h-px bg-border/40 mx-1 shrink-0" />
 
-                            <Button
-                                size="sm"
-                                onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600 shadow-md shadow-blue-500/20"
-                            >
-                                <Wrench className="mr-2 h-4 w-4" />
-                                {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
-                                    ? "Weiterarbeiten"
-                                    : "Arbeitsmodus starten"
-                                }
-                            </Button>
+                                    {/* Leasing / Abgeholt */}
+                                    {order.is_leasing && (
+                                        <>
+                                            <button
+                                                onClick={() => !saving && !isReadOnly && handleStatusChange(LEASING_STATUS.value)}
+                                                disabled={saving || isReadOnly || order.status === LEASING_STATUS.value || order.status === COMPLETED_STATUS.value}
+                                                className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 cursor-pointer select-none group disabled:cursor-default"
+                                            >
+                                                <div className={cn(
+                                                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
+                                                    order.status === LEASING_STATUS.value && cn(STATUS_SOLID_COLORS.abgeholt, "text-white shadow-sm scale-110"),
+                                                    order.status !== LEASING_STATUS.value && "bg-muted/60 border border-border/50 text-muted-foreground group-hover:border-emerald-300 group-hover:bg-emerald-500/5"
+                                                )}>
+                                                    <LEASING_STATUS.icon className={cn("h-4 w-4", order.status === LEASING_STATUS.value ? "text-white" : "text-muted-foreground")} />
+                                                </div>
+                                                <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block", order.status === LEASING_STATUS.value ? "text-emerald-600 font-semibold" : "text-muted-foreground")}>
+                                                    {LEASING_STATUS.label}
+                                                </span>
+                                            </button>
+                                            <div className="w-4 h-px bg-border/40 mx-1 shrink-0" />
+                                        </>
+                                    )}
+
+                                    {/* Abgeschlossen */}
+                                    <button
+                                        onClick={() => !saving && !isReadOnly && handleStatusChange(COMPLETED_STATUS.value)}
+                                        disabled={saving || isReadOnly || order.status === COMPLETED_STATUS.value}
+                                        className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 cursor-pointer select-none group disabled:cursor-default"
+                                    >
+                                        <div className={cn(
+                                            "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
+                                            order.status === COMPLETED_STATUS.value && cn(STATUS_SOLID_COLORS.abgeschlossen, "text-white shadow-sm scale-110"),
+                                            order.status !== COMPLETED_STATUS.value && "bg-muted/60 border border-border/50 text-muted-foreground group-hover:border-slate-300 group-hover:bg-slate-500/5"
+                                        )}>
+                                            <COMPLETED_STATUS.icon className={cn("h-4 w-4", order.status === COMPLETED_STATUS.value ? "text-white" : "text-muted-foreground")} />
+                                        </div>
+                                        <span className={cn("text-[10px] font-medium hidden sm:block", order.status === COMPLETED_STATUS.value ? "text-slate-600 font-semibold" : "text-muted-foreground")}>
+                                            {COMPLETED_STATUS.label}
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* 3 Column Grid */}
-                    <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-                        {/* Left Column - Customer & Bike Data */}
-                        <div className="space-y-6">
-                            {/* Customer Information */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-base w-full">
-                                        <div className="flex items-center gap-2 flex-1">
-                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                <User className="h-4 w-4 text-primary" />
-                                            </div>
-                                            Kundendaten
+                    {/* ── 3 Column Grid ──────────────────────────────────────── */}
+                    <div className="grid gap-5 grid-cols-1 lg:grid-cols-3">
+
+                        {/* ━━ LEFT COLUMN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                        <div className="space-y-5">
+
+                            {/* Customer Card */}
+                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="h-7 w-7 rounded-lg bg-blue-500/12 flex items-center justify-center">
+                                            <User className="h-3.5 w-3.5 text-blue-500" />
                                         </div>
+                                        <span className="text-sm font-semibold">Kundendaten</span>
+                                    </div>
+                                    {!isReadOnly && (
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-8 w-8 hover:bg-neutral-100"
-                                            disabled={isReadOnly}
+                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                             onClick={() => {
                                                 setEditCustomerName(order.customer_name)
                                                 setEditCustomerEmail(order.customer_email || "")
                                                 setEditCustomerPhone(order.customer_phone || "")
-
                                                 setIsCustomerEditDialogOpen(true)
                                             }}
                                         >
-                                            <Pencil className="h-3.5 w-3.5" />
+                                            <Pencil className="h-3 w-3" />
                                         </Button>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
+                                    )}
+                                </div>
+                                <div className="px-4 py-3 space-y-3">
                                     <div>
-                                        <p className="text-xs text-muted-foreground">Name</p>
-                                        <p className="font-medium">{order.customer_name}</p>
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Name</p>
+                                        <p className="text-sm font-medium">{order.customer_name}</p>
                                     </div>
                                     {order.customer_email && (
-                                        <div className="flex items-start gap-2">
-                                            <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs text-muted-foreground">E-Mail</p>
-                                                <p className="font-medium text-sm truncate">{order.customer_email}</p>
+                                        <div className="flex items-start gap-2.5">
+                                            <div className="h-6 w-6 rounded-md bg-muted/60 flex items-center justify-center shrink-0 mt-0.5">
+                                                <Mail className="h-3 w-3 text-muted-foreground" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">E-Mail</p>
+                                                <p className="text-sm truncate">{order.customer_email}</p>
                                             </div>
                                         </div>
                                     )}
                                     {order.customer_phone && (
-                                        <div className="flex items-start gap-2">
-                                            <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs text-muted-foreground">Telefon</p>
-                                                <p className="font-medium text-sm truncate">{order.customer_phone}</p>
+                                        <div className="flex items-start gap-2.5">
+                                            <div className="h-6 w-6 rounded-md bg-muted/60 flex items-center justify-center shrink-0 mt-0.5">
+                                                <Phone className="h-3 w-3 text-muted-foreground" />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Telefon</p>
+                                                <p className="text-sm">{order.customer_phone}</p>
                                             </div>
                                         </div>
                                     )}
+                                </div>
+                            </div>
 
-                                </CardContent>
-                            </Card>
-
-                            {/* Bike Information */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-base w-full">
-                                        <div className="flex items-center gap-2 flex-1">
-                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                <Bike className="h-4 w-4 text-primary" />
-                                            </div>
-                                            Fahrrad
+                            {/* Bike Card */}
+                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="h-7 w-7 rounded-lg bg-orange-500/12 flex items-center justify-center">
+                                            <Bike className="h-3.5 w-3.5 text-orange-500" />
                                         </div>
+                                        <span className="text-sm font-semibold">Fahrrad</span>
+                                    </div>
+                                    {!isReadOnly && (
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-8 w-8 hover:bg-neutral-100"
-                                            disabled={isReadOnly}
+                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                             onClick={() => {
                                                 setEditBikeModel(order.bike_model || "")
                                                 setEditBikeType(order.bike_type || "")
                                                 setIsBikeEditDialogOpen(true)
                                             }}
                                         >
-                                            <Pencil className="h-3.5 w-3.5" />
+                                            <Pencil className="h-3 w-3" />
                                         </Button>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
+                                    )}
+                                </div>
+                                <div className="px-4 py-3 grid grid-cols-2 gap-3">
                                     <div>
-                                        <p className="text-xs text-muted-foreground">Modell</p>
-                                        <p className="font-medium">{order.bike_model || 'Nicht angegeben'}</p>
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Modell</p>
+                                        <p className="text-sm font-medium">{order.bike_model || '—'}</p>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-muted-foreground">Typ</p>
-                                        <p className="font-medium">
-                                            {order.bike_type ? BIKE_TYPE_LABELS[order.bike_type] || order.bike_type : 'Nicht angegeben'}
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Typ</p>
+                                        <p className="text-sm font-medium">
+                                            {order.bike_type ? BIKE_TYPE_LABELS[order.bike_type] || order.bike_type : '—'}
                                         </p>
                                     </div>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
 
-                            {/* Leasing Information */}
+                            {/* Leasing Card (conditional) */}
                             {order.is_leasing && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="flex items-center gap-2 text-base w-full">
-                                            <div className="flex items-center gap-2 flex-1">
-                                                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                    <CreditCard className="h-4 w-4 text-primary" />
-                                                </div>
-                                                Leasing
+                                <div className="rounded-xl border border-primary/20 bg-primary/3 overflow-hidden">
+                                    <div className="flex items-center justify-between px-4 py-3.5 border-b border-primary/15">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="h-7 w-7 rounded-lg bg-primary/15 flex items-center justify-center">
+                                                <CreditCard className="h-3.5 w-3.5 text-primary" />
                                             </div>
+                                            <span className="text-sm font-semibold">Leasing</span>
+                                        </div>
+                                        {!isReadOnly && (
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-8 w-8 hover:bg-neutral-100"
-                                                disabled={isReadOnly}
+                                                className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-primary/10"
                                                 onClick={() => {
                                                     setEditLeasingProvider(order.leasing_provider || "")
                                                     setEditLeasingPortalEmail(order.leasing_portal_email || "")
@@ -1153,173 +1287,187 @@ export default function OrderDetailPage() {
                                                     setIsLeasingEditDialogOpen(true)
                                                 }}
                                             >
-                                                <Pencil className="h-3.5 w-3.5" />
+                                                <Pencil className="h-3 w-3" />
                                             </Button>
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
+                                        )}
+                                    </div>
+                                    <div className="px-4 py-3 space-y-3">
+                                        <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <p className="text-xs text-muted-foreground">Anbieter</p>
-                                                <p className="font-medium">{order.leasing_provider || '—'}</p>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Anbieter</p>
+                                                <p className="text-sm font-medium">{order.leasing_provider || '—'}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xs text-muted-foreground">Portal E-Mail</p>
-                                                <p className="font-medium text-sm truncate">{order.leasing_portal_email || '—'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs text-muted-foreground">Vertrags-Nr.</p>
-                                                <p className="font-medium text-sm truncate" title={order.contract_id || ""}>{order.contract_id || '—'}</p>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Vertrags-Nr.</p>
+                                                <p className="text-sm font-medium truncate" title={order.contract_id || ""}>{order.contract_id || '—'}</p>
                                             </div>
                                         </div>
-
                                         <div>
-                                            <p className="text-xs text-muted-foreground">Service Paket</p>
-                                            <p className="font-medium">{order.service_package || '—'}</p>
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Portal E-Mail</p>
+                                            <p className="text-sm truncate">{order.leasing_portal_email || '—'}</p>
                                         </div>
-
-                                        <Separator className="my-2" />
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Service Paket</p>
+                                            <p className="text-sm">{order.service_package || '—'}</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 pt-1 border-t border-primary/10">
                                             <div>
-                                                <p className="text-xs text-muted-foreground">Leasing Code</p>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Leasing Code</p>
                                                 <p className="font-mono text-sm">{order.leasing_code || '—'}</p>
                                             </div>
                                             <div>
-                                                <p className="text-xs text-muted-foreground">Inspektions-Code</p>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Insp.-Code</p>
                                                 <p className="font-mono text-sm">{order.inspection_code || '—'}</p>
                                             </div>
                                         </div>
-
-                                        {/* Abhol Code */}
-                                        <div>
-                                            <p className="text-xs text-muted-foreground">Abhol Code</p>
-                                            <p className="font-mono text-sm bg-muted/50 p-1 rounded px-2 mt-0.5 inline-block">{order.pickup_code || '—'}</p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                        {order.pickup_code && (
+                                            <div>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Abhol Code</p>
+                                                <div className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1.5">
+                                                    <span className="font-mono text-sm font-medium text-primary">{order.pickup_code}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {order.is_leasing && (
+                                            <div className="flex items-center gap-2 p-2.5 bg-yellow-500/8 border border-yellow-500/15 rounded-lg">
+                                                <AlertCircle className="h-3.5 w-3.5 text-yellow-600 shrink-0" />
+                                                <p className="text-xs text-yellow-700 dark:text-yellow-500">Code wird bei Abholung erfasst</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             )}
 
-                            {/* Price Overview */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2 text-base w-full">
-                                        <div className="flex items-center gap-2 flex-1">
-                                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                <Euro className="h-4 w-4 text-primary" />
-                                            </div>
-                                            Preisübersicht
+                            {/* Price Card */}
+                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="h-7 w-7 rounded-lg bg-green-500/12 flex items-center justify-center">
+                                            <Euro className="h-3.5 w-3.5 text-green-600" />
                                         </div>
+                                        <span className="text-sm font-semibold">Preisübersicht</span>
+                                    </div>
+                                    {!isReadOnly && (
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-8 w-8 hover:bg-neutral-100"
-                                            disabled={isReadOnly}
+                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                             onClick={() => {
                                                 setEditEstimatedPrice(order.estimated_price?.toString() || "")
                                                 setEditFinalPrice(order.final_price?.toString() || "")
                                                 setIsPriceEditDialogOpen(true)
                                             }}
                                         >
-                                            <Pencil className="h-3.5 w-3.5" />
+                                            <Pencil className="h-3 w-3" />
                                         </Button>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="space-y-4">
-                                        <div className="p-3 bg-muted/30 rounded-lg border border-border/50">
-                                            <p className="text-xs text-muted-foreground mb-1">Geschätzter Preis</p>
-                                            <div className="text-2xl font-bold tracking-tight text-primary">
-                                                {order.estimated_price !== null
-                                                    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.estimated_price)
-                                                    : '—'
-                                                }
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label className="text-xs text-muted-foreground ml-1">
-                                                Tatsächlicher Preis
-                                            </Label>
-                                            <div className="text-xl font-medium px-2">
-                                                {order.final_price !== null
-                                                    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.final_price)
-                                                    : <span className="text-muted-foreground italic text-sm">Nicht festgelegt</span>
-                                                }
-                                            </div>
-                                        </div>
+                                    )}
+                                </div>
+                                <div className="px-4 py-3 space-y-3">
+                                    <div className="rounded-lg bg-primary/5 border border-primary/10 px-3.5 py-3">
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Geschätzt</p>
+                                        <p className="text-2xl font-bold tracking-tight text-primary">
+                                            {order.estimated_price !== null
+                                                ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.estimated_price)
+                                                : '—'
+                                            }
+                                        </p>
                                     </div>
-                                </CardContent>
-                            </Card>
-
-
+                                    <div className="px-1">
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Tatsächlich</p>
+                                        <p className="text-lg font-semibold">
+                                            {order.final_price !== null
+                                                ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.final_price)
+                                                : <span className="text-muted-foreground italic text-sm font-normal">Nicht festgelegt</span>
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Middle Column - Checklist */}
-                        <div className="space-y-6">
-                            <Card className="h-fit">
-                                <CardHeader>
-                                    <div className="flex flex-col gap-4">
-                                        <div className="flex items-center justify-between">
-                                            <CardTitle className="text-base">Checkliste</CardTitle>
-                                            <div className="text-xs text-muted-foreground">
-                                                {order.checklist?.filter(i => i.completed).length || 0} / {order.checklist?.length || 0} erledigt
+                        {/* ━━ MIDDLE COLUMN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                        <div className="space-y-5">
+
+                            {/* Checklist Card */}
+                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                                <div className="px-4 py-3.5 border-b border-border/40">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="h-7 w-7 rounded-lg bg-violet-500/12 flex items-center justify-center">
+                                                <PackageCheck className="h-3.5 w-3.5 text-violet-500" />
                                             </div>
+                                            <span className="text-sm font-semibold">Checkliste</span>
                                         </div>
-
-                                        <div className="flex gap-2">
-                                            <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId} disabled={isReadOnly}>
-                                                <SelectTrigger className="h-8 text-xs bg-muted/50 flex-1">
-                                                    <SelectValue placeholder="Vorlage wählen..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {templates.map(t => (
-                                                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <Button
-                                                size="sm"
-                                                className="h-8"
-                                                disabled={!selectedTemplateId || isReadOnly}
-                                                onClick={() => setIsDialogOpen(true)}
-                                            >
-                                                Anwenden
-                                            </Button>
-
-                                            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle>Checkliste überschreiben?</DialogTitle>
-                                                        <DialogDescription>
-                                                            Diese Aktion wird die gesamte aktuelle Checkliste löschen und durch die Punkte der Vorlage
-                                                            "{templates.find(t => t.id === selectedTemplateId)?.name}" ersetzen.
-                                                            Dies kann nicht rückgängig gemacht werden.
-                                                        </DialogDescription>
-                                                    </DialogHeader>
-                                                    <DialogFooter>
-                                                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                                                            Abbrechen
-                                                        </Button>
-                                                        <Button onClick={handleApplyTemplate} disabled={saving}>
-                                                            {saving ? "Wird angewendet..." : "Überschreiben"}
-                                                        </Button>
-                                                    </DialogFooter>
-                                                </DialogContent>
-                                            </Dialog>
-                                        </div>
+                                        <span className="text-xs text-muted-foreground font-medium tabular-nums">
+                                            {order.checklist?.filter(i => i.completed).length || 0} / {order.checklist?.length || 0}
+                                        </span>
                                     </div>
-                                </CardHeader>
-                                <CardContent>
+
+                                    {/* Progress Bar */}
+                                    {order.checklist && order.checklist.length > 0 && (
+                                        <div className="w-full h-1.5 bg-muted/60 rounded-full overflow-hidden mb-3">
+                                            <div
+                                                className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                                                style={{ width: `${Math.round((order.checklist.filter(i => i.completed).length / order.checklist.length) * 100)}%` }}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Template Selector */}
+                                    <div className="flex gap-2">
+                                        <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId} disabled={isReadOnly}>
+                                            <SelectTrigger className="h-8 text-xs bg-muted/40 border-border/50 flex-1">
+                                                <SelectValue placeholder="Vorlage wählen..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {templates.map(t => (
+                                                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            size="sm"
+                                            className="h-8 text-xs"
+                                            disabled={!selectedTemplateId || isReadOnly}
+                                            onClick={() => setIsDialogOpen(true)}
+                                        >
+                                            Anwenden
+                                        </Button>
+
+                                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Checkliste überschreiben?</DialogTitle>
+                                                    <DialogDescription>
+                                                        Diese Aktion wird die gesamte aktuelle Checkliste löschen und durch die Punkte der Vorlage
+                                                        "{templates.find(t => t.id === selectedTemplateId)?.name}" ersetzen.
+                                                        Dies kann nicht rückgängig gemacht werden.
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <DialogFooter>
+                                                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                                                        Abbrechen
+                                                    </Button>
+                                                    <Button onClick={handleApplyTemplate} disabled={saving}>
+                                                        {saving ? "Wird angewendet..." : "Überschreiben"}
+                                                    </Button>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+                                    </div>
+                                </div>
+
+                                <div className="px-4 py-3">
                                     {order.checklist && order.checklist.length > 0 ? (
-                                        <div className="space-y-2">
+                                        <div className="space-y-1.5">
                                             {order.checklist.map((item, index) => (
                                                 <div
                                                     key={index}
                                                     className={cn(
-                                                        "flex items-start gap-4 p-3 rounded-xl border transition-all duration-200 group",
+                                                        "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200",
                                                         item.completed
-                                                            ? "bg-primary/5 border-primary/20 shadow-sm"
-                                                            : "bg-card border-border/40 hover:border-primary/40 hover:bg-accent/5"
+                                                            ? "bg-primary/5 border-primary/15"
+                                                            : "bg-transparent border-border/40 hover:border-border hover:bg-muted/30"
                                                     )}
                                                 >
                                                     <Checkbox
@@ -1328,82 +1476,74 @@ export default function OrderDetailPage() {
                                                         onCheckedChange={(checked) => handleToggleChecklist(index, checked as boolean)}
                                                         disabled={isReadOnly}
                                                         className={cn(
-                                                            "mt-0.5 transition-all duration-300",
-                                                            item.completed ? "data-[state=checked]:bg-primary data-[state=checked]:border-primary" : "border-muted-foreground/40"
+                                                            "shrink-0 transition-all duration-200",
+                                                            item.completed ? "data-[state=checked]:bg-primary data-[state=checked]:border-primary" : "border-muted-foreground/30"
                                                         )}
                                                     />
-                                                    <div className="grid gap-1 leading-none flex-1 py-0.5">
+                                                    <div className="flex-1 min-w-0 flex items-center gap-2">
                                                         <label
                                                             htmlFor={`item-${index}`}
                                                             className={cn(
-                                                                "text-sm font-medium leading-normal cursor-pointer transition-colors duration-300",
-                                                                item.completed ? "text-muted-foreground/70" : "text-foreground"
+                                                                "text-sm cursor-pointer leading-snug transition-colors duration-200 flex-1",
+                                                                item.completed ? "text-muted-foreground/60 line-through" : "text-foreground"
                                                             )}
                                                         >
                                                             {typeof item === 'string' ? item : item.text}
                                                         </label>
                                                         {item.type === 'acceptance' && (
-                                                            <div className="flex">
-                                                                <Badge variant="outline" className="text-[10px] h-5 px-1.5 font-normal text-muted-foreground bg-background/50 border-border/50">
-                                                                    Annahme
-                                                                </Badge>
-                                                            </div>
+                                                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal text-muted-foreground bg-background/50 border-border/50 shrink-0">
+                                                                Annahme
+                                                            </Badge>
                                                         )}
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border-2 border-dashed rounded-xl border-muted/50 bg-muted/5">
-                                            <PackageCheck className="h-10 w-10 mb-3 opacity-20" />
-                                            <p className="font-medium">Keine Checkliste</p>
+                                        <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border-2 border-dashed rounded-xl border-muted/40 bg-muted/5">
+                                            <PackageCheck className="h-9 w-9 mb-3 opacity-20" />
+                                            <p className="text-sm font-medium mb-0.5">Keine Checkliste</p>
                                             <p className="text-xs max-w-[180px]">Wähle oben eine Vorlage aus, um zu starten.</p>
                                         </div>
                                     )}
-                                </CardContent>
-                            </Card>
-
-
+                                </div>
+                            </div>
 
                             {/* Order History */}
-                            <Card className="flex flex-col">
-                                <CardHeader>
-                                    <CardTitle className="text-base font-medium">Auftrags-Verlauf</CardTitle>
-                                </CardHeader>
-                                <CardContent className="pt-0">
+                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                                <div className="px-4 py-3.5 border-b border-border/40">
+                                    <span className="text-sm font-semibold">Auftrags-Verlauf</span>
+                                </div>
+                                <div className="px-4 py-3">
                                     <OrderHistory history={order.history || []} />
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Right Column - Notes & Status */}
-                        <div className="space-y-6">
+                        {/* ━━ RIGHT COLUMN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                        <div className="space-y-5">
 
-                            {/* Internal Notes */}
-                            {/* Customer Notes (Kundenwunsch) */}
-                            <Card className="flex flex-col">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-base font-medium flex items-center gap-2">
-                                        Kundenwunsch
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3 pt-4 flex-1">
-                                    <div className="bg-muted/30 rounded-md p-3 min-h-[80px] text-sm whitespace-pre-wrap">
+                            {/* Kundenwunsch */}
+                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                                <div className="px-4 py-3.5 border-b border-border/40">
+                                    <span className="text-sm font-semibold">Kundenwunsch</span>
+                                </div>
+                                <div className="px-4 py-3">
+                                    <div className="rounded-lg bg-muted/30 border border-border/30 px-3 py-2.5 min-h-[72px] text-sm whitespace-pre-wrap leading-relaxed">
                                         {customerNote || <span className="text-muted-foreground italic">Keine Beschreibung vorhanden.</span>}
                                     </div>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
 
                             {/* Internal Notes */}
-                            <Card className="flex flex-col">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-base font-medium flex items-center gap-2">
-                                        Interne Notizen
+                            <div className="rounded-xl border border-amber-200/60 dark:border-amber-900/30 bg-card overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-amber-200/40 dark:border-amber-900/20">
+                                    <span className="text-sm font-semibold">Interne Notizen</span>
+                                    {!isReadOnly && (
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-6 w-6 hover:bg-neutral-100"
-                                            disabled={isReadOnly}
+                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                             onClick={() => {
                                                 setEditInternalNote(internalNote)
                                                 setIsInternalNoteEditDialogOpen(true)
@@ -1411,50 +1551,53 @@ export default function OrderDetailPage() {
                                         >
                                             <Pencil className="h-3 w-3" />
                                         </Button>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3 pt-4 flex-1">
-                                    <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/30 rounded-md p-3 min-h-[100px] text-sm whitespace-pre-wrap">
+                                    )}
+                                </div>
+                                <div className="px-4 py-3">
+                                    <div className="rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 px-3 py-2.5 min-h-[88px] text-sm whitespace-pre-wrap leading-relaxed">
                                         {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
                                     </div>
-                                </CardContent>
-                            </Card>
+                                </div>
+                            </div>
 
                             {/* Assignments Card */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base font-medium flex items-center gap-2">
-                                        <User className="h-4 w-4 text-primary" />
-                                        Zuständigkeiten
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {/* Mechanics List */}
-                                    <div>
-                                        <div className="flex justify-between items-center mb-2">
-                                            <p className="text-sm font-medium text-muted-foreground">Mechaniker</p>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 text-xs text-primary hover:text-primary/80 px-2"
-                                                disabled={isReadOnly}
-                                                onClick={() => {
-                                                    setAssignmentType('add_mechanic')
-                                                    setIsAssignmentModalOpen(true)
-                                                }}
-                                            >
-                                                + Hinzufügen
-                                            </Button>
+                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                                <div className="px-4 py-3.5 border-b border-border/40">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center">
+                                            <User className="h-3.5 w-3.5 text-muted-foreground" />
                                         </div>
-                                        <div className="space-y-2">
+                                        <span className="text-sm font-semibold">Zuständigkeiten</span>
+                                    </div>
+                                </div>
+                                <div className="px-4 py-3 space-y-4">
+                                    {/* Mechanics */}
+                                    <div>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mechaniker</p>
+                                            {!isReadOnly && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-6 text-xs text-primary hover:text-primary/80 px-2 gap-1"
+                                                    onClick={() => {
+                                                        setAssignmentType('add_mechanic')
+                                                        setIsAssignmentModalOpen(true)
+                                                    }}
+                                                >
+                                                    + Hinzufügen
+                                                </Button>
+                                            )}
+                                        </div>
+                                        <div className="space-y-1.5">
                                             {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
                                                 order.mechanic_ids.map((mechId) => (
-                                                    <div key={mechId} className="flex items-center justify-between group/mech bg-muted/30 p-1.5 rounded-md">
+                                                    <div key={mechId} className="flex items-center justify-between group/mech bg-muted/30 px-3 py-2 rounded-lg">
                                                         <div className="flex items-center gap-2">
-                                                            <Wrench className="h-3.5 w-3.5 text-muted-foreground" />
-                                                            <span className="text-sm font-medium">
-                                                                {getEmployeeName(mechId)}
-                                                            </span>
+                                                            <div className="h-5 w-5 rounded-full bg-primary/15 flex items-center justify-center">
+                                                                <Wrench className="h-3 w-3 text-primary" />
+                                                            </div>
+                                                            <span className="text-sm font-medium">{getEmployeeName(mechId)}</span>
                                                         </div>
                                                         {!isReadOnly && (
                                                             <Button
@@ -1469,125 +1612,69 @@ export default function OrderDetailPage() {
                                                     </div>
                                                 ))
                                             ) : (
-                                                <span className="text-sm text-muted-foreground italic pl-1">Keine Mechaniker zugewiesen</span>
+                                                <p className="text-sm text-muted-foreground italic pl-1">Keine Mechaniker zugewiesen</p>
                                             )}
                                         </div>
                                     </div>
 
-                                    <Separator />
+                                    <div className="h-px bg-border/50" />
 
                                     {/* QC */}
                                     <div>
-                                        <div className="flex justify-between items-center mb-1">
-                                            <p className="text-sm font-medium text-muted-foreground">Qualitätskontrolle</p>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 text-xs text-primary hover:text-primary/80 px-2"
-                                                disabled={isReadOnly}
-                                                onClick={() => {
-                                                    setAssignmentType('qc')
-                                                    setIsAssignmentModalOpen(true)
-                                                }}
-                                            >
-                                                {order.qc_mechanic_id ? 'Ändern' : 'Zuweisen'}
-                                            </Button>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Qualitätskontrolle</p>
+                                            {!isReadOnly && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-6 text-xs text-primary hover:text-primary/80 px-2"
+                                                    onClick={() => {
+                                                        setAssignmentType('qc')
+                                                        setIsAssignmentModalOpen(true)
+                                                    }}
+                                                >
+                                                    {order.qc_mechanic_id ? 'Ändern' : 'Zuweisen'}
+                                                </Button>
+                                            )}
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                                        <div className="flex items-center gap-2 bg-muted/30 px-3 py-2 rounded-lg">
+                                            <div className="h-5 w-5 rounded-full bg-green-500/15 flex items-center justify-center">
+                                                <ShieldCheck className="h-3 w-3 text-green-600" />
+                                            </div>
                                             <span className="text-sm font-medium">
-                                                {order.qc_mechanic_id ? getEmployeeName(order.qc_mechanic_id) : <span className="text-muted-foreground italic">Ausstehend</span>}
+                                                {order.qc_mechanic_id
+                                                    ? getEmployeeName(order.qc_mechanic_id)
+                                                    : <span className="text-muted-foreground italic font-normal">Ausstehend</span>
+                                                }
                                             </span>
                                         </div>
                                     </div>
-                                </CardContent>
-                            </Card>
-
-                            {/* Status Change */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">Status ändern</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    {order.is_leasing && (
-                                        <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg mb-3">
-                                            <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                                            <p className="text-xs text-yellow-700 dark:text-yellow-600">
-                                                Leasing-Code wird bei Abholung erfasst
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {STATUS_FLOW.map((statusOption) => {
-                                        const Icon = statusOption.icon
-                                        const isActive = order.status === statusOption.value
-
-                                        return (
-                                            <Button
-                                                key={statusOption.value}
-                                                variant={isActive ? "outline" : "outline"}
-                                                className={`w-full justify-start ${isActive ? `${statusOption.color} border-current` : 'text-muted-foreground'}`}
-                                                onClick={() => handleStatusChange(statusOption.value)}
-                                                disabled={saving || isActive || isReadOnly}
-                                            >
-                                                <Icon className="mr-2 h-4 w-4" />
-                                                {statusOption.label}
-                                            </Button>
-                                        )
-                                    })}
-
-                                    {LEASING_STATUS && (
-                                        <Button
-                                            variant={order.status === LEASING_STATUS.value ? "outline" : "ghost"}
-                                            className={cn("w-full justify-start mt-2", order.status === LEASING_STATUS.value && "bg-blue-500/10 text-blue-600 border-blue-200")}
-                                            onClick={() => handleStatusChange(LEASING_STATUS.value)}
-                                            disabled={saving || order.status === LEASING_STATUS.value || order.status === COMPLETED_STATUS.value || isReadOnly}
-                                        >
-                                            <LEASING_STATUS.icon className="mr-2 h-4 w-4" />
-                                            {LEASING_STATUS.label}
-                                        </Button>
-                                    )}
-
-                                    <Button
-                                        variant={order.status === COMPLETED_STATUS.value ? "outline" : "ghost"}
-                                        className={cn("w-full justify-start", order.status === COMPLETED_STATUS.value && "bg-green-500/10 text-green-600 border-green-200")}
-                                        onClick={() => handleStatusChange(COMPLETED_STATUS.value)}
-                                        disabled={saving || order.status === COMPLETED_STATUS.value || isReadOnly}
-                                    >
-                                        <COMPLETED_STATUS.icon className="mr-2 h-4 w-4" />
-                                        {COMPLETED_STATUS.label}
-                                    </Button>
-                                </CardContent>
-                            </Card>
-
-
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Danger Zone - Subtle at bottom */}
+                    {/* ── Danger Zone ───────────────────────────────────────── */}
                     {(userRole === 'admin' || userRole === 'owner') && (
-                        <div className="mt-12 pt-8 border-t border-dashed border-muted-foreground/20">
+                        <div className="mt-4 pt-6 border-t border-dashed border-muted-foreground/15">
                             <div className="flex items-center justify-between">
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">Gefahrenzone</p>
-                                    <p className="text-sm text-muted-foreground">Auftrag unwiderruflich in den Papierkorb verschieben</p>
+                                <div className="space-y-0.5">
+                                    <p className="text-xs text-muted-foreground/60 uppercase tracking-wider font-medium">Gefahrenzone</p>
+                                    <p className="text-sm text-muted-foreground">Auftrag in den Papierkorb verschieben</p>
                                 </div>
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setShowDeleteConfirm(true)}
-                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/5"
+                                    className="text-muted-foreground/60 hover:text-destructive hover:bg-destructive/5 gap-2"
                                 >
-                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                     Löschen
                                 </Button>
                             </div>
                         </div>
                     )}
                 </div>
-
-
-
                 <Dialog open={isCustomerEditDialogOpen} onOpenChange={setIsCustomerEditDialogOpen}>
                     <DialogContent aria-describedby={undefined}>
                         <DialogHeader>
@@ -1950,7 +2037,8 @@ export default function OrderDetailPage() {
                     </AlertDialogContent>
                 </AlertDialog>
 
+
             </DashboardLayout>
-        </PageTransition >
+        </PageTransition>
     )
 }

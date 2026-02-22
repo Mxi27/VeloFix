@@ -38,13 +38,15 @@ export const STATUS_LABELS: Record<string, string> = {
 }
 
 export const STATUS_COLORS: Record<string, string> = {
-    eingegangen: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
-    in_bearbeitung: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
-    warten_auf_teile: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800",
-    abholbereit: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800",
+    eingegangen: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/25",
+    in_bearbeitung: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-500/25",
+    warten_auf_teile: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/25",
+    abholbereit: "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/25",
+    abgeholt: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/25",
+    abgeschlossen: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20",
+    kontrolle_offen: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/25",
     todo: "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
     in_progress: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800",
-    kontrolle_offen: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800",
     done: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800",
 }
 
