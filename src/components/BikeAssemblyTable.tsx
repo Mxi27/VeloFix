@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Eye, UserPlus, Users, X, Check, Wrench, Zap, RefreshCw } from "lucide-react"
+import { Search, Eye, UserPlus, Users, X, Check, Wrench, Zap, RefreshCw, SlidersHorizontal } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
@@ -40,6 +40,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
 interface BikeBuild {
@@ -84,6 +89,9 @@ export function BikeAssemblyTable() {
     const [searchTerm, setSearchTerm] = useState("")
     const [filterEmployee, setFilterEmployee] = useState<string>("all")
     const [filterStatus, setFilterStatus] = useState<string>("all")
+    const [showFilters, setShowFilters] = useState(false)
+    const [sortField, setSortField] = useState<"created_at" | "none">("none")
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
 
     const fetchBuilds = async () => {
         if (!workshopId) return []
@@ -134,6 +142,25 @@ export function BikeAssemblyTable() {
         const matchesStatus = filterStatus === 'all' ? true : build.status === filterStatus
 
         return matchesSearch && matchesEmployee && matchesStatus
+    }).sort((a, b) => {
+        if (sortField === "none") return 0
+
+        const field = sortField as "created_at"
+        const aVal = a[field]
+        const bVal = b[field]
+
+        if (aVal === bVal) return 0
+        if (!aVal) return 1
+        if (!bVal) return -1
+
+        const timeA = new Date(aVal).getTime()
+        const timeB = new Date(bVal).getTime()
+
+        if (sortDir === "asc") {
+            return timeA - timeB
+        } else {
+            return timeB - timeA
+        }
     })
 
     const handleViewBuild = (buildId: string) => {
@@ -148,7 +175,12 @@ export function BikeAssemblyTable() {
     if (isLoading) return <OrdersTableSkeleton />
 
     const activeCount = filteredBuilds.filter(b => b.status === 'in_progress').length
-    const hasActiveFilters = searchTerm || filterEmployee !== 'all' || filterStatus !== 'all'
+    const activeFilterCount = [
+        filterStatus !== 'all',
+        filterEmployee !== 'all',
+        sortField !== 'none'
+    ].filter(Boolean).length
+    const hasActiveFilters = searchTerm || activeFilterCount > 0
 
     return (
         <Card className="border-none shadow-sm bg-card/50">
@@ -161,35 +193,120 @@ export function BikeAssemblyTable() {
 
                         {/* Filter Bar — identical to OrdersTable style */}
                         <div className="flex items-center gap-2">
-                            <Select value={filterStatus} onValueChange={setFilterStatus}>
-                                <SelectTrigger className="h-9 w-[140px] bg-background/80 border-border/50 text-xs">
-                                    <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all" className="text-xs">Alle Status</SelectItem>
-                                    {NEURAD_STATUSES.map(s => (
-                                        <SelectItem key={s.value} value={s.value} className="text-xs">
-                                            <div className="flex items-center gap-2">
-                                                <div className={cn("h-1.5 w-1.5 rounded-full", s.dotColor)} />
-                                                {s.label}
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Popover open={showFilters} onOpenChange={setShowFilters}>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="gap-2 bg-background border-border/50 h-9"
+                                    >
+                                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                                        Filter
+                                        {activeFilterCount > 0 && (
+                                            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-bold">
+                                                {activeFilterCount}
+                                            </Badge>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80" align="end">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-sm font-semibold">Filter & Optionen</p>
+                                            {(filterStatus !== 'all' || filterEmployee !== 'all' || sortField !== 'none') && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                                                    onClick={() => {
+                                                        setFilterStatus('all')
+                                                        setFilterEmployee('all')
+                                                        setSortField('none')
+                                                        setSortDir('desc')
+                                                    }}
+                                                >
+                                                    Alle zurücksetzen
+                                                </Button>
+                                            )}
+                                        </div>
 
-                            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-                                <SelectTrigger className="h-9 w-[150px] bg-background/80 border-border/50 text-xs">
-                                    <SelectValue placeholder="Mitarbeiter" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all" className="text-xs">Alle Mitarbeiter</SelectItem>
-                                    <SelectItem value="unassigned" className="text-xs">Nicht zugewiesen</SelectItem>
-                                    {employees.map(emp => (
-                                        <SelectItem key={emp.id} value={emp.id} className="text-xs">{emp.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                        {/* Sortierung */}
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">Sortierung</label>
+                                            <div className="flex items-center gap-2">
+                                                <Select value={sortField} onValueChange={(v: "created_at" | "none") => setSortField(v)}>
+                                                    <SelectTrigger className="h-9 flex-1 bg-background/50 border-border/40 text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none" className="text-xs">Standard</SelectItem>
+                                                        <SelectItem value="created_at" className="text-xs">Erstellt am</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                <Select value={sortDir} onValueChange={(v: "asc" | "desc") => setSortDir(v)} disabled={sortField === "none"}>
+                                                    <SelectTrigger className="h-9 w-[110px] bg-background/50 border-border/40 text-xs">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="desc" className="text-xs">Absteigend</SelectItem>
+                                                        <SelectItem value="asc" className="text-xs">Aufsteigend</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+
+                                        {/* Status Filter */}
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">Status</label>
+                                            <Select value={filterStatus} onValueChange={setFilterStatus}>
+                                                <SelectTrigger className="h-9 bg-background/50 border-border/40 text-xs">
+                                                    <SelectValue placeholder="Status" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all" className="text-xs">Alle Status</SelectItem>
+                                                    {NEURAD_STATUSES.map(s => (
+                                                        <SelectItem key={s.value} value={s.value} className="text-xs">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={cn("h-1.5 w-1.5 rounded-full", s.dotColor)} />
+                                                                {s.label}
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {/* Employee Filter */}
+                                        <div className="space-y-2">
+                                            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">Mitarbeiter</label>
+                                            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                                                <SelectTrigger className="h-9 bg-background/50 border-border/40 text-xs">
+                                                    <SelectValue placeholder="Mitarbeiter" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all" className="text-xs">Alle Mitarbeiter</SelectItem>
+                                                    <SelectItem value="unassigned" className="text-xs">Nicht zugewiesen</SelectItem>
+                                                    {employees.map(emp => (
+                                                        <SelectItem key={emp.id} value={emp.id} className="text-xs">{emp.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {/* Refresh Button */}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => { mutate(); setShowFilters(false); }}
+                                            disabled={isLoading}
+                                            className="w-full justify-start h-9 bg-background/50 border-border/40 text-xs"
+                                        >
+                                            <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isLoading && "animate-spin")} />
+                                            {isLoading ? "Lädt..." : "Aktualisieren"}
+                                        </Button>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
 
                             <Button
                                 variant="outline"
@@ -211,6 +328,8 @@ export function BikeAssemblyTable() {
                                         setSearchTerm("")
                                         setFilterEmployee("all")
                                         setFilterStatus("all")
+                                        setSortField("none")
+                                        setSortDir("desc")
                                     }}
                                 >
                                     <X className="h-3.5 w-3.5 mr-1" />
