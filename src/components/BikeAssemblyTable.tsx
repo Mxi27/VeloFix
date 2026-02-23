@@ -308,17 +308,6 @@ export function BikeAssemblyTable() {
                                 </PopoverContent>
                             </Popover>
 
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                onClick={() => mutate()}
-                                disabled={isLoading}
-                                className="h-9 w-9 bg-background/80 border-border/50 shadow-sm"
-                                title="Aktualisieren"
-                            >
-                                <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
-                            </Button>
-
                             {hasActiveFilters && (
                                 <Button
                                     variant="ghost"
