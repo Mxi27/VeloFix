@@ -278,7 +278,7 @@ export default function DashboardPage() {
 
                 {/* ── Views ── */}
                 {viewMode === 'cockpit' ? (
-                    <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 w-full min-w-0">
 
                         {/* ── Col 1: Meine Räder ── */}
                         <CockpitPanel
@@ -411,7 +411,7 @@ function CockpitPanel({ title, icon: Icon, accent, count, empty, children, class
 
     return (
         <div className={cn(
-            "flex flex-col rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden",
+            "flex flex-col rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden w-full min-w-0",
             className
         )}>
             {/* Header — ultra-minimal */}

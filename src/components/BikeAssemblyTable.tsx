@@ -358,30 +358,30 @@ export function BikeAssemblyTable() {
                 )}
 
                 {/* Table — Dashboard-style */}
-                <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
-                    <Table>
+                <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-x-auto">
+                    <Table className="w-full">
                         <TableHeader>
                             <TableRow className="hover:bg-transparent bg-muted/30 border-b border-border/40">
-                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 pl-5">
+                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 pl-5 w-[140px]">
                                     Nr. / Modell
                                 </TableHead>
-                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
+                                <TableHead className="hidden sm:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
                                     Farbe / Größe
                                 </TableHead>
-                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
+                                <TableHead className="hidden lg:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
                                     Kunde
                                 </TableHead>
-                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
+                                <TableHead className="hidden xl:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
                                     Monteur
                                 </TableHead>
-                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
+                                <TableHead className="hidden md:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 w-[100px]">
                                     Fortschritt
                                 </TableHead>
-                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
+                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 w-[90px]">
                                     Status
                                 </TableHead>
-                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 pr-5 text-right">
-                                    Aktionen
+                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 pr-5 text-right w-[70px]">
+                                    Aktion
                                 </TableHead>
                             </TableRow>
                         </TableHeader>
@@ -414,26 +414,24 @@ export function BikeAssemblyTable() {
                                             onClick={() => handleViewBuild(build.id)}
                                         >
                                             {/* Nr / Modell */}
-                                            <TableCell className="pl-5 py-3.5">
-                                                <div className="flex flex-col gap-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-mono text-[11px] font-bold text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded">
+                                            <TableCell className="pl-5 py-3.5 w-[110px]">
+                                                <div className="flex flex-col min-w-0">
+                                                    <div className="flex items-center gap-1.5 overflow-hidden">
+                                                        <span className="font-mono text-[10px] font-bold text-primary/80 bg-primary/5 px-1 py-0.5 rounded truncate shrink">
                                                             {build.internal_number || '—'}
                                                         </span>
                                                         {build.is_ebike && (
-                                                            <span title="E-Bike" className="p-0.5 rounded-full bg-amber-500/10">
-                                                                <Zap className="h-3 w-3 text-amber-500" />
-                                                            </span>
+                                                            <Zap className="h-2.5 w-2.5 text-amber-500 shrink-0" />
                                                         )}
                                                     </div>
-                                                    <span className="text-sm font-semibold text-foreground/90">
+                                                    <span className="text-xs font-semibold text-foreground/90 truncate mt-0.5">
                                                         {build.brand} <span className="text-muted-foreground font-medium">{build.model}</span>
                                                     </span>
                                                 </div>
                                             </TableCell>
 
                                             {/* Farbe/Größe */}
-                                            <TableCell className="py-3.5">
+                                            <TableCell className="hidden sm:table-cell py-3.5">
                                                 <div className="flex flex-col text-sm">
                                                     <span className="text-foreground/80 font-medium">{build.color || '—'}</span>
                                                     <span className="text-[11px] text-muted-foreground leading-tight tracking-tight uppercase font-medium">{build.frame_size || ''}</span>
@@ -441,7 +439,7 @@ export function BikeAssemblyTable() {
                                             </TableCell>
 
                                             {/* Kunde */}
-                                            <TableCell className="py-3.5">
+                                            <TableCell className="hidden lg:table-cell py-3.5">
                                                 <div className="flex flex-col text-sm">
                                                     <span className="font-semibold text-foreground/80">{build.customer_name || <span className="text-muted-foreground/60 italic font-medium text-xs">Lager</span>}</span>
                                                     {build.customer_email && (
@@ -451,7 +449,7 @@ export function BikeAssemblyTable() {
                                             </TableCell>
 
                                             {/* Mechaniker */}
-                                            <TableCell className="py-3.5" onClick={e => e.stopPropagation()}>
+                                            <TableCell className="hidden xl:table-cell py-3.5" onClick={e => e.stopPropagation()}>
                                                 {build.assigned_employee_id ? (
                                                     <Badge variant="outline" className="bg-background/40 hover:bg-background/60 shadow-xs border-border/40 text-[11px] font-medium py-0 px-2 h-5 transition-colors">
                                                         {getEmployeeName(build.assigned_employee_id)}
@@ -462,7 +460,7 @@ export function BikeAssemblyTable() {
                                             </TableCell>
 
                                             {/* Fortschritt */}
-                                            <TableCell className="py-3.5">
+                                            <TableCell className="hidden md:table-cell py-3.5">
                                                 {progress.total > 0 ? (
                                                     <div className="flex items-center gap-2.5 min-w-[90px]">
                                                         <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden shadow-inner border border-border/5">
@@ -484,22 +482,22 @@ export function BikeAssemblyTable() {
                                             </TableCell>
 
                                             {/* Status */}
-                                            <TableCell className="py-3.5">
+                                            <TableCell className="py-3.5 w-[80px]">
                                                 <Badge
                                                     variant="secondary"
                                                     className={cn(
-                                                        "font-medium border shadow-xs text-[10px] uppercase tracking-wider py-0 px-2 h-5",
+                                                        "font-medium border shadow-xs text-[9px] uppercase tracking-wider py-0 px-1 h-5 flex items-center justify-center",
                                                         statusInfo.color
                                                     )}
                                                 >
-                                                    <div className={cn("h-1.5 w-1.5 rounded-full mr-1.5 shadow-sm", statusInfo.dotColor)} />
-                                                    {statusInfo.label}
+                                                    <div className={cn("h-1 w-1 rounded-full mr-1 shadow-sm shrink-0", statusInfo.dotColor)} />
+                                                    <span className="truncate">{statusInfo.label}</span>
                                                 </Badge>
                                             </TableCell>
 
                                             {/* Aktionen */}
-                                            <TableCell className="text-right pr-4 py-3.5">
-                                                <div className="flex justify-end gap-1.5">
+                                            <TableCell className="text-right pr-4 py-3.5 w-[60px]">
+                                                <div className="flex justify-end gap-1">
                                                     {/* Mechaniker zuweisen */}
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>

@@ -281,17 +281,17 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
     const renderTable = (ordersToRender: Order[]) => (
         <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-sm">
-            <Table className="w-full min-w-[600px] md:min-w-full table-fixed">
+            <Table className="w-full">
                 <TableHeader>
                     <TableRow className="hover:bg-transparent bg-muted/40">
-                        <TableHead className="w-[110px] pl-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
-                        <TableHead className="hidden md:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground lg:max-w-[150px]">Kunde</TableHead>
-                        <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fahrrad</TableHead>
-                        <TableHead className="hidden xl:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Mitarbeiter</TableHead>
-                        <TableHead className="hidden lg:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Fertig bis</TableHead>
-                        <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                        <TableHead className="hidden xl:table-cell font-semibold text-xs uppercase tracking-wider text-muted-foreground">Erstellt</TableHead>
-                        <TableHead className="text-right pr-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Aktion</TableHead>
+                        <TableHead className="w-[80px] pl-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
+                        <TableHead className="hidden sm:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground lg:max-w-[150px]">Kunde</TableHead>
+                        <TableHead className="hidden lg:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Fahrrad</TableHead>
+                        <TableHead className="hidden xl:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Mitarbeiter</TableHead>
+                        <TableHead className="hidden md:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Fällig</TableHead>
+                        <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[100px]">Status</TableHead>
+                        <TableHead className="hidden xl:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Erstellt</TableHead>
+                        <TableHead className="text-right pr-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[80px]">Aktion</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -311,11 +311,11 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 className="hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
                                 onClick={() => handleViewOrder(order.id)}
                             >
-                                <TableCell className="w-[110px] pl-4 py-4 font-mono text-sm font-medium text-primary">
+                                <TableCell className="w-[80px] pl-4 py-4 font-mono text-[11px] font-bold text-primary truncate">
                                     {order.order_number}
                                 </TableCell>
-                                <TableCell className="hidden md:table-cell py-4">
-                                    <div className="flex flex-col max-w-[140px] md:max-w-[200px]">
+                                <TableCell className="hidden sm:table-cell py-4">
+                                    <div className="flex flex-col min-w-0 max-w-[140px] md:max-w-[200px]">
                                         <span className="font-medium text-sm text-foreground truncate">{order.customer_name}</span>
                                         <span className="text-xs text-muted-foreground/80 truncate">
                                             {order.customer_email || '—'}
@@ -340,7 +340,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                         <span className="text-xs text-muted-foreground italic">—</span>
                                     )}
                                 </TableCell>
-                                <TableCell className="hidden lg:table-cell py-4 text-xs font-medium">
+                                <TableCell className="hidden md:table-cell py-4 text-xs font-medium">
                                     {order.due_date ? (
                                         <span className={new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' ? "text-red-500 font-bold" : "text-foreground"}>
                                             {new Date(order.due_date).toLocaleDateString('de-DE')}
@@ -349,19 +349,19 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                         <span className="text-muted-foreground/50">—</span>
                                     )}
                                 </TableCell>
-                                <TableCell className="py-4">
+                                <TableCell className="py-4 w-[100px]">
                                     <Badge
                                         variant="secondary"
-                                        className={`capitalize font-normal border ${STATUS_COLORS[order.status] || "bg-muted text-foreground border-border/60"}`}
+                                        className={`capitalize font-normal border text-[10px] px-1.5 h-5 flex items-center justify-center ${STATUS_COLORS[order.status] || "bg-muted text-foreground border-border/60"}`}
                                     >
-                                        {order.status.replace(/_/g, ' ')}
+                                        <span className="truncate">{order.status.replace(/_/g, ' ')}</span>
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="hidden xl:table-cell py-4 text-xs text-muted-foreground font-mono">
                                     {new Date(order.created_at).toLocaleDateString('de-DE')}
                                 </TableCell>
-                                <TableCell className="text-right pr-4 py-4">
-                                    <div className="flex justify-end gap-2">
+                                <TableCell className="text-right pr-4 py-4 w-[80px]">
+                                    <div className="flex justify-end gap-1">
                                         {effectiveMode === 'trash' ? (
                                             <Button
                                                 variant="ghost"
