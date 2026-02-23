@@ -40,30 +40,32 @@ export default function BikeBuildsPage() {
         <PageTransition>
             <DashboardLayout>
                 <div className="space-y-6">
-                    {/* Clean Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20">
-                                <Bike className="h-6 w-6 text-primary" />
-                            </div>
-                            <div>
-                                <h1 className="text-2xl font-bold tracking-tight">
-                                    Neuradaufbau
-                                </h1>
-                                <div className="flex items-center gap-3 mt-0.5 text-sm text-muted-foreground">
-                                    <span className="flex items-center gap-1.5">
-                                        <Clock className="h-3.5 w-3.5 text-amber-500" />
-                                        {stats?.offen ?? 0} Offen
-                                    </span>
-                                    <span className="text-border">•</span>
-                                    <span className="flex items-center gap-1.5">
-                                        <Wrench className="h-3.5 w-3.5 text-blue-500" />
-                                        {stats?.active ?? 0} In Arbeit
-                                    </span>
+                    {/* ── Premium Header ── */}
+                    <div className="relative z-10 rounded-2xl bg-gradient-to-br from-primary/5 via-background/80 to-transparent border border-border/30 p-5 mb-5 backdrop-blur-sm">
+                        <div className="absolute top-0 right-0 w-80 h-56 bg-primary/4 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
+                        <div className="relative flex items-center justify-between gap-4 flex-wrap">
+                            <div className="flex items-center gap-4">
+                                <div className="hidden sm:flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 border border-primary/15 text-primary">
+                                    <Bike className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h1 className="text-xl font-bold tracking-tight leading-tight text-foreground">
+                                        Neuradaufbau
+                                    </h1>
+                                    <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground">
+                                        <span className="flex items-center gap-1.5 bg-background/50 px-2 py-0.5 rounded-md border border-border/40">
+                                            <Clock className="h-3.5 w-3.5 text-amber-500" />
+                                            <span className="font-medium text-foreground">{stats?.offen ?? 0}</span> Offen
+                                        </span>
+                                        <span className="flex items-center gap-1.5 bg-background/50 px-2 py-0.5 rounded-md border border-border/40">
+                                            <Wrench className="h-3.5 w-3.5 text-blue-500" />
+                                            <span className="font-medium text-foreground">{stats?.active ?? 0}</span> In Arbeit
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
+                            <CreateBikeBuildModal />
                         </div>
-                        <CreateBikeBuildModal />
                     </div>
 
                     {/* Table */}

@@ -28,6 +28,12 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card"
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -145,289 +151,299 @@ export function BikeAssemblyTable() {
     const hasActiveFilters = searchTerm || filterEmployee !== 'all' || filterStatus !== 'all'
 
     return (
-        <div className="space-y-4">
-            {/* Filter Bar — identical to OrdersTable style */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                {/* Search */}
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                        placeholder="Suche nach Modell, Marke, Nummer..."
-                        className="pl-9 h-10 bg-background/80 border-border/50"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                    />
+        <Card className="border-none shadow-sm bg-card/50">
+            <CardHeader className="pb-4">
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <CardTitle className="text-xl font-bold tracking-tight text-foreground/90">
+                            Neurad Aufbau (Aktiv)
+                        </CardTitle>
+
+                        {/* Filter Bar — identical to OrdersTable style */}
+                        <div className="flex items-center gap-2">
+                            <Select value={filterStatus} onValueChange={setFilterStatus}>
+                                <SelectTrigger className="h-9 w-[140px] bg-background/80 border-border/50 text-xs">
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all" className="text-xs">Alle Status</SelectItem>
+                                    {NEURAD_STATUSES.map(s => (
+                                        <SelectItem key={s.value} value={s.value} className="text-xs">
+                                            <div className="flex items-center gap-2">
+                                                <div className={cn("h-1.5 w-1.5 rounded-full", s.dotColor)} />
+                                                {s.label}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                                <SelectTrigger className="h-9 w-[150px] bg-background/80 border-border/50 text-xs">
+                                    <SelectValue placeholder="Mitarbeiter" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all" className="text-xs">Alle Mitarbeiter</SelectItem>
+                                    <SelectItem value="unassigned" className="text-xs">Nicht zugewiesen</SelectItem>
+                                    {employees.map(emp => (
+                                        <SelectItem key={emp.id} value={emp.id} className="text-xs">{emp.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => mutate()}
+                                disabled={isLoading}
+                                className="h-9 w-9 bg-background/80 border-border/50 shadow-sm"
+                                title="Aktualisieren"
+                            >
+                                <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
+                            </Button>
+
+                            {hasActiveFilters && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-9 px-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                                    onClick={() => {
+                                        setSearchTerm("")
+                                        setFilterEmployee("all")
+                                        setFilterStatus("all")
+                                    }}
+                                >
+                                    <X className="h-3.5 w-3.5 mr-1" />
+                                    Reset
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Search */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                            placeholder="Suche nach Modell, Marke, Nummer, Kunde..."
+                            className="pl-9 h-10 bg-background border-border/50"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
+            </CardHeader>
 
-                {/* Filters */}
-                <div className="flex items-center gap-2">
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="h-10 w-[150px] bg-background/80 border-border/50">
-                            <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Alle Status</SelectItem>
-                            {NEURAD_STATUSES.map(s => (
-                                <SelectItem key={s.value} value={s.value}>
-                                    <div className="flex items-center gap-2">
-                                        <div className={cn("h-2 w-2 rounded-full", s.dotColor)} />
-                                        {s.label}
-                                    </div>
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+            <CardContent>
+                {/* Summary row */}
+                {filteredBuilds.length > 0 && (
+                    <div className="flex items-center gap-4 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/70 mb-4 px-1">
+                        <span>{filteredBuilds.length} Einträge</span>
+                        {activeCount > 0 && (
+                            <>
+                                <span className="opacity-30">•</span>
+                                <span className="text-primary/80">
+                                    {activeCount} in Montage
+                                </span>
+                            </>
+                        )}
+                    </div>
+                )}
 
-                    <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-                        <SelectTrigger className="h-10 w-[160px] bg-background/80 border-border/50">
-                            <SelectValue placeholder="Mitarbeiter" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Alle Mitarbeiter</SelectItem>
-                            <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                            {employees.map(emp => (
-                                <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => mutate()}
-                        disabled={isLoading}
-                        className="h-10 w-10 bg-background/80 border-border/50"
-                        title="Aktualisieren"
-                    >
-                        <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
-                    </Button>
-
-                    {hasActiveFilters && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-10 px-3 text-muted-foreground"
-                            onClick={() => {
-                                setSearchTerm("")
-                                setFilterEmployee("all")
-                                setFilterStatus("all")
-                            }}
-                        >
-                            <X className="h-4 w-4 mr-1" />
-                            Reset
-                        </Button>
-                    )}
-                </div>
-            </div>
-
-            {/* Summary row */}
-            {filteredBuilds.length > 0 && (
-                <div className="flex items-center gap-4 text-xs text-muted-foreground px-1">
-                    <span>{filteredBuilds.length} Einträge</span>
-                    {activeCount > 0 && (
-                        <>
-                            <span>•</span>
-                            <span className="text-blue-600 dark:text-blue-400">
-                                {activeCount} in Montage
-                            </span>
-                        </>
-                    )}
-                </div>
-            )}
-
-            {/* Table — Dashboard-style */}
-            <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="hover:bg-transparent bg-muted/30 border-b border-border/40">
-                            <TableHead className="font-medium text-[11px] uppercase tracking-wider text-muted-foreground h-11 pl-5">
-                                Nr. / Modell
-                            </TableHead>
-                            <TableHead className="font-medium text-[11px] uppercase tracking-wider text-muted-foreground h-11">
-                                Farbe / Größe
-                            </TableHead>
-                            <TableHead className="font-medium text-[11px] uppercase tracking-wider text-muted-foreground h-11">
-                                Kunde
-                            </TableHead>
-                            <TableHead className="font-medium text-[11px] uppercase tracking-wider text-muted-foreground h-11">
-                                Monteur
-                            </TableHead>
-                            <TableHead className="font-medium text-[11px] uppercase tracking-wider text-muted-foreground h-11">
-                                Fortschritt
-                            </TableHead>
-                            <TableHead className="font-medium text-[11px] uppercase tracking-wider text-muted-foreground h-11">
-                                Status
-                            </TableHead>
-                            <TableHead className="font-medium text-[11px] uppercase tracking-wider text-muted-foreground h-11 pr-5 text-right">
-                                Aktionen
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {filteredBuilds.length === 0 ? (
-                            <TableRow>
-                                <TableCell colSpan={7} className="h-44 text-center">
-                                    <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground">
-                                        <div className="p-4 rounded-full bg-muted/50">
-                                            <Wrench className="h-8 w-8 opacity-30" />
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-sm">Keine Neuräder gefunden</p>
-                                            <p className="text-xs opacity-60 mt-1">
-                                                {hasActiveFilters ? 'Passe die Filter an' : 'Erstelle einen neuen Eintrag'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </TableCell>
+                {/* Table — Dashboard-style */}
+                <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="hover:bg-transparent bg-muted/30 border-b border-border/40">
+                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 pl-5">
+                                    Nr. / Modell
+                                </TableHead>
+                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
+                                    Farbe / Größe
+                                </TableHead>
+                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
+                                    Kunde
+                                </TableHead>
+                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
+                                    Monteur
+                                </TableHead>
+                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
+                                    Fortschritt
+                                </TableHead>
+                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
+                                    Status
+                                </TableHead>
+                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 pr-5 text-right">
+                                    Aktionen
+                                </TableHead>
                             </TableRow>
-                        ) : (
-                            filteredBuilds.map(build => {
-                                const statusInfo = getNeuradStatus(build.status)
-                                const progress = getAssemblyProgress(build)
+                        </TableHeader>
+                        <TableBody>
+                            {filteredBuilds.length === 0 ? (
+                                <TableRow>
+                                    <TableCell colSpan={7} className="h-56 text-center">
+                                        <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground">
+                                            <div className="p-5 rounded-2xl bg-muted/30 border border-border/20 shadow-inner">
+                                                <Wrench className="h-10 w-10 opacity-20" />
+                                            </div>
+                                            <div>
+                                                <p className="font-semibold text-sm text-foreground/70">Keine Neuräder gefunden</p>
+                                                <p className="text-xs opacity-60 mt-1.5">
+                                                    {hasActiveFilters ? 'Passe die Filter an' : 'Erstelle einen neuen Eintrag oben rechts'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ) : (
+                                filteredBuilds.map(build => {
+                                    const statusInfo = getNeuradStatus(build.status)
+                                    const progress = getAssemblyProgress(build)
 
-                                return (
-                                    <TableRow
-                                        key={build.id}
-                                        className="group cursor-pointer transition-colors hover:bg-muted/40 border-b border-border/30 last:border-0"
-                                        onClick={() => handleViewBuild(build.id)}
-                                    >
-                                        {/* Nr / Modell */}
-                                        <TableCell className="pl-5 py-3.5">
-                                            <div className="flex flex-col gap-0.5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-mono text-xs font-semibold text-primary">
-                                                        {build.internal_number || '—'}
-                                                    </span>
-                                                    {build.is_ebike && (
-                                                        <span title="E-Bike">
-                                                            <Zap className="h-3 w-3 text-amber-500" />
+                                    return (
+                                        <TableRow
+                                            key={build.id}
+                                            className="group cursor-pointer transition-colors hover:bg-muted/30 border-b border-border/20 last:border-0"
+                                            onClick={() => handleViewBuild(build.id)}
+                                        >
+                                            {/* Nr / Modell */}
+                                            <TableCell className="pl-5 py-3.5">
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-mono text-[11px] font-bold text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded">
+                                                            {build.internal_number || '—'}
                                                         </span>
+                                                        {build.is_ebike && (
+                                                            <span title="E-Bike" className="p-0.5 rounded-full bg-amber-500/10">
+                                                                <Zap className="h-3 w-3 text-amber-500" />
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-sm font-semibold text-foreground/90">
+                                                        {build.brand} <span className="text-muted-foreground font-medium">{build.model}</span>
+                                                    </span>
+                                                </div>
+                                            </TableCell>
+
+                                            {/* Farbe/Größe */}
+                                            <TableCell className="py-3.5">
+                                                <div className="flex flex-col text-sm">
+                                                    <span className="text-foreground/80 font-medium">{build.color || '—'}</span>
+                                                    <span className="text-[11px] text-muted-foreground leading-tight tracking-tight uppercase font-medium">{build.frame_size || ''}</span>
+                                                </div>
+                                            </TableCell>
+
+                                            {/* Kunde */}
+                                            <TableCell className="py-3.5">
+                                                <div className="flex flex-col text-sm">
+                                                    <span className="font-semibold text-foreground/80">{build.customer_name || <span className="text-muted-foreground/60 italic font-medium text-xs">Lager</span>}</span>
+                                                    {build.customer_email && (
+                                                        <span className="text-[11px] text-muted-foreground/60 truncate max-w-[140px] font-medium leading-none mt-0.5">{build.customer_email}</span>
                                                     )}
                                                 </div>
-                                                <span className="text-sm font-medium text-foreground">
-                                                    {build.brand} <span className="text-muted-foreground font-normal">{build.model}</span>
-                                                </span>
-                                            </div>
-                                        </TableCell>
+                                            </TableCell>
 
-                                        {/* Farbe/Größe */}
-                                        <TableCell className="py-3.5">
-                                            <div className="flex flex-col text-sm">
-                                                <span className="text-foreground">{build.color || '—'}</span>
-                                                <span className="text-xs text-muted-foreground">{build.frame_size || ''}</span>
-                                            </div>
-                                        </TableCell>
-
-                                        {/* Kunde */}
-                                        <TableCell className="py-3.5">
-                                            <div className="flex flex-col text-sm">
-                                                <span className="font-medium text-foreground">{build.customer_name || <span className="text-muted-foreground italic text-xs">Lager</span>}</span>
-                                                {build.customer_email && (
-                                                    <span className="text-xs text-muted-foreground/70 truncate max-w-[140px]">{build.customer_email}</span>
+                                            {/* Mechaniker */}
+                                            <TableCell className="py-3.5" onClick={e => e.stopPropagation()}>
+                                                {build.assigned_employee_id ? (
+                                                    <Badge variant="outline" className="bg-background/40 hover:bg-background/60 shadow-xs border-border/40 text-[11px] font-medium py-0 px-2 h-5 transition-colors">
+                                                        {getEmployeeName(build.assigned_employee_id)}
+                                                    </Badge>
+                                                ) : (
+                                                    <span className="text-[11px] text-muted-foreground/30 italic font-medium">—</span>
                                                 )}
-                                            </div>
-                                        </TableCell>
+                                            </TableCell>
 
-                                        {/* Mechaniker */}
-                                        <TableCell className="py-3.5" onClick={e => e.stopPropagation()}>
-                                            {build.assigned_employee_id ? (
-                                                <Badge variant="outline" className="bg-background/60 text-xs font-normal">
-                                                    {getEmployeeName(build.assigned_employee_id)}
-                                                </Badge>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground italic">—</span>
-                                            )}
-                                        </TableCell>
-
-                                        {/* Fortschritt */}
-                                        <TableCell className="py-3.5">
-                                            {progress.total > 0 ? (
-                                                <div className="flex items-center gap-2 min-w-[80px]">
-                                                    <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={cn(
-                                                                "h-full rounded-full transition-all",
-                                                                progress.pct === 100 ? "bg-green-500" : "bg-primary"
-                                                            )}
-                                                            style={{ width: `${progress.pct}%` }}
-                                                        />
+                                            {/* Fortschritt */}
+                                            <TableCell className="py-3.5">
+                                                {progress.total > 0 ? (
+                                                    <div className="flex items-center gap-2.5 min-w-[90px]">
+                                                        <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden shadow-inner border border-border/5">
+                                                            <div
+                                                                className={cn(
+                                                                    "h-full rounded-full transition-all duration-500 ease-out shadow-sm",
+                                                                    progress.pct === 100 ? "bg-emerald-500" : "bg-primary"
+                                                                )}
+                                                                style={{ width: `${progress.pct}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-[10px] text-muted-foreground font-bold font-mono whitespace-nowrap bg-muted/40 px-1 py-0.5 rounded border border-border/20">
+                                                            {progress.pct}%
+                                                        </span>
                                                     </div>
-                                                    <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                                                        {progress.pct}%
-                                                    </span>
-                                                </div>
-                                            ) : (
-                                                <span className="text-xs text-muted-foreground/40">—</span>
-                                            )}
-                                        </TableCell>
-
-                                        {/* Status */}
-                                        <TableCell className="py-3.5">
-                                            <Badge
-                                                variant="secondary"
-                                                className={cn(
-                                                    "font-normal border text-xs",
-                                                    statusInfo.color
+                                                ) : (
+                                                    <span className="text-[10px] text-muted-foreground/20 italic">—</span>
                                                 )}
-                                            >
-                                                <div className={cn("h-1.5 w-1.5 rounded-full mr-1.5", statusInfo.dotColor)} />
-                                                {statusInfo.label}
-                                            </Badge>
-                                        </TableCell>
+                                            </TableCell>
 
-                                        {/* Aktionen */}
-                                        <TableCell className="text-right pr-4 py-3.5">
-                                            <div className="flex justify-end gap-1.5">
-                                                {/* Mechaniker zuweisen */}
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            onClick={e => e.stopPropagation()}
-                                                        >
-                                                            <UserPlus className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuLabel className="text-xs">Mechaniker zuweisen</DropdownMenuLabel>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, null) }}>
-                                                            <X className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                                                            <span className="text-sm">Keine Zuweisung</span>
-                                                        </DropdownMenuItem>
-                                                        {employees.map(emp => (
-                                                            <DropdownMenuItem
-                                                                key={emp.id}
-                                                                onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, emp.id) }}
-                                                            >
-                                                                <Users className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                                                                <span className="text-sm">{emp.name}</span>
-                                                                {build.assigned_employee_id === emp.id && <Check className="ml-auto h-3.5 w-3.5" />}
-                                                            </DropdownMenuItem>
-                                                        ))}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-
-                                                {/* Details */}
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
-                                                    onClick={e => { e.stopPropagation(); handleViewBuild(build.id) }}
+                                            {/* Status */}
+                                            <TableCell className="py-3.5">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={cn(
+                                                        "font-medium border shadow-xs text-[10px] uppercase tracking-wider py-0 px-2 h-5",
+                                                        statusInfo.color
+                                                    )}
                                                 >
-                                                    <Eye className="h-3.5 w-3.5" />
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                )
-                            })
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-        </div>
+                                                    <div className={cn("h-1.5 w-1.5 rounded-full mr-1.5 shadow-sm", statusInfo.dotColor)} />
+                                                    {statusInfo.label}
+                                                </Badge>
+                                            </TableCell>
+
+                                            {/* Aktionen */}
+                                            <TableCell className="text-right pr-4 py-3.5">
+                                                <div className="flex justify-end gap-1.5">
+                                                    {/* Mechaniker zuweisen */}
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg opacity-0 lg:group-hover:opacity-100 transition-all duration-200"
+                                                                onClick={e => e.stopPropagation()}
+                                                            >
+                                                                <UserPlus className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-56">
+                                                            <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 px-3 py-2">Mechaniker zuweisen</DropdownMenuLabel>
+                                                            <DropdownMenuSeparator className="bg-border/40" />
+                                                            <DropdownMenuItem className="text-xs py-2 px-3 focus:bg-muted" onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, null) }}>
+                                                                <X className="mr-2 h-3.5 w-3.5 text-muted-foreground/60" />
+                                                                <span>Keine Zuweisung</span>
+                                                            </DropdownMenuItem>
+                                                            {employees.map(emp => (
+                                                                <DropdownMenuItem
+                                                                    key={emp.id}
+                                                                    className="text-xs py-2 px-3 focus:bg-muted"
+                                                                    onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, emp.id) }}
+                                                                >
+                                                                    <Users className="mr-2 h-3.5 w-3.5 text-muted-foreground/60" />
+                                                                    <span className="font-medium">{emp.name}</span>
+                                                                    {build.assigned_employee_id === emp.id && <Check className="ml-auto h-3.5 w-3.5 text-primary" />}
+                                                                </DropdownMenuItem>
+                                                            ))}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+
+                                                    {/* Details */}
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg border border-transparent lg:hover:border-primary/20 transition-all"
+                                                        onClick={e => { e.stopPropagation(); handleViewBuild(build.id) }}
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    )
+                                })
+                            )}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
     )
 }
