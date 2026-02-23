@@ -12,7 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Eye } from "lucide-react"
+import { Search, Eye, ArrowDownAZ, LayoutList } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { format } from "date-fns"
@@ -20,6 +20,18 @@ import { de } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { RotateCcw as Restore, Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 interface BikeBuild {
     id: string
@@ -38,6 +50,7 @@ export function BikeBuildsTable({ mode = 'active' }: { mode?: 'active' | 'trash'
     const { workshopId } = useAuth()
     const navigate = useNavigate()
     const [searchTerm, setSearchTerm] = useState("")
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
 
     const fetchBuilds = async () => {
         if (!workshopId) return []
@@ -104,6 +117,10 @@ export function BikeBuildsTable({ mode = 'active' }: { mode?: 'active' | 'trash'
             build.internal_number.toLowerCase().includes(searchLower) ||
             (build.mechanic_name || '').toLowerCase().includes(searchLower)
         )
+    }).sort((a, b) => {
+        const timeA = new Date(a.created_at).getTime()
+        const timeB = new Date(b.created_at).getTime()
+        return sortDir === "asc" ? timeA - timeB : timeB - timeA
     })
 
     if (isLoading) {
@@ -123,14 +140,46 @@ export function BikeBuildsTable({ mode = 'active' }: { mode?: 'active' | 'trash'
             </CardHeader>
             <CardContent>
                 <div className="space-y-6">
-                    <div className="flex items-center gap-2 max-w-sm relative">
-                        <Search className="h-4 w-4 absolute left-3 text-muted-foreground" />
-                        <Input
-                            placeholder="Suchen..."
-                            className="pl-9 bg-background"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2 max-w-sm relative flex-1">
+                            <Search className="h-4 w-4 absolute left-3 text-muted-foreground" />
+                            <Input
+                                placeholder="Suchen..."
+                                className="pl-9 bg-background"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="gap-2 bg-background shrink-0">
+                                    <ArrowDownAZ className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Sortieren</span>
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-64" align="end">
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm font-semibold flex items-center gap-2">
+                                            <LayoutList className="h-4 w-4 text-muted-foreground" />
+                                            Sortierung
+                                        </p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs text-muted-foreground">Datum</label>
+                                        <Select value={sortDir} onValueChange={(v: "asc" | "desc") => setSortDir(v)}>
+                                            <SelectTrigger className="h-9 w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="desc">Neueste zuerst (Absteigend)</SelectItem>
+                                                <SelectItem value="asc">Älteste zuerst (Aufsteigend)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
                     </div>
 
                     {/* Desktop View */}

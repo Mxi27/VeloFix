@@ -86,6 +86,10 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     const [filterEmployee, setFilterEmployee] = useState<string>("all")
     const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
     const [showFilters, setShowFilters] = useState(false)
+    const [sortField, setSortField] = useState<"created_at" | "due_date" | "none">("none")
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
+
+
 
     const handleDeleteOrder = async () => {
         if (!orderToDelete) return
@@ -234,6 +238,26 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         }
 
         return matchesSearch && matchesStatus && matchesEmployee && matchesDate
+    }).sort((a, b) => {
+        if (sortField === "none") return 0
+
+        // Assert field is one of the valid strings since we checked for none
+        const field = sortField as "created_at" | "due_date"
+        const aVal = a[field]
+        const bVal = b[field]
+
+        if (aVal === bVal) return 0
+        if (aVal === null) return 1 // nulls always at the bottom
+        if (bVal === null) return -1
+
+        const timeA = new Date(aVal).getTime()
+        const timeB = new Date(bVal).getTime()
+
+        if (sortDir === "asc") {
+            return timeA - timeB
+        } else {
+            return timeB - timeA
+        }
     })
 
     const handleViewOrder = (orderId: string) => {
@@ -451,7 +475,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
                                             <p className="text-sm font-semibold">Filter & Optionen</p>
-                                            {(filterStatus !== 'all' || filterEmployee !== 'all' || dateRange) && (
+                                            {(filterStatus !== 'all' || filterEmployee !== 'all' || dateRange || sortField !== 'none') && (
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
@@ -460,11 +484,41 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                         setFilterStatus('all')
                                                         setFilterEmployee('all')
                                                         setDateRange(undefined)
+                                                        setSortField('none')
+                                                        setSortDir('desc')
                                                     }}
                                                 >
                                                     Alle zurücksetzen
                                                 </Button>
                                             )}
+                                        </div>
+
+                                        {/* Sortierung */}
+                                        <div className="space-y-2">
+                                            <label className="text-xs text-muted-foreground">Sortierung</label>
+                                            <div className="flex items-center gap-2">
+                                                <Select value={sortField} onValueChange={(v: "created_at" | "due_date" | "none") => setSortField(v)}>
+                                                    <SelectTrigger className="h-9 flex-1">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="none">Standard</SelectItem>
+                                                        <SelectItem value="created_at">Erstellt</SelectItem>
+                                                        {(effectiveMode === 'active' || effectiveMode === 'trash') && (
+                                                            <SelectItem value="due_date">Fällig bis</SelectItem>
+                                                        )}
+                                                    </SelectContent>
+                                                </Select>
+                                                <Select value={sortDir} onValueChange={(v: "asc" | "desc") => setSortDir(v)} disabled={sortField === "none"}>
+                                                    <SelectTrigger className="h-9 w-[110px]">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="desc">Absteigend</SelectItem>
+                                                        <SelectItem value="asc">Aufsteigend</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
                                         </div>
 
                                         {/* Employee Filter */}
