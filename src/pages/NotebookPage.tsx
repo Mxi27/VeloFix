@@ -23,6 +23,8 @@ import {
     StickyNote,
     BookOpen,
     GripVertical,
+    Menu,
+    ChevronLeft,
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -134,7 +136,6 @@ export default function NotebookPageView() {
     // Drag & Drop state - track hovered folder for highlighting
     const [draggedOverFolderId, setDraggedOverFolderId] = useState<string | null>(null)
 
-    // Inline rename state
     const [renamingId, setRenamingId] = useState<string | null>(null)
     const [renameValue, setRenameValue] = useState("")
     const renameInputRef = useRef<HTMLInputElement>(null)
@@ -190,6 +191,9 @@ export default function NotebookPageView() {
 
     useEffect(() => {
         if (!selectedPageId && pages.length > 0) {
+            // Only auto-select on desktop
+            if (typeof window !== "undefined" && window.innerWidth < 1024) return
+
             const firstPage = pages.find(p => !p.parent_id && !p.is_folder)
                 || pages.find(p => !p.parent_id)
             if (firstPage) setSelectedPageId(firstPage.id)
@@ -575,10 +579,10 @@ export default function NotebookPageView() {
         <PageTransition className="h-full">
             <DashboardLayout fullWidth>
                 {/* Main Content: Sidebar + Editor — full height, no header banner */}
-                <div className="flex gap-0 h-full overflow-hidden w-full">
+                <div className="flex gap-0 h-full overflow-hidden w-full relative">
 
-                    {/* ── Tree Sidebar ── */}
-                    <div className="flex-shrink-0 w-[320px] xl:w-[350px] bg-background/90 backdrop-blur-2xl border-r border-border/20 overflow-hidden flex flex-col z-10">
+                    {/* ── Tree Sidebar (Desktop Only) ── */}
+                    <div className="hidden lg:flex flex-shrink-0 w-[320px] xl:w-[350px] bg-background/90 backdrop-blur-2xl border-r border-border/20 overflow-hidden flex-col z-10 transition-all duration-300">
                         {/* Search */}
                         <div className="p-5 border-b border-border/10">
                             <div className="relative group">
@@ -691,8 +695,35 @@ export default function NotebookPageView() {
                         </div>
                     </div>
 
-                    {/* ── Editor Area ── */}
-                    <div className="flex-1 min-w-0 bg-background/50 relative">
+                    {/* ── Editor Area / Mobile Main Content ── */}
+                    <div className="flex-1 min-w-0 bg-background/50 relative flex flex-col">
+                        {/* Mobile Navigation Header */}
+                        <div className="lg:hidden flex items-center justify-between px-4 h-14 border-b border-border/10 bg-background/50 backdrop-blur-md flex-shrink-0 z-10">
+                            <div className="flex items-center gap-2 overflow-hidden flex-1">
+                                {selectedPageId && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setSelectedPageId(selectedPage?.parent_id || null)}
+                                        className="rounded-xl hover:bg-muted/30 flex-shrink-0"
+                                    >
+                                        <ChevronLeft className="h-5 w-5" />
+                                    </Button>
+                                )}
+                                <span className="text-sm font-semibold truncate">
+                                    {selectedPage?.title || "Notizbuch"}
+                                </span>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => createPage(selectedPage?.is_folder ? selectedPage.id : (selectedPage?.parent_id || null))}
+                                className="rounded-xl hover:bg-muted/30 ml-2"
+                            >
+                                <Plus className="h-5 w-5" />
+                            </Button>
+                        </div>
+
                         {selectedPage && !selectedPage.is_folder ? (
                             <motion.div
                                 key={selectedPageId}
@@ -703,7 +734,7 @@ export default function NotebookPageView() {
                             >
                                 {/* Breadcrumbs - Fixed at top */}
                                 {breadcrumbs.length > 0 && (
-                                    <div className="px-8 pt-12 pb-2 flex-shrink-0 flex items-center gap-2 text-[13px]">
+                                    <div className="px-4 md:px-8 pt-6 lg:pt-12 pb-2 flex-shrink-0 flex items-center gap-2 text-[13px] overflow-x-auto scrollbar-none">
                                         {breadcrumbs.map((crumb, i) => (
                                             <BreadcrumbItem
                                                 key={crumb.id}
@@ -717,35 +748,37 @@ export default function NotebookPageView() {
                                 )}
 
                                 {/* Title Area - Fixed at top */}
-                                <div className={cn("px-8 pb-6 max-w-[850px] mx-auto w-full flex-shrink-0 transition-all", breadcrumbs.length === 0 ? "pt-12" : "pt-2")}>
-                                    <input
-                                        ref={titleRef}
-                                        type="text"
-                                        value={editTitle}
-                                        onChange={(e) => handleTitleChange(e.target.value)}
-                                        className="w-full text-[2.75rem] md:text-[3rem] leading-tight font-bold tracking-tight bg-transparent border-none outline-none placeholder:text-muted-foreground/25 text-foreground transition-all duration-200 focus:placeholder:opacity-50"
-                                        placeholder="Ohne Titel"
-                                    />
-                                    <div className="flex items-center gap-4 mt-4 text-[13px] text-muted-foreground/40 font-medium">
-                                        <span className="flex items-center gap-1.5">
-                                            <Clock className="h-3.5 w-3.5" />
-                                            Zuletzt bearbeitet: {format(new Date(selectedPage.updated_at), "dd. MMM, HH:mm", { locale: de })}
-                                        </span>
-                                        <span className="w-1 h-1 rounded-full bg-border/40" />
-                                        <span className="text-muted-foreground/30 flex items-center gap-1.5">
-                                            <span className="px-1.5 py-0.5 rounded bg-muted/20 border border-border/10 text-[10px] font-mono leading-none">/</span>
-                                            für Befehle
-                                        </span>
+                                <div className={cn("px-4 md:px-8 pb-1 max-w-[850px] w-full flex-shrink-0 transition-all", breadcrumbs.length === 0 ? "pt-6 lg:pt-12" : "pt-2")}>
+                                    <div className="flex flex-col gap-1.5">
+                                        <input
+                                            ref={titleRef}
+                                            type="text"
+                                            value={editTitle}
+                                            onChange={(e) => handleTitleChange(e.target.value)}
+                                            className="w-full text-2xl md:text-3xl lg:text-4xl leading-tight font-bold tracking-tight bg-transparent border-none outline-none placeholder:text-muted-foreground/25 text-foreground transition-all duration-200 focus:placeholder:opacity-50"
+                                            placeholder="Ohne Titel"
+                                        />
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] md:text-[13px] text-muted-foreground/40 font-medium">
+                                            <span className="flex items-center gap-1.5 whitespace-nowrap">
+                                                <Clock className="h-3.5 w-3.5" />
+                                                {format(new Date(selectedPage.updated_at), "dd. MMM, HH:mm", { locale: de })}
+                                            </span>
+                                            <span className="hidden sm:inline w-1 h-1 rounded-full bg-border/40" />
+                                            <span className="text-muted-foreground/30 flex items-center gap-1.5">
+                                                <span className="px-1.5 py-0.5 rounded bg-muted/20 border border-border/10 text-[10px] font-mono leading-none">/</span>
+                                                Befehle
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="px-8 max-w-[850px] mx-auto w-full flex-shrink-0 pb-6 pt-2">
+                                <div className="px-4 md:px-8 max-w-[850px] w-full flex-shrink-0 py-0.5">
                                     <div className="h-px w-full bg-border shadow-[0_1px_0_rgba(255,255,255,0.02)] dark:shadow-none" />
                                 </div>
 
                                 {/* Content Editor - SCROLLABLE AREA */}
                                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-muted/10 relative">
-                                    <div className="py-12 px-8 max-w-[850px] mx-auto w-full">
+                                    <div className="pt-1 pb-12 lg:pt-1 lg:pb-20 px-4 md:px-8 max-w-[850px] w-full">
                                         <NotebookEditor
                                             key={selectedPageId}
                                             content={editContent}
@@ -765,7 +798,7 @@ export default function NotebookPageView() {
                             >
                                 {/* Breadcrumbs - Fixed at top */}
                                 {breadcrumbs.length > 0 && (
-                                    <div className="px-8 pt-12 pb-2 max-w-5xl mx-auto w-full flex-shrink-0 flex items-center gap-2 text-[13px]">
+                                    <div className="px-4 md:px-8 pt-6 lg:pt-12 pb-2 max-w-5xl mx-auto w-full flex-shrink-0 flex items-center gap-2 text-[13px] overflow-x-auto scrollbar-none">
                                         {breadcrumbs.map((crumb, i) => (
                                             <BreadcrumbItem
                                                 key={crumb.id}
@@ -778,23 +811,23 @@ export default function NotebookPageView() {
                                     </div>
                                 )}
 
-                                <div className={cn("px-8 pb-8 max-w-5xl mx-auto w-full", breadcrumbs.length === 0 ? "pt-16" : "pt-4")}>
-                                    <div className="flex items-center gap-5 mb-3">
-                                        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
-                                            <FolderOpen className="h-8 w-8 text-amber-500/80" />
+                                <div className={cn("px-4 md:px-8 pb-8 max-w-5xl mx-auto w-full", breadcrumbs.length === 0 ? "pt-10 lg:pt-16" : "pt-4")}>
+                                    <div className="flex items-center gap-4 md:gap-5 mb-3">
+                                        <div className="p-3 md:p-4 rounded-xl md:rounded-2xl bg-amber-500/10 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+                                            <FolderOpen className="h-6 w-6 md:h-8 md:w-8 text-amber-500/80" />
                                         </div>
                                         <div>
-                                            <h2 className="text-3xl font-bold tracking-tight text-foreground">{selectedPage.title}</h2>
-                                            <p className="text-[13px] font-medium text-muted-foreground/40 mt-1">
+                                            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground truncate max-w-[200px] sm:max-w-none">{selectedPage.title}</h2>
+                                            <p className="text-[11px] md:text-[12px] font-medium text-muted-foreground/40 mt-1">
                                                 {pages.filter(p => p.parent_id === selectedPage.id).length} Einträge
                                             </p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="px-8 pb-16 max-w-5xl mx-auto w-full">
+                                <div className="px-4 md:px-8 pb-16 max-w-5xl mx-auto w-full">
                                     {/* Folder Contents Grid */}
-                                    <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                         {pages.filter(p => p.parent_id === selectedPage.id)
                                             .sort((a, b) => {
                                                 if (a.is_folder !== b.is_folder) return a.is_folder ? -1 : 1
@@ -804,29 +837,32 @@ export default function NotebookPageView() {
                                                 <button
                                                     key={child.id}
                                                     onClick={() => {
+                                                        setSelectedPageId(child.id)
                                                         if (child.is_folder) {
-                                                            setSelectedPageId(child.id)
                                                             setExpandedIds(prev => new Set([...prev, child.id]))
-                                                        } else {
-                                                            setSelectedPageId(child.id)
                                                         }
                                                     }}
-                                                    className="p-6 rounded-2xl border border-border/10 bg-background/50 backdrop-blur-sm card-hover text-left flex flex-col h-full group"
+                                                    className={cn(
+                                                        "p-5 rounded-2xl bg-background/50 backdrop-blur-sm card-hover text-left flex flex-col h-full group transition-all duration-200",
+                                                        child.is_folder 
+                                                            ? "border border-amber-500/10 hover:border-amber-500/30" 
+                                                            : "border border-border/10 hover:border-border/30"
+                                                    )}
                                                 >
-                                                    <div className="flex items-start justify-between mb-4">
+                                                    <div className="flex items-start justify-between mb-3">
                                                         {child.is_folder ? (
-                                                            <div className="p-2.5 rounded-xl bg-amber-500/5 group-hover:bg-amber-500/10 transition-colors">
-                                                                <Folder className="h-6 w-6 text-amber-500/60 group-hover:text-amber-500/80 transition-colors" />
+                                                            <div className="p-2 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+                                                                <Folder className="h-5 w-5 text-amber-500/70 group-hover:text-amber-500/90 transition-colors" />
                                                             </div>
                                                         ) : (
-                                                            <div className="p-2.5 rounded-xl bg-primary/5 group-hover:bg-primary/10 transition-colors">
-                                                                <FileText className="h-6 w-6 text-primary/40 group-hover:text-primary/60 transition-colors" />
+                                                            <div className="p-2 rounded-xl bg-primary/5 group-hover:bg-primary/10 transition-colors">
+                                                                <FileText className="h-5 w-5 text-primary/40 group-hover:text-primary/60 transition-colors" />
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className="font-semibold text-[15px] truncate text-foreground/90 group-hover:text-foreground transition-colors mb-1">{child.title}</div>
-                                                    <div className="text-[12px] font-medium text-muted-foreground/40 mt-auto pt-2">
-                                                        {format(new Date(child.updated_at), "dd. MMM yyyy", { locale: de })}
+                                                    <div className="font-semibold text-[14px] truncate text-foreground/90 group-hover:text-foreground transition-colors mb-0.5">{child.title}</div>
+                                                    <div className="text-[11px] font-medium text-muted-foreground/30 mt-auto pt-1">
+                                                        {format(new Date(child.updated_at), "dd. MMM", { locale: de })}
                                                     </div>
                                                 </button>
                                             ))
@@ -835,6 +871,76 @@ export default function NotebookPageView() {
                                         {/* Add button */}
                                         <button
                                             onClick={() => createPage(selectedPage.id)}
+                                            className="p-5 rounded-2xl border-2 border-dashed border-border/10 hover:border-border/20 hover:bg-muted/5 transition-all flex flex-col items-center justify-center gap-2 min-h-[120px] text-muted-foreground/30 hover:text-muted-foreground/50 group"
+                                        >
+                                            <div className="p-2.5 rounded-xl bg-background border border-border/5 shadow-sm group-hover:scale-105 transition-transform">
+                                                <Plus className="h-4 w-4" />
+                                            </div>
+                                            <span className="text-[12px] font-medium">Neue Seite</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <div className="flex flex-col h-full overflow-hidden">
+                                {/* Root View on Mobile or Intro View on Desktop */}
+                                <div className="lg:hidden flex-1 overflow-y-auto px-4 md:px-8 py-8">
+                                    <div className="flex items-center gap-4 mb-8">
+                                        <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+                                            <BookOpen className="h-6 w-6 text-primary" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-xl font-bold tracking-tight">Notizbuch</h2>
+                                            <p className="text-[11px] font-medium text-muted-foreground/40 mt-0.5">
+                                                {pages.filter(p => !p.parent_id).length} Einträge im Hauptverzeichnis
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-16">
+                                        {pages.filter(p => !p.parent_id)
+                                            .sort((a, b) => {
+                                                if (a.is_folder !== b.is_folder) return a.is_folder ? -1 : 1
+                                                return a.sort_order - b.sort_order
+                                            })
+                                            .map(child => (
+                                                <button
+                                                    key={child.id}
+                                                    onClick={() => {
+                                                        setSelectedPageId(child.id)
+                                                        if (child.is_folder) {
+                                                            setExpandedIds(prev => new Set([...prev, child.id]))
+                                                        }
+                                                    }}
+                                                    className={cn(
+                                                        "p-5 rounded-2xl bg-background/50 backdrop-blur-sm card-hover text-left flex flex-col h-full group transition-all duration-200",
+                                                        child.is_folder 
+                                                            ? "border border-amber-500/10 hover:border-amber-500/30" 
+                                                            : "border border-border/10 hover:border-border/30"
+                                                    )}
+                                                >
+                                                    <div className="flex items-start justify-between mb-3">
+                                                        {child.is_folder ? (
+                                                            <div className="p-2 rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+                                                                <Folder className="h-5 w-5 text-amber-500/70 group-hover:text-amber-500/90 transition-colors" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="p-2 rounded-xl bg-primary/5 group-hover:bg-primary/10 transition-colors">
+                                                                <FileText className="h-5 w-5 text-primary/40 group-hover:text-primary/60 transition-colors" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="font-semibold text-[14px] truncate text-foreground/90 group-hover:text-foreground transition-colors mb-0.5">{child.title}</div>
+                                                    <div className="text-[11px] font-medium text-muted-foreground/30 mt-auto pt-1">
+                                                        {format(new Date(child.updated_at), "dd. MMM", { locale: de })}
+                                                    </div>
+                                                </button>
+                                            ))
+                                        }
+
+                                        {/* Add button */}
+                                        <button
+                                            onClick={() => createPage(null)}
                                             className="p-6 rounded-2xl border-2 border-dashed border-border/10 hover:border-border/20 hover:bg-muted/5 transition-all flex flex-col items-center justify-center gap-3 min-h-[140px] text-muted-foreground/30 hover:text-muted-foreground/50 group"
                                         >
                                             <div className="p-3 rounded-xl bg-background border border-border/5 shadow-sm group-hover:scale-105 transition-transform">
@@ -844,37 +950,37 @@ export default function NotebookPageView() {
                                         </button>
                                     </div>
                                 </div>
-                            </motion.div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center h-full relative overflow-hidden">
-                                {/* Ambient Glow Background */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30rem] h-[30rem] bg-gradient-to-br from-primary/5 to-indigo-500/5 blur-3xl rounded-full opacity-50 pointer-events-none z-0" />
 
-                                <div className="p-10 rounded-[2rem] bg-background/40 backdrop-blur-xl mb-8 border border-border/5 shadow-xl shadow-black/5 relative z-10 card-hover">
-                                    <BookOpen className="h-16 w-16 text-primary/30" />
-                                </div>
-                                <h3 className="text-2xl font-semibold tracking-tight text-foreground relative z-10 mb-2">
-                                    Notizbuch
-                                </h3>
-                                <p className="text-[15px] font-medium text-muted-foreground/40 mb-10 text-center max-w-sm leading-relaxed relative z-10">
-                                    Wähle eine Seite aus der Seitenleiste oder erstelle eine neue.
-                                </p>
-                                <div className="flex gap-4 relative z-10">
-                                    <Button
-                                        onClick={() => createPage(null, true)}
-                                        variant="outline"
-                                        className="rounded-xl gap-2 border-border/10 bg-background/50 backdrop-blur-md hover:bg-muted/10 h-11 px-6 shadow-sm font-medium"
-                                    >
-                                        <FolderPlus className="h-4 w-4" />
-                                        Ordnung schaffen
-                                    </Button>
-                                    <Button
-                                        onClick={() => createPage(null)}
-                                        className="rounded-xl gap-2 bg-gradient-to-r from-primary to-primary/90 shadow-md shadow-primary/20 h-11 px-6 font-medium hover:-translate-y-0.5 transition-transform"
-                                    >
-                                        <Plus className="h-4 w-4" />
-                                        Neue Seite
-                                    </Button>
+                                <div className="hidden lg:flex flex-col items-center justify-center flex-1 relative overflow-hidden">
+                                    {/* Ambient Glow Background */}
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30rem] h-[30rem] bg-gradient-to-br from-primary/5 to-indigo-500/5 blur-3xl rounded-full opacity-50 pointer-events-none z-0" />
+
+                                    <div className="p-8 md:p-10 rounded-2xl md:rounded-[2rem] bg-background/40 backdrop-blur-xl mb-8 border border-border/5 shadow-xl shadow-black/5 relative z-10 card-hover">
+                                        <BookOpen className="h-12 w-12 md:h-16 md:w-16 text-primary/30" />
+                                    </div>
+                                    <h3 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground relative z-10 mb-2">
+                                        Notizbuch
+                                    </h3>
+                                    <p className="text-[14px] md:text-[15px] font-medium text-muted-foreground/40 mb-10 text-center max-w-[280px] md:max-w-sm leading-relaxed relative z-10">
+                                        Wähle eine Seite aus der Seitenleiste oder erstelle eine neue.
+                                    </p>
+                                    <div className="flex flex-col sm:flex-row gap-4 relative z-10 w-full sm:w-auto px-6 sm:px-0">
+                                        <Button
+                                            onClick={() => createPage(null, true)}
+                                            variant="outline"
+                                            className="rounded-xl gap-2 border-border/10 bg-background/50 backdrop-blur-md hover:bg-muted/10 h-11 px-6 shadow-sm font-medium w-full sm:w-auto"
+                                        >
+                                            <FolderPlus className="h-4 w-4" />
+                                            Ordnung schaffen
+                                        </Button>
+                                        <Button
+                                            onClick={() => createPage(null)}
+                                            className="rounded-xl gap-2 bg-gradient-to-r from-primary to-primary/90 shadow-md shadow-primary/20 h-11 px-6 font-medium hover:-translate-y-0.5 transition-transform w-full sm:w-auto"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                            Neue Seite
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         )}
