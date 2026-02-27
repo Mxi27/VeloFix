@@ -23,7 +23,6 @@ import {
     StickyNote,
     BookOpen,
     GripVertical,
-    Menu,
     ChevronLeft,
 } from "lucide-react"
 import {
@@ -844,8 +843,8 @@ export default function NotebookPageView() {
                                                     }}
                                                     className={cn(
                                                         "p-5 rounded-2xl bg-background/50 backdrop-blur-sm card-hover text-left flex flex-col h-full group transition-all duration-200",
-                                                        child.is_folder 
-                                                            ? "border border-amber-500/10 hover:border-amber-500/30" 
+                                                        child.is_folder
+                                                            ? "border border-amber-500/10 hover:border-amber-500/30"
                                                             : "border border-border/10 hover:border-border/30"
                                                     )}
                                                 >
@@ -914,8 +913,8 @@ export default function NotebookPageView() {
                                                     }}
                                                     className={cn(
                                                         "p-5 rounded-2xl bg-background/50 backdrop-blur-sm card-hover text-left flex flex-col h-full group transition-all duration-200",
-                                                        child.is_folder 
-                                                            ? "border border-amber-500/10 hover:border-amber-500/30" 
+                                                        child.is_folder
+                                                            ? "border border-amber-500/10 hover:border-amber-500/30"
                                                             : "border border-border/10 hover:border-border/30"
                                                     )}
                                                 >
