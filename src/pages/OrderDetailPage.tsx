@@ -51,6 +51,8 @@ import {
     Pencil,
     Trash2,
     Copy,
+    Plus,
+    X,
 } from "lucide-react"
 import { LoadingScreen } from "@/components/LoadingScreen"
 import { PageTransition } from "@/components/PageTransition"
@@ -145,6 +147,7 @@ interface Order {
         rating?: number
         feedback?: string
     } | null
+    tags: string[] | null
     mechanic_ids: string[] | null // Array of UUIDs
     qc_mechanic_id: string | null
     due_date: string | null
@@ -164,7 +167,9 @@ export default function OrderDetailPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [templates, setTemplates] = useState<any[]>([])
+    const [workshopTags, setWorkshopTags] = useState<any[]>([])
     const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
+    const [tagInput, setTagInput] = useState("")
     const [isDialogOpen, setIsDialogOpen] = useState(false)
 
     const isReadOnly = userRole === 'read'
@@ -326,7 +331,7 @@ export default function OrderDetailPage() {
             setLoading(true)
 
             // Fetch order and templates in parallel
-            const [orderResult, templatesResult] = await Promise.all([
+            const [orderResult, templatesResult, tagsResult] = await Promise.all([
                 supabase
                     .from('orders')
                     .select('*')
@@ -335,6 +340,11 @@ export default function OrderDetailPage() {
                     .single(),
                 supabase
                     .from('checklist_templates')
+                    .select('*')
+                    .eq('workshop_id', workshopId)
+                    .order('name'),
+                supabase
+                    .from('workshop_tags')
                     .select('*')
                     .eq('workshop_id', workshopId)
                     .order('name')
@@ -368,6 +378,10 @@ export default function OrderDetailPage() {
                 setTemplates(templatesResult.data)
             }
 
+            if (tagsResult.data) {
+                setWorkshopTags(tagsResult.data)
+            }
+
             setLoading(false)
         }
 
@@ -395,7 +409,8 @@ export default function OrderDetailPage() {
                             checklist: newOrder.checklist,
                             notes: newOrder.notes,
                             leasing_code: newOrder.leasing_code,
-                            final_price: newOrder.final_price
+                            final_price: newOrder.final_price,
+                            tags: newOrder.tags
                             // updated_at not strictly needed or in interface
                         } as Order
                     })
@@ -917,6 +932,77 @@ export default function OrderDetailPage() {
         setPendingAction(null)
     }
 
+    const handleToggleTag = async (tagId: string) => {
+        if (!order || isReadOnly) return
+        const currentTags = order.tags || []
+        const newTags = currentTags.includes(tagId) ? currentTags.filter(id => id !== tagId) : [...currentTags, tagId]
+
+        setOrder({ ...order, tags: newTags })
+        const { error } = await supabase.from('orders').update({ tags: newTags }).eq('id', order.id)
+        if (error) {
+            toastError("Fehler", "Tag konnte nicht gespeichert werden.")
+            setOrder({ ...order, tags: currentTags })
+        }
+    }
+
+    const handleRemoveTag = async (tagId: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!order || isReadOnly) return
+        const currentTags = order.tags || []
+        const newTags = currentTags.filter(id => id !== tagId)
+
+        setOrder({ ...order, tags: newTags })
+        await supabase.from('orders').update({ tags: newTags }).eq('id', order.id)
+    }
+
+    const handleCreateAndAddTag = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!order || isReadOnly || !workshopId || !tagInput.trim()) return
+
+        // Check if tag already exists in workshopTags
+        const normalizedInput = tagInput.trim().toLowerCase()
+        let targetTag = workshopTags.find(t => t.name.toLowerCase() === normalizedInput)
+
+        setSaving(true)
+        try {
+            if (!targetTag) {
+                // Create new tag
+                const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#64748b']
+                const randomColor = colors[Math.floor(Math.random() * colors.length)]
+
+                const { data, error } = await supabase
+                    .from('workshop_tags')
+                    .insert({
+                        workshop_id: workshopId,
+                        name: tagInput.trim(),
+                        color: randomColor
+                    })
+                    .select()
+                    .single()
+
+                if (error) throw error
+                targetTag = data
+                setWorkshopTags(prev => [...prev, data])
+            }
+
+            // Add to order if not already there
+            const currentTags = order.tags || []
+            if (!currentTags.includes(targetTag.id)) {
+                const newTags = [...currentTags, targetTag.id]
+                setOrder({ ...order, tags: newTags })
+                const { error } = await supabase.from('orders').update({ tags: newTags }).eq('id', order.id)
+                if (error) throw error
+            }
+
+            setTagInput("")
+        } catch (error: any) {
+            toastError("Fehler", "Tag konnte nicht verarbeitet werden.")
+            console.error(error)
+        } finally {
+            setSaving(false)
+        }
+    }
+
     if (loading) {
         return <LoadingScreen />
     }
@@ -1016,6 +1102,78 @@ export default function OrderDetailPage() {
                                             {order.is_leasing ? "Leasing" : "Standard"}
                                         </Badge>
                                     </div>
+
+                                    {/* TAGS */}
+                                    <div className="flex flex-wrap items-center gap-2 mb-3 mt-2">
+                                        {order.tags && order.tags.map(tagId => {
+                                            const tagInfo = workshopTags.find(t => t.id === tagId)
+                                            if (!tagInfo) return null
+                                            return (
+                                                <Badge
+                                                    key={tagId}
+                                                    className="px-2 py-0.5 text-xs font-medium text-white shadow-sm border-0 flex items-center gap-1"
+                                                    style={{ backgroundColor: tagInfo.color }}
+                                                >
+                                                    #{tagInfo.name}
+                                                    {!isReadOnly && (
+                                                        <button onClick={(e) => handleRemoveTag(tagId, e)} className="hover:bg-black/20 rounded-full p-0.5 ml-0.5">
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    )}
+                                                </Badge>
+                                            )
+                                        })}
+
+                                        {!isReadOnly && workshopTags.length > 0 && (
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" size="sm" className="h-6 gap-1 px-2 text-[10px] sm:text-xs border-dashed text-muted-foreground hover:text-foreground">
+                                                        <Plus className="w-3 h-3" /> Tag hinzufügen
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-56 p-2" align="start">
+                                                    <form onSubmit={handleCreateAndAddTag} className="flex gap-2 mb-2 p-1">
+                                                        <Input
+                                                            placeholder="Tag tippen (z.B. Leasing)"
+                                                            className="h-7 text-xs"
+                                                            value={tagInput}
+                                                            onChange={(e) => setTagInput(e.target.value)}
+                                                            autoFocus
+                                                        />
+                                                        <Button type="submit" size="sm" className="h-7 px-2">
+                                                            <Plus className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                    </form>
+                                                    <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                                                        <p className="text-[10px] font-semibold text-muted-foreground px-2 pb-1 uppercase tracking-wider">Vorhandene Tags</p>
+                                                        {workshopTags.length === 0 && (
+                                                            <p className="text-[10px] text-muted-foreground px-2 italic">Keine Tags vorhanden</p>
+                                                        )}
+                                                        {workshopTags.map(tag => {
+                                                            const isAssigned = order.tags?.includes(tag.id)
+                                                            return (
+                                                                <button
+                                                                    key={tag.id}
+                                                                    onClick={() => handleToggleTag(tag.id)}
+                                                                    className={cn(
+                                                                        "w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-md transition-colors",
+                                                                        isAssigned ? "bg-primary/5 text-primary" : "hover:bg-muted/50"
+                                                                    )}
+                                                                >
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tag.color }} />
+                                                                        {tag.name}
+                                                                    </div>
+                                                                    {isAssigned && <Check className="w-3.5 h-3.5" />}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                        )}
+                                    </div>
+
                                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                         <span className="flex items-center gap-1.5">
                                             <Clock className="h-3.5 w-3.5" />
@@ -2039,6 +2197,6 @@ export default function OrderDetailPage() {
 
 
             </DashboardLayout>
-        </PageTransition>
+        </PageTransition >
     )
 }

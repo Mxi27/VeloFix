@@ -34,6 +34,7 @@ import { DataManagementSettings } from '@/components/DataManagementSettings'
 import { RecycleBin } from '@/components/RecycleBin'
 import { NeuradSettings } from '@/components/NeuradSettings'
 import { CustomerInquiriesSettings } from '@/components/CustomerInquiriesSettings'
+import { TagsSettings } from '@/components/TagsSettings'
 import {
     User,
     Building2,
@@ -50,6 +51,7 @@ import {
     Wrench,
     MessageSquare,
     Trash2,
+    Tag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Database } from '@/types/supabase'
@@ -71,6 +73,7 @@ type SettingsSection =
     | 'data'
     | 'export'
     | 'trash'
+    | 'tags'
 
 interface NavItem {
     id: SettingsSection
@@ -100,6 +103,7 @@ const navGroups: NavGroup[] = [
             { id: 'workshop', label: 'Werkstatt-Details', icon: Building2, adminOnly: true },
             { id: 'employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
             { id: 'checklists', label: 'Checklisten', icon: ListChecks, adminOnly: true },
+            { id: 'tags', label: 'Auftrags-Tags', icon: Tag, adminOnly: true },
             { id: 'neurad', label: 'Neurad Konfig', icon: Wrench, adminOnly: true },
             { id: 'inquiries', label: 'Kundenanfragen', icon: MessageSquare, adminOnly: true },
             { id: 'intake', label: 'Annahme & QR', icon: ClipboardList, adminOnly: true },
@@ -570,6 +574,9 @@ export default function SettingsPage() {
 
             case 'leasing':
                 return <LeasingSettings />
+
+            case 'tags':
+                return <TagsSettings />
 
             case 'notifications':
                 return <NotificationSettings />

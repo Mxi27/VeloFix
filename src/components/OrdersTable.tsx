@@ -52,6 +52,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
 
 interface Order {
     id: string
@@ -65,6 +66,7 @@ interface Order {
     estimated_price: number | null
     mechanic_ids: string[] | null
     due_date: string | null
+    tags: string[] | null
 }
 
 
@@ -84,10 +86,22 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     const [dateFilterType, setDateFilterType] = useState<"created" | "due">("created")
     const [filterStatus, setFilterStatus] = useState("all")
     const [filterEmployee, setFilterEmployee] = useState<string>("all")
+    const [filterTags, setFilterTags] = useState<string[]>([])
     const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
     const [showFilters, setShowFilters] = useState(false)
     const [sortField, setSortField] = useState<"created_at" | "due_date" | "none">("none")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
+
+    const fetchTags = async () => {
+        if (!workshopId) return []
+        const { data, error } = await supabase.from('workshop_tags').select('*').eq('workshop_id', workshopId)
+        if (error) throw error
+        return data || []
+    }
+    const { data: workshopTags = [] } = useSWR(
+        workshopId ? ['workshop_tags', workshopId] : null,
+        fetchTags
+    )
 
 
 
@@ -205,7 +219,11 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     const filteredOrders = orders.filter(order => {
         const matchesSearch =
             order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            order.order_number.toLowerCase().includes(searchTerm.toLowerCase())
+            order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (order.tags && order.tags.some(tagId => {
+                const tag = workshopTags.find((t: any) => t.id === tagId)
+                return tag?.name.toLowerCase().includes(searchTerm.toLowerCase())
+            }))
 
         const matchesStatus =
             effectiveMode === 'active'
@@ -237,7 +255,10 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
             }
         }
 
-        return matchesSearch && matchesStatus && matchesEmployee && matchesDate
+        const matchesTags = filterTags.length === 0 ||
+            (order.tags && filterTags.some(tagId => order.tags!.includes(tagId)))
+
+        return matchesSearch && matchesStatus && matchesEmployee && matchesDate && matchesTags
     }).sort((a, b) => {
         if (sortField === "none") return 0
 
@@ -276,7 +297,8 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     const activeFilterCount = [
         filterStatus !== 'all',
         filterEmployee !== 'all',
-        dateRange?.from
+        dateRange?.from,
+        filterTags.length > 0
     ].filter(Boolean).length
 
     const renderTable = (ordersToRender: Order[]) => (
@@ -322,9 +344,26 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                         </span>
                                     </div>
                                 </TableCell>
-                                <TableCell className="hidden lg:table-cell py-4 text-sm text-muted-foreground">
-                                    <div className="max-w-[120px] truncate">
-                                        {order.bike_model || '—'}
+                                <TableCell className="hidden lg:table-cell py-4 text-sm text-foreground">
+                                    <div className="max-w-[180px] flex flex-col gap-1.5">
+                                        <span className="font-medium truncate text-muted-foreground">{order.bike_model || '—'}</span>
+                                        {order.tags && order.tags.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                                {order.tags.map(tagId => {
+                                                    const tagInfo = workshopTags.find((t: any) => t.id === tagId)
+                                                    if (!tagInfo) return null
+                                                    return (
+                                                        <Badge
+                                                            key={tagId}
+                                                            className="px-1.5 py-0 text-[10px] font-medium text-white shadow-sm border-0 leading-tight h-4 flex items-center"
+                                                            style={{ backgroundColor: tagInfo.color }}
+                                                        >
+                                                            #{tagInfo.name}
+                                                        </Badge>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                 </TableCell>
                                 <TableCell className="hidden xl:table-cell py-4" onClick={(e) => e.stopPropagation()}>
@@ -484,6 +523,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                         setFilterStatus('all')
                                                         setFilterEmployee('all')
                                                         setDateRange(undefined)
+                                                        setFilterTags([])
                                                         setSortField('none')
                                                         setSortDir('desc')
                                                     }}
@@ -536,6 +576,30 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                     ))}
                                                 </SelectContent>
                                             </Select>
+                                        </div>
+
+                                        {/* Tag Filter */}
+                                        <div className="space-y-2">
+                                            <label className="text-xs text-muted-foreground">Tags</label>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {workshopTags.map((tag: any) => {
+                                                    const isSelected = filterTags.includes(tag.id)
+                                                    return (
+                                                        <Badge
+                                                            key={tag.id}
+                                                            variant="outline"
+                                                            className={cn("cursor-pointer border-transparent transition-all", !isSelected && "bg-muted text-muted-foreground opacity-60")}
+                                                            style={isSelected ? { backgroundColor: tag.color, color: '#fff' } : undefined}
+                                                            onClick={() => {
+                                                                setFilterTags(prev => prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id])
+                                                            }}
+                                                        >
+                                                            {tag.name}
+                                                        </Badge>
+                                                    )
+                                                })}
+                                                {workshopTags.length === 0 && <span className="text-xs text-muted-foreground italic">Keine Tags</span>}
+                                            </div>
                                         </div>
 
                                         {/* Date Range Filter */}

@@ -74,6 +74,29 @@ export interface Database {
                     terms_text?: string | null
                 }
             }
+            workshop_tags: {
+                Row: {
+                    id: string
+                    workshop_id: string
+                    name: string
+                    color: string
+                    created_at: string
+                }
+                Insert: {
+                    id?: string
+                    workshop_id: string
+                    name: string
+                    color: string
+                    created_at?: string
+                }
+                Update: {
+                    id?: string
+                    workshop_id?: string
+                    name?: string
+                    color?: string
+                    created_at?: string
+                }
+            }
             employees: {
                 Row: {
                     id: string
@@ -148,6 +171,7 @@ export interface Database {
                     is_billed: boolean
                     archived: boolean
                     trash_date: string | null
+                    tags: string[] | null
                 }
                 Insert: {
                     id?: string
@@ -182,6 +206,7 @@ export interface Database {
                     is_billed?: boolean
                     archived?: boolean
                     trash_date?: string | null
+                    tags?: string[] | null
                 }
                 Update: {
                     id?: string
@@ -216,6 +241,7 @@ export interface Database {
                     is_billed?: boolean
                     archived?: boolean
                     trash_date?: string | null
+                    tags?: string[] | null
                 }
             }
             checklist_templates: {

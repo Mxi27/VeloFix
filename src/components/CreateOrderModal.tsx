@@ -93,6 +93,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const [leasingPortalEmail, setLeasingPortalEmail] = useState("")
     const [assignedMechanicId, setAssignedMechanicId] = useState<string>("")
     const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
+    const [selectedTags, setSelectedTags] = useState<string[]>([])
+    const [availableTags, setAvailableTags] = useState<any[]>([])
 
     // Intake Requests State
     const [intakeRequests, setIntakeRequests] = useState<any[]>([])
@@ -140,6 +142,16 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 .then(({ data }) => {
                     if (data) setIntakeRequests(data)
                 })
+
+            // Fetch Tags
+            supabase
+                .from('workshop_tags')
+                .select('*')
+                .eq('workshop_id', workshopId)
+                .order('name')
+                .then(({ data }) => {
+                    if (data) setAvailableTags(data)
+                })
         }
     }, [workshopId, open])
 
@@ -166,6 +178,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setKioskSelectedEmployeeId(null)
             setAssignedMechanicId("")
             setDueDate(undefined)
+            setSelectedTags([])
             setShowIntakeSelection(false)
             setSelectedIntakeRequestId(null)
         }
@@ -398,7 +411,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     history: initialHistory, // Add history immediately
                     mechanic_ids: assignedMechanicId && assignedMechanicId !== 'none' ? [assignedMechanicId] : [],
                     qc_mechanic_id: null, // Explicitly null for now
-                    due_date: dueDate ? dueDate.toISOString() : null
+                    due_date: dueDate ? dueDate.toISOString() : null,
+                    tags: selectedTags
                 })
 
             if (error) throw error
@@ -738,10 +752,12 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         </Select>
                                     </div>
 
-                                    {/* Price moved to Summary step */}
+                                    {/* Price and Tags moved to Step 4 */}
                                 </div>
                             </div>
                         )}
+
+
 
                         {step === 4 && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -838,6 +854,43 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <span className="absolute right-3 top-2.5 text-muted-foreground">€</span>
                                         </div>
                                     </div>
+
+                                    {availableTags && availableTags.length > 0 && (
+                                        <div className="grid gap-2 pt-4 border-t border-border/50 mt-2">
+                                            <Label>Tags / Markierungen (Optional)</Label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {availableTags.map(tag => {
+                                                    const isSelected = selectedTags.includes(tag.id)
+                                                    return (
+                                                        <button
+                                                            key={tag.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                if (isSelected) {
+                                                                    setSelectedTags(prev => prev.filter(id => id !== tag.id))
+                                                                } else {
+                                                                    setSelectedTags(prev => [...prev, tag.id])
+                                                                }
+                                                            }}
+                                                            className={cn(
+                                                                "px-3 py-1 text-xs font-medium rounded-full border transition-all flex items-center gap-1.5",
+                                                                isSelected
+                                                                    ? "border-transparent text-white shadow-sm"
+                                                                    : "bg-muted/50 border-border text-muted-foreground hover:bg-muted"
+                                                            )}
+                                                            style={isSelected ? { backgroundColor: tag.color } : {}}
+                                                        >
+                                                            <span
+                                                                className={cn("w-2 h-2 rounded-full", isSelected ? "bg-white/50" : "")}
+                                                                style={!isSelected ? { backgroundColor: tag.color } : {}}
+                                                            />
+                                                            #{tag.name}
+                                                        </button>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
