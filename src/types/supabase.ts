@@ -30,6 +30,11 @@ export interface Database {
                     ust_id?: string | null
                     footer_text?: string | null
                     terms_text?: string | null
+                    design_config?: Json
+                    acceptance_checklist?: string[]
+                    inquiry_retention_days?: number | null
+                    order_retention_days?: number | null
+                    trash_retention_days?: number | null
                 }
                 Insert: {
                     id?: string
@@ -51,6 +56,11 @@ export interface Database {
                     ust_id?: string | null
                     footer_text?: string | null
                     terms_text?: string | null
+                    design_config?: Json
+                    acceptance_checklist?: string[]
+                    inquiry_retention_days?: number | null
+                    order_retention_days?: number | null
+                    trash_retention_days?: number | null
                 }
                 Update: {
                     id?: string
@@ -72,6 +82,11 @@ export interface Database {
                     ust_id?: string | null
                     footer_text?: string | null
                     terms_text?: string | null
+                    design_config?: Json
+                    acceptance_checklist?: string[]
+                    inquiry_retention_days?: number | null
+                    order_retention_days?: number | null
+                    trash_retention_days?: number | null
                 }
             }
             workshop_tags: {

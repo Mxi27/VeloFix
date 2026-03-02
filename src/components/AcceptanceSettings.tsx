@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { Plus, Trash2, ClipboardList, Save, Pencil, X, Check } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -19,7 +20,7 @@ import {
 
 import { IntakeQRGenerator } from './IntakeQRGenerator'
 
-export function AcceptanceSettings({ workshopName, workshopAddress, workshopPhone }: { workshopName?: string; workshopAddress?: string; workshopPhone?: string }) {
+export function AcceptanceSettings() {
     const { workshopId } = useAuth()
     const [items, setItems] = useState<string[]>([])
     const [newItem, setNewItem] = useState('')
@@ -83,7 +84,7 @@ export function AcceptanceSettings({ workshopName, workshopAddress, workshopPhon
 
         // Prevent duplicates (excluding self)
         if (items.some(i => i === editValue.trim() && i !== editingItem)) {
-            alert("Dieser Punkt existiert bereits.")
+            toast.error("Dieser Punkt existiert bereits.")
             return
         }
 
@@ -121,7 +122,7 @@ export function AcceptanceSettings({ workshopName, workshopAddress, workshopPhon
 
         if (error) {
             console.error('Error saving checklist:', error)
-            alert("Fehler beim Speichern der Checkliste")
+            toast.error("Fehler beim Speichern der Checkliste")
         }
         setSaving(false)
     }
@@ -133,7 +134,7 @@ export function AcceptanceSettings({ workshopName, workshopAddress, workshopPhon
     return (
         <>
             <div className="space-y-6">
-                {workshopId && <IntakeQRGenerator workshopId={workshopId} workshopName={workshopName || 'Werkstatt'} workshopAddress={workshopAddress} workshopPhone={workshopPhone} />}
+                {workshopId && <IntakeQRGenerator workshopId={workshopId} />}
 
                 <Card>
                     <CardHeader>

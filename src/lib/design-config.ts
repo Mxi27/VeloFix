@@ -1,23 +1,26 @@
 /**
  * Design Configuration Manager
  * Handles workshop design customization and CSS variable injection
+ * Synchronizes with Supabase database for multi-user consistency
  */
 
 import type { WorkshopDesignConfig } from '@/types/design'
 import { DEFAULT_DESIGN_CONFIG } from '@/types/design'
+import { supabase } from './supabase'
 
 class DesignConfigManager {
   private config: WorkshopDesignConfig
+  private workshopId: string | null = null
   private readonly STORAGE_KEY = 'velofix_design_config'
 
   constructor() {
-    this.config = this.loadConfig()
+    this.config = this.loadLocalFallback()
   }
 
   /**
-   * Load design config from localStorage or use defaults
+   * Load design config from localStorage as a fallback
    */
-  private loadConfig(): WorkshopDesignConfig {
+  private loadLocalFallback(): WorkshopDesignConfig {
     if (typeof window === 'undefined') {
       return { ...DEFAULT_DESIGN_CONFIG }
     }
@@ -28,20 +31,55 @@ class DesignConfigManager {
         return { ...DEFAULT_DESIGN_CONFIG, ...JSON.parse(stored) }
       }
     } catch (error) {
-      console.error('Failed to load design config:', error)
+      console.error('Failed to load local design config:', error)
     }
 
     return { ...DEFAULT_DESIGN_CONFIG }
   }
 
   /**
-   * Save design config to localStorage
+   * Initialize and load config from Supabase
    */
-  private saveConfig(config: WorkshopDesignConfig) {
+  async init(workshopId: string): Promise<void> {
+    this.workshopId = workshopId
+    await this.fetchFromServer()
+  }
+
+  /**
+   * Fetch configuration from the database
+   */
+  async fetchFromServer(): Promise<void> {
+    if (!this.workshopId) return
+
+    try {
+      const { data, error } = await supabase
+        .from('workshops')
+        .select('design_config')
+        .eq('id', this.workshopId)
+        .single()
+
+      if (error) throw error
+
+      if (data?.design_config) {
+        // cast to any because we might have JSON type issues in the generated types
+        const serverConfig = data.design_config as any
+        this.config = { ...DEFAULT_DESIGN_CONFIG, ...serverConfig }
+        this.saveLocalFallback(this.config)
+        this.applyConfig()
+      }
+    } catch (error) {
+      console.error('Failed to fetch design config from server:', error)
+    }
+  }
+
+  /**
+   * Save design config to localStorage as fallback
+   */
+  private saveLocalFallback(config: WorkshopDesignConfig) {
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(config))
     } catch (error) {
-      console.error('Failed to save design config:', error)
+      console.error('Failed to save local design config:', error)
     }
   }
 
@@ -53,12 +91,28 @@ class DesignConfigManager {
   }
 
   /**
-   * Update design config
+   * Update design config on server and locally
    */
-  updateConfig(updates: Partial<WorkshopDesignConfig>): void {
+  async updateConfig(updates: Partial<WorkshopDesignConfig>): Promise<void> {
     this.config = { ...this.config, ...updates }
-    this.saveConfig(this.config)
+    this.saveLocalFallback(this.config)
     this.applyConfig()
+
+    if (this.workshopId) {
+      try {
+        const { error } = await supabase
+          .from('workshops')
+          .update({
+            design_config: this.config as any,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', this.workshopId)
+
+        if (error) throw error
+      } catch (error) {
+        console.error('Failed to update design config on server:', error)
+      }
+    }
   }
 
   /**
@@ -84,23 +138,10 @@ class DesignConfigManager {
   }
 
   /**
-   * Apply a design preset
-   */
-  applyPreset(presetName: string): void {
-    const { DESIGN_PRESETS } = require('@/types/design')
-
-    if (DESIGN_PRESETS[presetName]) {
-      this.updateConfig(DESIGN_PRESETS[presetName])
-    }
-  }
-
-  /**
    * Reset to default config
    */
-  resetConfig(): void {
-    this.config = { ...DEFAULT_DESIGN_CONFIG }
-    this.saveConfig(this.config)
-    this.applyConfig()
+  async resetConfig(): Promise<void> {
+    await this.updateConfig(DEFAULT_DESIGN_CONFIG)
   }
 
   /**
@@ -137,7 +178,7 @@ class DesignConfigManager {
 // Singleton instance
 export const designConfig = new DesignConfigManager()
 
-// Initialize on client side
+// Initialize local variables on client side (Server sync happens via AuthContext or similar)
 if (typeof window !== 'undefined') {
   designConfig.applyConfig()
 }

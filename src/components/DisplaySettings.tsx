@@ -6,11 +6,11 @@ import { Switch } from '@/components/ui/switch'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { useAuth } from '@/contexts/AuthContext'
 import { supabase } from '@/lib/supabase'
-import { PRESET_COLORS, applyThemeColor } from '@/lib/theme'
+import { PRESET_COLORS, applyThemeColor, type Theme, applyTheme } from '@/lib/theme'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-type Theme = 'light' | 'dark' | 'system'
+
 
 export function DisplaySettings() {
     const { workshopId } = useAuth()
@@ -57,16 +57,7 @@ export function DisplaySettings() {
 
     const handleThemeChange = (newTheme: Theme) => {
         setTheme(newTheme)
-        localStorage.setItem('theme', newTheme)
-
-        // Apply theme
-        const root = document.documentElement
-        if (newTheme === 'system') {
-            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-            root.classList.toggle('dark', systemPrefersDark)
-        } else {
-            root.classList.toggle('dark', newTheme === 'dark')
-        }
+        applyTheme(newTheme)
     }
 
     const handleCompactChange = (enabled: boolean) => {

@@ -1,4 +1,6 @@
 
+export type Theme = 'light' | 'dark' | 'system'
+
 // Preset colors for the application
 export const PRESET_COLORS = [
     { name: 'Default Blue', hex: '#3b82f6', oklch: '0.50 0.14 250' }, // Corrected default
@@ -61,4 +63,22 @@ export function loadThemeColor() {
     if (color) {
         applyThemeColor(color);
     }
+}
+
+export function applyTheme(theme: Theme) {
+    const root = document.documentElement
+    if (theme === 'system') {
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        root.classList.toggle('dark', systemPrefersDark)
+    } else {
+        root.classList.toggle('dark', theme === 'dark')
+    }
+    localStorage.setItem('theme', theme)
+}
+
+export function loadTheme(): Theme {
+    const savedTheme = localStorage.getItem('theme') as Theme | null
+    const theme = savedTheme || 'system'
+    applyTheme(theme)
+    return theme
 }

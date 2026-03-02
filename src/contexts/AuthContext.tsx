@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react'
 import { type User, type Session, type AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { designConfig } from '@/lib/design-config'
 
 export type UserRole = 'owner' | 'admin' | 'write' | 'read' | null
 
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // Cache the successful result
             if (workshopId) {
                 localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({ workshopId, role }))
+                designConfig.init(workshopId)
             }
 
             return { workshopId, role }

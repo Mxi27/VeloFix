@@ -29,7 +29,7 @@ export interface WorkshopDesignConfig {
 
   // UI Customization
   borderRadius?: 'smooth' | 'rounded' | 'sharp'
-  theme?: 'light' | 'dark' | 'auto'
+  theme?: 'light' | 'dark' | 'system'
 }
 
 export const DEFAULT_DESIGN_CONFIG: WorkshopDesignConfig = {
@@ -43,7 +43,7 @@ export const DEFAULT_DESIGN_CONFIG: WorkshopDesignConfig = {
   showStamps: true,
   showBarcode: true,
   borderRadius: 'smooth',
-  theme: 'auto',
+  theme: 'system',
 }
 
 // Design presets for quick customization

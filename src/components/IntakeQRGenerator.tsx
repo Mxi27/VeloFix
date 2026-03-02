@@ -1,4 +1,5 @@
 import { toastSuccess, toastError } from '@/lib/toast-utils'
+import { supabase } from '@/lib/supabase'
 import { useState, useRef, useEffect } from 'react'
 import { ClipboardList, Download, Copy, Loader2, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -10,14 +11,19 @@ import { SelfCheckIn } from '@/components/documents/SelfCheckIn'
 
 interface IntakeQRGeneratorProps {
     workshopId: string
-    workshopName: string
-    workshopAddress?: string
-    workshopPhone?: string
 }
 
-export function IntakeQRGenerator({ workshopId, workshopName, workshopAddress, workshopPhone }: IntakeQRGeneratorProps) {
-    // Logic: Use production URL if on localhost, otherwise current origin
-    const productionUrl = 'https://velo-fix.vercel.app'
+export function IntakeQRGenerator({ workshopId }: IntakeQRGeneratorProps) {
+    const [workshopData, setWorkshopData] = useState<{
+        name: string,
+        address?: string,
+        city?: string,
+        phone?: string
+    } | null>(null)
+    const [loading, setLoading] = useState(true)
+
+    // Logic: Use environment variable for production URL, fallback to default or current origin
+    const productionUrl = import.meta.env.VITE_APP_URL || 'https://velo-fix.vercel.app'
     const origin = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? productionUrl
         : window.location.origin
@@ -25,6 +31,31 @@ export function IntakeQRGenerator({ workshopId, workshopName, workshopAddress, w
     const intakeUrl = `${origin}/intake/${workshopId}`
     const [generating, setGenerating] = useState(false)
     const printRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const fetchWorkshop = async () => {
+            if (!workshopId) return
+            setLoading(true)
+            const { data, error } = await supabase
+                .from('workshops')
+                .select('name, address, city, phone')
+                .eq('id', workshopId)
+                .single()
+
+            if (error) {
+                console.error('Error fetching workshop for QR generator:', error)
+            } else if (data) {
+                setWorkshopData({
+                    name: data.name,
+                    address: data.address || undefined,
+                    city: data.city || undefined,
+                    phone: data.phone || undefined
+                })
+            }
+            setLoading(false)
+        }
+        fetchWorkshop()
+    }, [workshopId])
 
     // Generate high-res QR code for the print component
     const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('')
@@ -116,9 +147,10 @@ export function IntakeQRGenerator({ workshopId, workshopName, workshopAddress, w
             })
 
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
-            pdf.save(`${workshopName ? workshopName.replace(/[^a-z0-9]/gi, '_') : 'Velofix'}_Annahme_QR.pdf`)
+            const fileName = workshopData?.name ? workshopData.name.replace(/[^a-z0-9]/gi, '_') : 'Velofix'
+            pdf.save(`${fileName}_Annahme_QR.pdf`)
 
-            toastSuccess('PDF erfolgreich heruntergeladen', `${workshopName}_Annahme_QR.pdf`)
+            toastSuccess('PDF erfolgreich heruntergeladen', `${fileName}_Annahme_QR.pdf`)
 
         } catch (error: any) {
             console.error("PDF Generation Error:", error)
@@ -127,6 +159,12 @@ export function IntakeQRGenerator({ workshopId, workshopName, workshopAddress, w
             setGenerating(false)
         }
     }
+
+    if (loading) return (
+        <Card className="animate-pulse">
+            <div className="h-[200px] bg-muted/50 rounded-xl" />
+        </Card>
+    )
 
     return (
         <Card>
@@ -186,9 +224,9 @@ export function IntakeQRGenerator({ workshopId, workshopName, workshopAddress, w
                 <div style={{ position: 'fixed', top: 0, left: 0, transform: 'translateX(-200vw)', pointerEvents: 'none', zIndex: -1 }}>
                     <SelfCheckIn
                         ref={printRef}
-                        shopName={workshopName}
-                        shopAddress={workshopAddress}
-                        shopPhone={workshopPhone}
+                        shopName={workshopData?.name || 'Werkstatt'}
+                        shopAddress={workshopData?.address ? `${workshopData.address}${workshopData.city ? `, ${workshopData.city}` : ''}` : undefined}
+                        shopPhone={workshopData?.phone}
                         qrCodeSrc={qrCodeDataUrl}
                         accentColor="#D32F2F"
                     />
