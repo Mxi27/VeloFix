@@ -307,14 +307,14 @@ export default function DashboardPage() {
                         </CockpitPanel>
 
                         {/* ── Col 2: QC + Tasks ── */}
-                        <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-4 min-h-[650px]">
                             <CockpitPanel
                                 title="Qualitätskontrolle"
                                 icon={ShieldCheck}
                                 accent="purple"
                                 count={qcTotalCount}
                                 empty="Keine Kontrolle offen"
-                                className="flex-1"
+                                className="flex-1 min-h-[300px]"
                             >
                                 {cockpitData.qcRepairOrders.map(order => {
                                     const isSelfCheck = myMatchIds.some(id =>
@@ -347,7 +347,7 @@ export default function DashboardPage() {
                                 accent="orange"
                                 count={cockpitData.myTasks.length}
                                 empty="Keine Aufgaben fällig"
-                                className="flex-1"
+                                className="flex-1 min-h-[300px]"
                             >
                                 {cockpitData.myTasks.map(task => (
                                     <TaskRow
@@ -416,7 +416,7 @@ function CockpitPanel({ title, icon: Icon, accent, count, empty, children, class
 
     return (
         <div className={cn(
-            "flex flex-col rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden w-full min-w-0",
+            "flex flex-col rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden w-full min-w-0 h-full",
             className
         )}>
             {/* Header */}
