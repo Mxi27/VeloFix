@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { useState, useEffect, useMemo, useRef } from "react"
 import {
-    Sparkles, Bike, ShieldCheck, ListTodo, Clock, CheckCircle2,
+    Bike, ShieldCheck, ListTodo, Clock, CheckCircle2,
     ChevronRight, ChevronDown, Zap
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
@@ -198,15 +198,14 @@ export default function DashboardPage() {
         <PageTransition>
             <DashboardLayout onOrderCreated={handleOrderCreated}>
 
-                {/* ── Premium Header ── */}
-                <div className="relative z-10 rounded-2xl bg-gradient-to-br from-primary/5 via-background/80 to-transparent border border-border/30 p-5 mb-5 backdrop-blur-sm">
-                    <div className="absolute top-0 right-0 w-80 h-56 bg-primary/4 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-                    <div className="relative flex items-center justify-between gap-4 flex-wrap">
+                {/* ── Header ── */}
+                <div className="px-1 mb-5">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
 
                         {/* Greeting + Employee Dropdown */}
-                        <div className="flex items-center gap-4">
-                            <div className="hidden sm:flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 border border-primary/15 text-primary">
-                                <Sparkles className="h-5 w-5" />
+                        <div className="flex items-center gap-3">
+                            <div className="hidden sm:flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                                <Bike className="h-4 w-4" />
                             </div>
                             <div>
                                 <div className="flex items-center gap-1.5">
@@ -224,14 +223,14 @@ export default function DashboardPage() {
                                         <DropdownMenuContent
                                             align="start"
                                             sideOffset={8}
-                                            className="w-52 rounded-2xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl shadow-black/20 p-1"
+                                            className="w-52 rounded-xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl shadow-black/20 p-1"
                                         >
                                             {regularEmployees.map(emp => (
                                                 <DropdownMenuItem
                                                     key={emp.id}
                                                     onClick={() => selectEmployee(emp.id)}
                                                     className={cn(
-                                                        "flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer",
+                                                        "flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer",
                                                         activeEmployee?.id === emp.id && "bg-primary/10 text-primary"
                                                     )}
                                                 >
@@ -257,13 +256,13 @@ export default function DashboardPage() {
                         </div>
 
                         {/* View Toggle */}
-                        <div className="flex bg-muted/40 border border-border/40 rounded-xl p-1 gap-1">
+                        <div className="flex bg-muted/40 border border-border/40 rounded-lg p-1 gap-1">
                             {(['general', 'cockpit'] as ViewMode[]).map(mode => (
                                 <button
                                     key={mode}
                                     onClick={() => setViewMode(mode)}
                                     className={cn(
-                                        "px-4 py-1.5 rounded-lg text-sm transition-all duration-200 font-medium",
+                                        "px-4 py-1.5 rounded-md text-sm transition-all duration-200 font-medium",
                                         viewMode === mode
                                             ? "bg-background shadow-sm text-foreground border border-border/30"
                                             : "text-muted-foreground hover:text-foreground"
@@ -411,13 +410,13 @@ function CockpitPanel({ title, icon: Icon, accent, count, empty, children, class
 
     return (
         <div className={cn(
-            "flex flex-col rounded-2xl border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm overflow-hidden w-full min-w-0",
+            "flex flex-col rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden w-full min-w-0",
             className
         )}>
-            {/* Header — ultra-minimal */}
+            {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/30">
                 <div className="flex items-center gap-2">
-                    <div className={cn("p-1.5 rounded-lg", bg)}>
+                    <div className={cn("p-1.5 rounded-md", bg)}>
                         <Icon className={cn("h-3.5 w-3.5", iconColor)} />
                     </div>
                     <span className="text-sm font-semibold tracking-tight">{title}</span>
@@ -460,11 +459,14 @@ function OrderRow({ order, onClick, selfCheckWarning }: OrderRowProps) {
     return (
         <button
             onClick={onClick}
-            className="group w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+            className={cn(
+                "group w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors border-l-2",
+                isOverdue ? "border-l-red-400/60" : "border-l-transparent"
+            )}
         >
             <div className={cn(
-                "p-1.5 rounded-lg shrink-0 transition-colors",
-                isOverdue ? "bg-red-500/10" : urgency.isDueToday ? "bg-amber-500/10" : "bg-muted/40"
+                "p-1.5 rounded-md shrink-0 transition-colors",
+                isOverdue ? "bg-red-500/8" : urgency.isDueToday ? "bg-amber-500/8" : "bg-muted/40"
             )}>
                 <UrgencyIcon className={cn("h-3.5 w-3.5", urgency.color)} />
             </div>
@@ -487,7 +489,7 @@ function OrderRow({ order, onClick, selfCheckWarning }: OrderRowProps) {
 
             <div className="shrink-0 flex items-center gap-1">
                 {isOverdue && order.due_date ? (
-                    <span className="text-[11px] font-semibold text-red-500">
+                    <span className="text-[11px] font-medium text-muted-foreground">
                         +{differenceInDays(new Date(), new Date(order.due_date))}d
                     </span>
                 ) : order.due_date ? (
@@ -512,9 +514,9 @@ function BuildRow({ build, onClick }: BuildRowProps) {
     return (
         <button
             onClick={onClick}
-            className="group w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+            className="group w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors border-l-2 border-l-transparent"
         >
-            <div className="p-1.5 rounded-lg bg-amber-500/10 shrink-0">
+            <div className="p-1.5 rounded-md bg-amber-500/10 shrink-0">
                 <Zap className="h-3.5 w-3.5 text-amber-500" />
             </div>
             <div className="flex-1 min-w-0">
@@ -544,7 +546,10 @@ function TaskRow({ task, onToggle, onClick }: TaskRowProps) {
 
     return (
         <div
-            className="group flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer"
+            className={cn(
+                "group flex items-start gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer border-l-2",
+                isOverdue ? "border-l-red-400/60" : "border-l-transparent"
+            )}
             onClick={onClick}
         >
             <div className="pt-0.5 shrink-0" onClick={e => { e.stopPropagation(); onToggle() }}>
@@ -561,12 +566,10 @@ function TaskRow({ task, onToggle, onClick }: TaskRowProps) {
                     {task.title}
                 </p>
                 {task.due_date && task.status !== 'done' && (
-                    <p className={cn(
-                        "text-[10px] mt-0.5",
-                        isOverdue ? "text-red-500 font-semibold" : isDueSoon ? "text-amber-500" : "text-muted-foreground"
-                    )}>
+                    <p className="text-[10px] mt-0.5 text-muted-foreground">
                         {format(new Date(task.due_date), "d. MMM", { locale: de })}
-                        {isOverdue && " · Überfällig"}
+                        {isOverdue && <span className="text-red-400"> · überfällig</span>}
+                        {isDueSoon && !isOverdue && <span className="text-amber-500"> · bald fällig</span>}
                     </p>
                 )}
             </div>
