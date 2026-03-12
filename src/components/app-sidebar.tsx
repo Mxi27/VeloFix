@@ -141,7 +141,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
                                             asChild
-                                            className="bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer rounded-lg h-9 font-medium"
+                                            className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground cursor-pointer rounded-lg h-9 font-medium"
                                             onClick={() => setIsNewOrderOpen(true)}
                                         >
                                             <span className="flex items-center gap-2">
