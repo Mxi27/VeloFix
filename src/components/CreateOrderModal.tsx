@@ -884,7 +884,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                                                 className={cn("w-2 h-2 rounded-full", isSelected ? "bg-white/50" : "")}
                                                                 style={!isSelected ? { backgroundColor: tag.color } : {}}
                                                             />
-                                                            #{tag.name}
+                                                            {tag.name}
                                                         </button>
                                                     )
                                                 })}

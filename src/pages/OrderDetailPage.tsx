@@ -1114,7 +1114,7 @@ export default function OrderDetailPage() {
                                                     className="px-2 py-0.5 text-xs font-medium text-white shadow-sm border-0 flex items-center gap-1"
                                                     style={{ backgroundColor: tagInfo.color }}
                                                 >
-                                                    #{tagInfo.name}
+                                                    {tagInfo.name}
                                                     {!isReadOnly && (
                                                         <button onClick={(e) => handleRemoveTag(tagId, e)} className="hover:bg-black/20 rounded-full p-0.5 ml-0.5">
                                                             <X className="w-3 h-3" />

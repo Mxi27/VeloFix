@@ -358,7 +358,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                             className="px-1.5 py-0 text-[10px] font-medium text-white shadow-sm border-0 leading-tight h-4 flex items-center"
                                                             style={{ backgroundColor: tagInfo.color }}
                                                         >
-                                                            #{tagInfo.name}
+                                                            {tagInfo.name}
                                                         </Badge>
                                                     )
                                                 })}
