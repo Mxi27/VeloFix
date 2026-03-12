@@ -213,43 +213,49 @@ export default function DashboardPage() {
                                         {getGreeting()},
                                     </h1>
                                     {/* Radix DropdownMenu — portaled, always correct position */}
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <button className="flex items-center gap-0.5 text-xl font-bold text-primary/90 hover:text-primary transition-colors leading-tight outline-none">
-                                                {displayName}
-                                                <ChevronDown className="h-4 w-4 ml-0.5" />
-                                            </button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent
-                                            align="start"
-                                            sideOffset={8}
-                                            className="w-52 rounded-xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl shadow-black/20 p-1"
-                                        >
-                                            {regularEmployees.map(emp => (
-                                                <DropdownMenuItem
-                                                    key={emp.id}
-                                                    onClick={() => selectEmployee(emp.id)}
-                                                    className={cn(
-                                                        "flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer",
-                                                        activeEmployee?.id === emp.id && "bg-primary/10 text-primary"
-                                                    )}
-                                                >
-                                                    <span className={cn(
-                                                        "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                                                        activeEmployee?.id === emp.id
-                                                            ? "bg-primary text-primary-foreground"
-                                                            : "bg-muted text-muted-foreground"
-                                                    )}>
-                                                        {emp.name.charAt(0).toUpperCase()}
-                                                    </span>
-                                                    <span className="flex-1 truncate text-sm">{emp.name}</span>
-                                                    {activeEmployee?.id === emp.id && (
-                                                        <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
-                                                    )}
-                                                </DropdownMenuItem>
-                                            ))}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    {viewMode === 'cockpit' ? (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <button className="flex items-center gap-0.5 text-xl font-bold text-primary/90 hover:text-primary transition-colors leading-tight outline-none">
+                                                    {displayName}
+                                                    <ChevronDown className="h-4 w-4 ml-0.5" />
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent
+                                                align="start"
+                                                sideOffset={8}
+                                                className="w-52 rounded-xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl shadow-black/20 p-1"
+                                            >
+                                                {regularEmployees.map(emp => (
+                                                    <DropdownMenuItem
+                                                        key={emp.id}
+                                                        onClick={() => selectEmployee(emp.id)}
+                                                        className={cn(
+                                                            "flex items-center gap-2.5 px-3 py-2.5 rounded-lg cursor-pointer",
+                                                            activeEmployee?.id === emp.id && "bg-primary/10 text-primary"
+                                                        )}
+                                                    >
+                                                        <span className={cn(
+                                                            "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+                                                            activeEmployee?.id === emp.id
+                                                                ? "bg-primary text-primary-foreground"
+                                                                : "bg-muted text-muted-foreground"
+                                                        )}>
+                                                            {emp.name.charAt(0).toUpperCase()}
+                                                        </span>
+                                                        <span className="flex-1 truncate text-sm">{emp.name}</span>
+                                                        {activeEmployee?.id === emp.id && (
+                                                            <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                                                        )}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    ) : (
+                                        <span className="text-xl font-bold tracking-tight leading-tight text-foreground">
+                                            {displayName}
+                                        </span>
+                                    )}
                                 </div>
                                 <p className="text-sm text-muted-foreground mt-0.5">{today}</p>
                             </div>
