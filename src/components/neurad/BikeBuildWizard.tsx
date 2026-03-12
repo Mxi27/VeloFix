@@ -26,7 +26,7 @@ interface ComponentProps {
 
 export function BikeBuildWizard({ build, onBack, onComplete }: ComponentProps) {
     const { workshopId, user } = useAuth()
-    const { activeEmployee, isKioskMode, selectEmployee } = useEmployee()
+    const { activeEmployee, isSharedMode, selectEmployee } = useEmployee()
     // const navigate = useNavigate() // Unused
 
     // State
@@ -48,11 +48,11 @@ export function BikeBuildWizard({ build, onBack, onComplete }: ComponentProps) {
 
     // Kiosk Mode Enforcer
     useEffect(() => {
-        if (isKioskMode && !activeEmployee) {
+        if (isSharedMode && !activeEmployee) {
             setShowEmployeeSelect(true)
             selectionMade.current = false
         }
-    }, [isKioskMode, activeEmployee])
+    }, [isSharedMode, activeEmployee])
 
     // Fetch Steps
     useEffect(() => {

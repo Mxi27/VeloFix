@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, UserX, UserCheck, Trash2, MoreHorizontal, RefreshCw, Smartphone, Monitor } from 'lucide-react'
+import { Plus, Pencil, UserX, UserCheck, Trash2, MoreHorizontal, RefreshCw, Smartphone, Monitor, Info } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -17,6 +17,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Switch } from '@/components/ui/switch'
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import type { Database } from '@/types/supabase'
@@ -159,9 +165,9 @@ export function EmployeeManagement() {
         toast.success(editingEmployee ? "Mitarbeiter aktualisiert" : "Mitarbeiter hinzugefügt")
     }
 
-    // Toggle Kiosk Mode (Only relevant for users with accounts)
-    const toggleKioskMode = async (employee: Employee) => {
-        if (!employee.user_id) return // Ghost users can't be kiosk mode users (they are just resources)
+    // Toggle Shared Mode (Only relevant for users with accounts)
+    const toggleSharedMode = async (employee: Employee) => {
+        if (!employee.user_id) return // Ghost users can't be shared mode users (they are just resources)
 
         const { error } = await supabase
             .from('employees')
@@ -172,7 +178,7 @@ export function EmployeeManagement() {
             toast.error("Fehler beim Ändern des Modus")
         } else {
             fetchEmployees()
-            toast.success(employee.is_kiosk_mode ? "Kiosk-Modus deaktiviert" : "Kiosk-Modus aktiviert")
+            toast.success(employee.is_kiosk_mode ? "Shared Mode deaktiviert" : "Shared Mode aktiviert")
         }
     }
 
@@ -318,7 +324,21 @@ export function EmployeeManagement() {
                                     <TableHead>Name</TableHead>
                                     <TableHead>Typ</TableHead>
                                     <TableHead>Rolle</TableHead>
-                                    <TableHead>Kiosk-Modus</TableHead>
+                                    <TableHead>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <div className="flex items-center gap-1.5 cursor-help">
+                                                        Shared Mode
+                                                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                                                    </div>
+                                                </TooltipTrigger>
+                                                <TooltipContent className="p-3 max-w-[200px] text-xs leading-relaxed">
+                                                    Ermöglicht den schnellen Mitarbeiterwechsel eines geteilten Gerätes, ohne erneutes Login.
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Aktionen</TableHead>
                                 </TableRow>
@@ -357,7 +377,7 @@ export function EmployeeManagement() {
                                             {employee.user_id ? (
                                                 <Switch
                                                     checked={employee.is_kiosk_mode || false}
-                                                    onCheckedChange={() => toggleKioskMode(employee)}
+                                                    onCheckedChange={() => toggleSharedMode(employee)}
                                                 />
                                             ) : (
                                                 <span className="text-muted-foreground text-xs text-center block">-</span>
@@ -426,7 +446,7 @@ export function EmployeeManagement() {
                             {editingEmployee ? 'Mitarbeiter bearbeiten' : 'Lokalen Mitarbeiter erstellen'}
                         </DialogTitle>
                         <DialogDescription>
-                            Erstellen Sie einen "Ghost-User" für den Kiosk-Modus (z.B. für Tablets in der Werkstatt).
+                            Erstellen Sie einen "Ghost-User" für den Shared Mode (z.B. für Tablets in der Werkstatt).
                             <br />
                             <strong>Hinweis:</strong> Echte Mitarbeiter mit eigenem Login treten über den <u>Invite Code</u> bei.
                         </DialogDescription>

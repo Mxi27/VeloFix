@@ -268,8 +268,8 @@ export default function OrderDetailPage() {
         }
     }
 
-    // Kiosk Interception
-    const { isKioskMode, employees, activeEmployee } = useEmployee()
+    // Shared Mode Interception
+    const { isSharedMode, employees, activeEmployee } = useEmployee()
     const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
     const [pendingAction, setPendingAction] = useState<{
         type: 'status' | 'save_notes_data' | 'save_leasing' | 'save_price_data' | 'toggle_checklist' | 'save_customer' | 'save_bike' | 'save_customer_note',
@@ -453,7 +453,7 @@ export default function OrderDetailPage() {
                 type: 'info',
                 title: 'Fertigstellungstermin geändert',
                 description: date ? `Termin auf ${dateFormatted} gesetzt.` : 'Termin entfernt.',
-                actor: user ? { id: user.id, name: user.email || 'User' } : undefined
+                actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : (user ? { id: user.id, name: user.email || 'User' } : undefined)
             }, user).catch(console.error)
         }
     }
@@ -463,7 +463,7 @@ export default function OrderDetailPage() {
     const handleSaveCustomerData = async (actorOverride?: { id: string, name: string }) => {
         if (!order) return
 
-        if (isKioskMode && !actorOverride) {
+        if (isSharedMode && !actorOverride) {
             setPendingAction({ type: 'save_customer' })
             setShowEmployeeSelect(true)
             return
@@ -491,8 +491,8 @@ export default function OrderDetailPage() {
             logOrderEvent(order.id, {
                 type: 'info',
                 title: 'Kundendaten aktualisiert',
-                description: `Kundendaten bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
-                actor: actorOverride
+                description: `Kundendaten bearbeitet von ${actorOverride?.name || activeEmployee?.name || user?.email || 'User'}`,
+                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
             }, user).catch(console.error)
         }
         setSaving(false)
@@ -501,7 +501,7 @@ export default function OrderDetailPage() {
     const handleSaveBikeData = async (actorOverride?: { id: string, name: string }) => {
         if (!order) return
 
-        if (isKioskMode && !actorOverride) {
+        if (isSharedMode && !actorOverride) {
             setPendingAction({ type: 'save_bike' })
             setShowEmployeeSelect(true)
             return
@@ -528,8 +528,8 @@ export default function OrderDetailPage() {
             logOrderEvent(order.id, {
                 type: 'info',
                 title: 'Fahrraddaten aktualisiert',
-                description: `Fahrraddaten bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
-                actor: actorOverride
+                description: `Fahrraddaten bearbeitet von ${actorOverride?.name || activeEmployee?.name || user?.email || 'User'}`,
+                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
             }, user).catch(console.error)
         }
         setSaving(false)
@@ -538,8 +538,8 @@ export default function OrderDetailPage() {
     const handleStatusChange = async (newStatus: string, actorOverride?: { id: string, name: string }) => {
         if (!order || saving) return
 
-        // Intercept Kiosk Mode
-        if (isKioskMode && !actorOverride) {
+        // Intercept Shared Mode
+        if (isSharedMode && !actorOverride) {
             setPendingAction({ type: 'status', payload: newStatus })
             setShowEmployeeSelect(true)
             return
@@ -593,7 +593,7 @@ export default function OrderDetailPage() {
                     title: 'Status geändert',
                     description: `Status zu "${newStatusLabel}" geändert`,
                     metadata: { old_status: order.status, new_status: newStatus },
-                    actor: actorOverride
+                    actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
                 },
                 user
             )
@@ -615,7 +615,7 @@ export default function OrderDetailPage() {
     const handleSaveLeasingCode = async (actorOverride?: { id: string, name: string }) => {
         if (!order || !workshopId) return
 
-        if (isKioskMode && !actorOverride) {
+        if (isSharedMode && !actorOverride) {
             setPendingAction({ type: 'save_leasing' })
             setShowEmployeeSelect(true)
             return
@@ -681,7 +681,7 @@ export default function OrderDetailPage() {
                         title: 'Status geändert (Leasing)',
                         description: `Status zu "${newStatusLabel}" geändert. Abhol-Code: ${leasingCodeInput}`,
                         metadata: { old_status: order.status, new_status: newStatus, pickup_code: leasingCodeInput },
-                        actor: actorOverride
+                        actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
                     },
                     user
                 )
@@ -727,8 +727,8 @@ export default function OrderDetailPage() {
             logOrderEvent(order.id, {
                 type: 'info',
                 title: 'Leasing-Daten aktualisiert',
-                description: `Leasing-Daten bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
-                actor: actorOverride
+                description: `Leasing-Daten bearbeitet von ${actorOverride?.name || activeEmployee?.name || user?.email || 'User'}`,
+                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
             }, user).catch(console.error)
         }
         setSaving(false)
@@ -737,7 +737,7 @@ export default function OrderDetailPage() {
     const handleSaveInternalNotesData = async (actorOverride?: { id: string, name: string }) => {
         if (!order || !workshopId) return
 
-        if (isKioskMode && !actorOverride) {
+        if (isSharedMode && !actorOverride) {
             setPendingAction({ type: 'save_notes_data' }) // Reuse type or new type? reusing logic key
             setShowEmployeeSelect(true)
             return
@@ -761,8 +761,8 @@ export default function OrderDetailPage() {
             logOrderEvent(order.id, {
                 type: 'info',
                 title: 'Interne Notizen aktualisiert',
-                description: `Notizen bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
-                actor: actorOverride
+                description: `Notizen bearbeitet von ${actorOverride?.name || activeEmployee?.name || user?.email || 'User'}`,
+                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
             }, user).catch(console.error)
         }
         setSaving(false)
@@ -773,7 +773,7 @@ export default function OrderDetailPage() {
     const handleSavePriceData = async (actorOverride?: { id: string, name: string }) => {
         if (!order || !workshopId) return
 
-        if (isKioskMode && !actorOverride) {
+        if (isSharedMode && !actorOverride) {
             setPendingAction({ type: 'save_price_data' })
             setShowEmployeeSelect(true)
             return
@@ -806,8 +806,8 @@ export default function OrderDetailPage() {
             logOrderEvent(order.id, {
                 type: 'info',
                 title: 'Preisdaten aktualisiert',
-                description: `Preisdaten bearbeitet von ${actorOverride?.name || user?.email || 'User'}`,
-                actor: actorOverride
+                description: `Preisdaten bearbeitet von ${actorOverride?.name || activeEmployee?.name || user?.email || 'User'}`,
+                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
             }, user).catch(console.error)
         }
         setSaving(false)
@@ -851,7 +851,7 @@ export default function OrderDetailPage() {
     const handleToggleChecklist = async (index: number, checked: boolean, actorOverride?: { id: string, name: string }) => {
         if (!order || !order.checklist) return
 
-        if (isKioskMode && !actorOverride) {
+        if (isSharedMode && !actorOverride) {
             setPendingAction({ type: 'toggle_checklist', payload: { index, checked } })
             setShowEmployeeSelect(true)
             return
@@ -880,14 +880,14 @@ export default function OrderDetailPage() {
                 title: checked ? 'Checkliste Fortschritt' : 'Checkliste Änderung',
                 description: `Punkt "${itemText}" markiert als ${action}`,
                 metadata: { item_index: index, checked: checked },
-                actor: actorOverride
+                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
             }, user).catch(console.error)
         }
     }
 
 
 
-    // Handler for Kiosk selection
+    // Handler for Shared Mode selection
     const handleEmployeeSelected = (employeeId: string) => {
         const selectedEmp = employees.find(e => e.id === employeeId)
         if (!selectedEmp || !pendingAction) {

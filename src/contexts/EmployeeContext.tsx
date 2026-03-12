@@ -8,7 +8,8 @@ type Employee = Database['public']['Tables']['employees']['Row']
 interface EmployeeContextType {
     activeEmployee: Employee | null
     employees: Employee[]
-    isKioskMode: boolean
+    isSharedMode: boolean
+    isAdmin: boolean
     hasSelectedEmployee: boolean
     selectEmployee: (employeeId: string) => void
     clearSelectedEmployee: () => void
@@ -28,7 +29,9 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
     const { user } = useAuth()
     const [activeEmployee, setActiveEmployee] = useState<Employee | null>(null)
     const [employees, setEmployees] = useState<Employee[]>([])
-    const [isKioskMode, setIsKioskMode] = useState(false)
+    const [isSharedMode, setIsSharedMode] = useState(false)
+    const [isAdmin, setIsAdmin] = useState(false)
+    const [userEmployee, setUserEmployee] = useState<Employee | null>(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -37,7 +40,9 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
 
         if (!user) {
             setActiveEmployee(null)
-            setIsKioskMode(false)
+            setIsSharedMode(false)
+            setIsAdmin(false)
+            setUserEmployee(null)
             setEmployees([])
             setLoading(false)
             return
@@ -73,20 +78,30 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
 
                 const employeeList = (!allError && allEmployees) ? allEmployees : []
                 setEmployees(employeeList)
+                setUserEmployee(myEmployee)
+                setIsAdmin(myEmployee.role === 'admin')
 
                 if (myEmployee.is_kiosk_mode) {
-                    setIsKioskMode(true)
+                    setIsSharedMode(true)
                     // Try to restore previously selected employee from localStorage
                     const savedId = localStorage.getItem(COCKPIT_EMPLOYEE_KEY)
                     const saved = savedId ? employeeList.find(e => e.id === savedId) : null
                     setActiveEmployee(saved || null)
                 } else {
-                    setIsKioskMode(false)
-                    // Non-kiosk: check if user has manually switched in cockpit (localStorage override)
-                    const savedId = localStorage.getItem(COCKPIT_EMPLOYEE_KEY)
-                    const saved = savedId ? employeeList.find(e => e.id === savedId) : null
-                    // Default to own employee record, but allow cockpit override
-                    setActiveEmployee(saved || myEmployee)
+                    setIsSharedMode(false)
+                    // If not kiosk mode, check if user is admin
+                    const isUserAdmin = myEmployee.role === 'admin'
+                    
+                    if (isUserAdmin) {
+                        // Admin: allow cockpit override
+                        const savedId = localStorage.getItem(COCKPIT_EMPLOYEE_KEY)
+                        const saved = savedId ? employeeList.find(e => e.id === savedId) : null
+                        setActiveEmployee(saved || myEmployee)
+                    } else {
+                        // Normal user, not in kiosk mode: ALWAYS force own employee
+                        setActiveEmployee(myEmployee)
+                        localStorage.removeItem(COCKPIT_EMPLOYEE_KEY)
+                    }
                 }
 
             } catch (err) {
@@ -109,6 +124,12 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
     // Select employee: works in both kiosk and non-kiosk mode (for cockpit switcher)
     // Persists to localStorage so navigation away and back restores selection
     const selectEmployee = (employeeId: string) => {
+        // Only allow switching if in Shared Mode OR user is an Admin
+        if (!isSharedMode && !isAdmin) {
+            console.warn("User switching is only allowed in Shared Mode or for Administrators.")
+            return
+        }
+
         const selected = employees.find(e => e.id === employeeId)
         if (selected) {
             setActiveEmployee(selected)
@@ -117,9 +138,13 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const clearSelectedEmployee = () => {
-        if (isKioskMode) {
-            setActiveEmployee(null)
-            localStorage.removeItem(COCKPIT_EMPLOYEE_KEY)
+        // Only allow clearing if in Shared Mode (admins might also want to clear to see overview, but typically they switch)
+        // If not in shared mode and not admin, this shouldn't even be called, but we keep the guard.
+        if (isSharedMode || isAdmin) {
+            setActiveEmployee(isAdmin && !isSharedMode ? userEmployee : null)
+            if (isSharedMode) {
+                localStorage.removeItem(COCKPIT_EMPLOYEE_KEY)
+            }
         }
     }
 
@@ -133,7 +158,8 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         <EmployeeContext.Provider value={{
             activeEmployee,
             employees,
-            isKioskMode,
+            isSharedMode,
+            isAdmin,
             hasSelectedEmployee: !!activeEmployee,
             selectEmployee,
             clearSelectedEmployee,

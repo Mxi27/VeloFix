@@ -42,7 +42,7 @@ export default function ControlModePage() {
     const { orderId } = useParams()
     const navigate = useNavigate()
     const { user, userRole } = useAuth()
-    const { activeEmployee, isKioskMode, selectEmployee, clearSelectedEmployee } = useEmployee()
+    const { activeEmployee, isSharedMode, selectEmployee, clearSelectedEmployee } = useEmployee()
     const isReadOnly = userRole === 'read'
 
     const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
@@ -91,12 +91,12 @@ export default function ControlModePage() {
     // Kiosk Enforcement
     // Force re-selection on entry (Mount)
     useEffect(() => {
-        if (isKioskMode) {
+        if (isSharedMode) {
             clearSelectedEmployee()
             setShowEmployeeSelect(true)
             selectionMade.current = false
         }
-    }, [isKioskMode])
+    }, [isSharedMode])
 
     // REMOVED continuous useEffect
 

@@ -63,7 +63,7 @@ const DASHBOARD_VIEW_KEY = 'velofix-dashboard-view'
 
 export default function DashboardPage() {
     const { user, workshopId } = useAuth()
-    const { activeEmployee, employees, selectEmployee } = useEmployee()
+    const { activeEmployee, employees, selectEmployee, isAdmin, isSharedMode } = useEmployee()
     const navigate = useNavigate()
     const location = useLocation()
     const [refreshKey, setRefreshKey] = useState(0)
@@ -192,7 +192,7 @@ export default function DashboardPage() {
     const today = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })
     const qcTotalCount = cockpitData.qcRepairOrders.length + cockpitData.qcBuilds.length
 
-    const regularEmployees = employees.filter(e => !e.is_kiosk_mode)
+    const nonSharedModeEmployees = employees.filter(e => !e.is_kiosk_mode)
 
     return (
         <PageTransition>
@@ -213,7 +213,7 @@ export default function DashboardPage() {
                                         {getGreeting()},
                                     </h1>
                                     {/* Radix DropdownMenu — portaled, always correct position */}
-                                    {viewMode === 'cockpit' ? (
+                                    {(viewMode === 'cockpit' && (isSharedMode || isAdmin)) ? (
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <button className="flex items-center gap-0.5 text-xl font-bold text-primary/90 hover:text-primary transition-colors leading-tight outline-none">
@@ -226,7 +226,7 @@ export default function DashboardPage() {
                                                 sideOffset={8}
                                                 className="w-52 rounded-xl border border-border/50 bg-background/95 backdrop-blur-xl shadow-2xl shadow-black/20 p-1"
                                             >
-                                                {regularEmployees.map(emp => (
+                                                {nonSharedModeEmployees.map(emp => (
                                                     <DropdownMenuItem
                                                         key={emp.id}
                                                         onClick={() => selectEmployee(emp.id)}

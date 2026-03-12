@@ -25,7 +25,7 @@ interface ComponentProps {
 
 export function BikeBuildControl({ build, onBack, onComplete }: ComponentProps) {
     const { workshopId, user } = useAuth()
-    const { activeEmployee, isKioskMode, selectEmployee } = useEmployee()
+    const { activeEmployee, isSharedMode, selectEmployee } = useEmployee()
 
     // State
     const [steps, setSteps] = useState<Step[]>([])
@@ -47,11 +47,11 @@ export function BikeBuildControl({ build, onBack, onComplete }: ComponentProps) 
 
     // Kiosk Mode
     useEffect(() => {
-        if (isKioskMode && !activeEmployee) {
+        if (isSharedMode && !activeEmployee) {
             setShowEmployeeSelect(true)
             selectionMade.current = false
         }
-    }, [isKioskMode, activeEmployee])
+    }, [isSharedMode, activeEmployee])
 
     // Load Data
     useEffect(() => {

@@ -41,8 +41,8 @@ interface CreateOrderModalProps {
 export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated }: CreateOrderModalProps) {
     const { user, workshopId } = useAuth()
 
-    const { activeEmployee, isKioskMode, employees } = useEmployee()
-    const [kioskSelectedEmployeeId, setKioskSelectedEmployeeId] = useState<string | null>(null)
+    const { activeEmployee, isSharedMode, employees } = useEmployee()
+    const [sharedSelectedEmployeeId, setSharedSelectedEmployeeId] = useState<string | null>(null)
 
     // Kiosk State
     // const [showEmployeeSelect, setShowEmployeeSelect] = useState(false) // Removed external modal logic
@@ -61,13 +61,13 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
     // Enforce Kiosk Selection
     useEffect(() => {
-        if (open && isKioskMode) {
+        if (open && isSharedMode) {
             setStep(0)
-            setKioskSelectedEmployeeId(null)
+            setSharedSelectedEmployeeId(null)
         } else if (open) {
             setStep(1)
         }
-    }, [open, isKioskMode])
+    }, [open, isSharedMode])
 
     const [step, setStep] = useState(1)
     const [orderType, setOrderType] = useState<"standard" | "leasing" | null>(null)
@@ -159,7 +159,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const handleOpenChange = (newOpen: boolean) => {
         if (!newOpen) {
             // Reset form
-            setStep(isKioskMode ? 0 : 1)
+            setStep(isSharedMode ? 0 : 1)
             setOrderType(null)
             setChecklistState(new Array(acceptanceChecklistItems.length).fill(false))
             setCustomerName("")
@@ -175,7 +175,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setLeasingDetails(null)
             setLeasingPortalEmail("")
             setSelectedTemplateId(null)
-            setKioskSelectedEmployeeId(null)
+            setSharedSelectedEmployeeId(null)
             setAssignedMechanicId("")
             setDueDate(undefined)
             setSelectedTags([])
@@ -338,7 +338,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             // Create initial history event
             // Determine Actor (Kiosk override or active employee)
 
-            if (isKioskMode && kioskSelectedEmployeeId) {
+            if (isSharedMode && sharedSelectedEmployeeId) {
                 // If we have selected an employee in step 0, use them as actor
                 // But we need their name/email. Ideally EmployeeSelector would return user obj, but ID is fine if we can fetch or if we just store ID.
                 // For now, let's try to find them in the 'employees' list from context if available, 
@@ -365,11 +365,11 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             }
 
             let creationActor = null
-            if (isKioskMode && kioskSelectedEmployeeId) {
-                const selectedEmp = employees?.find(e => e.id === kioskSelectedEmployeeId)
+            if (isSharedMode && sharedSelectedEmployeeId) {
+                const selectedEmp = employees?.find(e => e.id === sharedSelectedEmployeeId)
                 creationActor = {
-                    id: kioskSelectedEmployeeId,
-                    name: selectedEmp?.name || 'Unbekannt (Kiosk)',
+                    id: sharedSelectedEmployeeId,
+                    name: selectedEmp?.name || 'Unbekannt (Geteilter Modus)',
                     email: selectedEmp?.email || ''
                 }
             } else {
@@ -451,7 +451,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const isStepValid = () => {
         switch (step) {
             case 0:
-                return !!kioskSelectedEmployeeId
+                return !!sharedSelectedEmployeeId
             case 1:
                 return !!orderType
             case 2:
@@ -491,7 +491,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         {/* Progress Bar */}
                         <div className="flex gap-2 mt-6">
                             {[0, 1, 2, 3, 4, 5, 6].map((s) => {
-                                if (s === 0 && !isKioskMode) return null
+                                if (s === 0 && !isSharedMode) return null
                                 if (orderType === "standard" && s === 2) return null;
                                 return (
                                     <div
@@ -517,11 +517,11 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                 </div>
                                 <EmployeeSelector
                                     onSelect={(id) => {
-                                        setKioskSelectedEmployeeId(id)
+                                        setSharedSelectedEmployeeId(id)
                                         // Auto advance on selection? Maybe better to let them click 'Weiter' to confirm visual selection
                                         // setStep(1) 
                                     }}
-                                    selectedEmployeeId={kioskSelectedEmployeeId}
+                                    selectedEmployeeId={sharedSelectedEmployeeId}
                                 />
                             </div>
                         )}
@@ -1015,7 +1015,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
                     {/* Footer Actions */}
                     <div className="p-6 pt-2 border-t border-border/50 bg-muted/10 flex justify-between items-center">
-                        {step > (isKioskMode ? 0 : 1) ? (
+                        {step > (isSharedMode ? 0 : 1) ? (
                             <Button variant="outline" onClick={handleBack} className="px-6 border-border/50">
                                 <ChevronLeft className="mr-2 h-4 w-4" />
                                 Zurück

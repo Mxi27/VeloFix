@@ -60,10 +60,10 @@ export default function ServiceModePage() {
     const { orderId } = useParams()
     const navigate = useNavigate()
     const { user, userRole } = useAuth() // Fallback
-    const { activeEmployee, isKioskMode, selectEmployee, clearSelectedEmployee } = useEmployee()
+    const { activeEmployee, isSharedMode, selectEmployee, clearSelectedEmployee } = useEmployee()
     const isReadOnly = userRole === 'read'
 
-    // Kiosk Selection State
+    // Shared Mode Selection State
     const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
 
     // State
@@ -94,22 +94,19 @@ export default function ServiceModePage() {
 
 
 
-    // Kiosk Pending Action State
+    // Shared Mode Pending Action State
 
 
-    // Kiosk Mode Enforcer
-    // Force re-selection on entry (Mount)
+    // Shared Mode Enforcer
     const selectionMade = useRef(false) // Track if selection happened
-
-    // Kiosk Mode Enforcer
     // Force re-selection on entry (Mount)
     useEffect(() => {
-        if (isKioskMode) {
+        if (isSharedMode) {
             clearSelectedEmployee()
             setShowEmployeeSelect(true)
             selectionMade.current = false
         }
-    }, [isKioskMode])
+    }, [isSharedMode])
 
     // REMOVED continuous useEffect to avoid double-open loop
 
