@@ -193,6 +193,8 @@ export default function OrderDetailPage() {
     const [assignmentType, setAssignmentType] = useState<'add_mechanic' | 'qc'>('add_mechanic')
 
     // Checkout Dialog
+    const [showAbholbereitConfirm, setShowAbholbereitConfirm] = useState(false)
+    const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ status: string, actor?: { id: string, name: string } } | null>(null)
 
 
     const getEmployeeName = (id: string) => {
@@ -550,6 +552,13 @@ export default function OrderDetailPage() {
             setLeasingCodeInput(order.pickup_code || "")
             setDialogLeasingCode(order.leasing_code || "")
             setIsLeasingDialogOpen(true)
+            return
+        }
+
+        // Intercept 'abholbereit' for confirmation
+        if (newStatus === 'abholbereit' && !showAbholbereitConfirm) {
+            setPendingStatusUpdate({ status: newStatus, actor: actorOverride })
+            setShowAbholbereitConfirm(true)
             return
         }
 
@@ -1016,6 +1025,33 @@ export default function OrderDetailPage() {
                         Zurück zur Übersicht
                     </Button>
                 </div>
+
+                {/* Abholbereit Confirmation Dialog */}
+                <AlertDialog open={showAbholbereitConfirm} onOpenChange={setShowAbholbereitConfirm}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Status auf "Abholbereit" setzen?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Wenn Sie den Status auf "Abholbereit" setzen, wird der Kunde automatisch per E-Mail darüber informiert, dass sein Fahrrad abholbereit ist.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setPendingStatusUpdate(null)}>Abbrechen</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() => {
+                                    if (pendingStatusUpdate) {
+                                        handleStatusChange(pendingStatusUpdate.status, pendingStatusUpdate.actor)
+                                        setPendingStatusUpdate(null)
+                                    }
+                                    setShowAbholbereitConfirm(false)
+                                }}
+                                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                                Bestätigen & E-Mail senden
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </DashboardLayout>
         )
     }
@@ -2226,6 +2262,31 @@ export default function OrderDetailPage() {
 
 
             </DashboardLayout>
+            <AlertDialog open={showAbholbereitConfirm} onOpenChange={setShowAbholbereitConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Status auf "Abholbereit" setzen?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Wenn Sie den Status auf "Abholbereit" setzen, wird der Kunde automatisch per E-Mail darüber informiert, dass sein Fahrrad abholbereit ist.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setPendingStatusUpdate(null)}>Abbrechen</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (pendingStatusUpdate) {
+                                    handleStatusChange(pendingStatusUpdate.status, pendingStatusUpdate.actor)
+                                    setPendingStatusUpdate(null)
+                                }
+                                setShowAbholbereitConfirm(false)
+                            }}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                        >
+                            Bestätigen & E-Mail senden
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PageTransition >
     )
 }
