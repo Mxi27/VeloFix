@@ -547,7 +547,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         </div>
                     </div>
 
-                    <div className="p-6 min-h-[450px] max-h-[75vh] overflow-y-auto overflow-x-hidden" style={{ scrollbarGutter: 'stable' }}>
+                    <div className="p-6 max-h-[75vh] overflow-y-auto overflow-x-hidden" style={{ scrollbarGutter: 'stable' }}>
                         {step === 0 && (
                             <div className="space-y-6 animate-in fade-in duration-300">
                                 <div className="flex items-center gap-3 mb-4">
