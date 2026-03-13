@@ -10,6 +10,7 @@ import {
     Star,
     CheckSquare,
     BookOpen,
+    BarChart3,
 } from "lucide-react"
 import {
     Sidebar,
@@ -99,6 +100,11 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
             title: "Papierkorb",
             icon: Trash2,
             href: "/dashboard/trash",
+        })
+        navItems.splice(5, 0, {
+            title: "Feedback Analyse",
+            icon: BarChart3,
+            href: "/dashboard/feedback-analysis",
         })
     }
 

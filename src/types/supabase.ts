@@ -353,6 +353,41 @@ export interface Database {
                     updated_at?: string
                 }
             }
+            order_feedback: {
+                Row: {
+                    id: string
+                    created_at: string
+                    order_id: string
+                    workshop_id: string
+                    rating: number
+                    price_perception: string
+                    main_value: string
+                    comment: string | null
+                    customer_postal_code: string | null
+                }
+                Insert: {
+                    id?: string
+                    created_at?: string
+                    order_id: string
+                    workshop_id: string
+                    rating: number
+                    price_perception: string
+                    main_value: string
+                    comment?: string | null
+                    customer_postal_code?: string | null
+                }
+                Update: {
+                    id?: string
+                    created_at?: string
+                    order_id?: string
+                    workshop_id?: string
+                    rating?: number
+                    price_perception?: string
+                    main_value?: string
+                    comment?: string | null
+                    customer_postal_code?: string | null
+                }
+            }
         }
         bike_builds: {
             Row: {
