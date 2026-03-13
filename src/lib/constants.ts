@@ -60,3 +60,10 @@ export const NEURAD_STATUS_MAP: Record<string, { label: string; color: string; d
         dotColor: 'bg-green-500',
     },
 }
+
+export const BIKE_TYPE_LABELS: Record<string, string> = {
+    road: 'Rennrad',
+    mtb: 'Mountainbike',
+    city: 'Citybike',
+    ebike: 'E-Bike'
+}

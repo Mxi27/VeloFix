@@ -1,5 +1,6 @@
 import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import {
     Dialog,
     DialogContent,
@@ -30,6 +31,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
+import { BIKE_TYPE_LABELS } from "@/lib/constants"
 
 interface CreateOrderModalProps {
     children?: React.ReactNode
@@ -39,6 +41,7 @@ interface CreateOrderModalProps {
 }
 
 export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated }: CreateOrderModalProps) {
+    const navigate = useNavigate()
     const { user, workshopId } = useAuth()
 
     const { activeEmployee, isSharedMode, employees } = useEmployee()
@@ -84,6 +87,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const [customerEmail, setCustomerEmail] = useState("")
     const [customerPhone, setCustomerPhone] = useState("")
     const [bikeModel, setCustomerBikeModel] = useState("")
+    const [bikeBrand, setCustomerBikeBrand] = useState("")
     const [bikeType, setCustomerBikeType] = useState("")
     const [estimatedPrice, setEstimatedPrice] = useState("")
     const [leasingProvider, setLeasingProvider] = useState("")
@@ -165,6 +169,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setCustomerName("")
             setCustomerEmail("")
             setCustomerPhone("")
+            setCustomerBikeBrand("")
             setCustomerBikeModel("")
             setCustomerBikeType("")
             setEstimatedPrice("")
@@ -192,6 +197,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         setLeasingPortalEmail(request.email || "") // Store original portal email
 
         // Map Bike Data
+        setCustomerBikeBrand(request.bike_brand || "")
         setCustomerBikeModel(request.bike_model || "")
         setCustomerBikeType(request.bike_type || "")
 
@@ -283,6 +289,24 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     // 4: Acceptance
     // 5: Work Checklist (New!)
     // 6: Summary
+
+    // Keyboard handling for Step 1
+    useEffect(() => {
+        if (!open || step !== 1 || showIntakeSelection) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                setOrderType(prev => prev === "standard" ? "leasing" : "standard");
+            } else if (e.key === "Enter") {
+                if (orderType) {
+                    handleNext();
+                }
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [open, step, orderType, showIntakeSelection]);
 
     const handleNext = () => {
         if (step === 1 && orderType === "standard") {
@@ -385,7 +409,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 actor: creationActor
             }]
 
-            const { error } = await supabase
+            const { data: insertedOrder, error } = await supabase
                 .from('orders')
                 .insert({
                     workshop_id: workshopId,
@@ -393,6 +417,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     customer_name: customerName,
                     customer_email: customerEmail || null,
                     customer_phone: customerPhone || null,
+                    bike_brand: bikeBrand || null,
                     bike_model: bikeModel || null,
                     bike_type: bikeType || null,
                     is_leasing: orderType === 'leasing',
@@ -414,6 +439,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     due_date: dueDate ? dueDate.toISOString() : null,
                     tags: selectedTags
                 })
+                .select('id')
+                .single()
 
             if (error) throw error
 
@@ -426,8 +453,13 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             }
 
             toastSuccess('Auftrag erstellt', 'Der Auftrag wurde erfolgreich erstellt.')
+            
             handleOpenChange(false)
             onOrderCreated?.()
+
+            if (insertedOrder) {
+                navigate(`/dashboard/orders/${insertedOrder.id}`)
+            }
         } catch (error: any) {
             toastError('Fehler beim Erstellen', error.message || 'Der Auftrag konnte nicht erstellt werden.')
         } finally {
@@ -461,6 +493,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     customerName &&
                     customerEmail &&
                     customerPhone &&
+                    bikeBrand &&
                     bikeModel &&
                     bikeType
                 )
@@ -705,6 +738,16 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
+                                            <Label htmlFor="brand">Fahrrad-Marke *</Label>
+                                            <Input
+                                                id="brand"
+                                                placeholder="z.B. Specialized, Cube..."
+                                                className="bg-muted/50"
+                                                value={bikeBrand}
+                                                onChange={e => setCustomerBikeBrand(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
                                             <Label htmlFor="model">Fahrrad-Modell *</Label>
                                             <Input
                                                 id="model"
@@ -714,20 +757,20 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                                 onChange={e => setCustomerBikeModel(e.target.value)}
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="type">Fahrrad-Typ *</Label>
-                                            <Select value={bikeType} onValueChange={setCustomerBikeType}>
-                                                <SelectTrigger className="bg-muted/50">
-                                                    <SelectValue placeholder="Auswählen" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="road">Rennrad</SelectItem>
-                                                    <SelectItem value="mtb">Mountainbike</SelectItem>
-                                                    <SelectItem value="city">Citybike</SelectItem>
-                                                    <SelectItem value="ebike">E-Bike</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="type">Fahrrad-Typ *</Label>
+                                        <Select value={bikeType} onValueChange={setCustomerBikeType}>
+                                            <SelectTrigger className="bg-muted/50">
+                                                <SelectValue placeholder="Auswählen" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="city">Citybike</SelectItem>
+                                                <SelectItem value="ebike">E-Bike</SelectItem>
+                                                <SelectItem value="mtb">Mountainbike</SelectItem>
+                                                <SelectItem value="road">Rennrad</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     <div className="grid gap-2">
@@ -964,7 +1007,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                     <ul className="space-y-1 text-sm text-muted-foreground">
                                         <li><strong>Typ:</strong> {orderType === "leasing" ? "Leasing" : "Standard"}</li>
                                         <li><strong>Kunde:</strong> {customerName}</li>
-                                        <li><strong>Rad:</strong> {bikeModel} ({bikeType})</li>
+                                        <li><strong>Rad:</strong> {bikeBrand} {bikeModel} ({BIKE_TYPE_LABELS[bikeType] || bikeType})</li>
                                     </ul>
 
                                     <div className="grid md:grid-cols-2 gap-4 pt-2">
@@ -1026,9 +1069,31 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
                         {step < 6 ? (
                             <Button
-                                onClick={handleNext}
-                                disabled={!isStepValid()}
-                                className="px-8"
+                                onClick={() => {
+                                    if (isStepValid()) {
+                                        handleNext();
+                                    } else {
+                                        // Specific warnings based on step
+                                        if (step === 0) toastError("Mitarbeiter fehlt", "Bitte wählen Sie einen Mitarbeiter aus.");
+                                        else if (step === 1) toastError("Auftragstyp fehlt", "Bitte wählen Sie einen Auftragstyp aus.");
+                                        else if (step === 2) toastError("Leasing-Anbieter fehlt", "Bitte wählen Sie einen Leasing-Anbieter aus.");
+                                        else if (step === 3) {
+                                            const missing = [];
+                                            if (!customerName) missing.push("Name");
+                                            if (!customerEmail) missing.push("E-Mail");
+                                            if (!customerPhone) missing.push("Telefon");
+                                            if (!bikeBrand) missing.push("Marke");
+                                            if (!bikeModel) missing.push("Modell");
+                                            if (!bikeType) missing.push("Typ");
+                                            toastError("Mindestangaben fehlen", `Bitte füllen Sie folgende Felder aus: ${missing.join(", ")}`);
+                                        }
+                                        else if (step === 4) toastError("Checkliste unvollständig", "Bitte bestätigen Sie alle Punkte der Annahme-Checkliste.");
+                                    }
+                                }}
+                                className={cn(
+                                    "px-8 transition-all",
+                                    !isStepValid() && "opacity-50 cursor-not-allowed"
+                                )}
                             >
                                 Weiter
                                 <ChevronRight className="ml-2 h-4 w-4" />

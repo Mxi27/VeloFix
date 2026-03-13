@@ -56,7 +56,7 @@ import {
 } from "lucide-react"
 import { LoadingScreen } from "@/components/LoadingScreen"
 import { PageTransition } from "@/components/PageTransition"
-import { STATUS_COLORS } from "@/lib/constants"
+import { BIKE_TYPE_LABELS, STATUS_COLORS } from "@/lib/constants"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
 import {
@@ -90,13 +90,6 @@ const STATUS_FLOW = [
 
 const LEASING_STATUS = { value: 'abgeholt', label: 'Abgeholt', icon: Check, color: STATUS_COLORS.abgeholt }
 const COMPLETED_STATUS = { value: 'abgeschlossen', label: 'Abgeschlossen', icon: Archive, color: STATUS_COLORS.abgeschlossen }
-
-const BIKE_TYPE_LABELS: Record<string, string> = {
-    road: 'Rennrad',
-    mtb: 'Mountainbike',
-    city: 'Citybike',
-    ebike: 'E-Bike'
-}
 
 const STATUS_SOLID_COLORS: Record<string, string> = {
     eingegangen: "bg-blue-500 shadow-blue-500/40",
