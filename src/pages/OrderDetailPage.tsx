@@ -195,7 +195,9 @@ export default function OrderDetailPage() {
     // Checkout Dialog
     const [showAbholbereitConfirm, setShowAbholbereitConfirm] = useState(false)
     const [showRevertConfirm, setShowRevertConfirm] = useState(false)
+    const [showOrderTypeConfirm, setShowOrderTypeConfirm] = useState(false)
     const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ status: string, actor?: { id: string, name: string } } | null>(null)
+    const [pendingOrderTypeUpdate, setPendingOrderTypeUpdate] = useState<boolean | null>(null)
 
 
     const getEmployeeName = (id: string) => {
@@ -832,7 +834,48 @@ export default function OrderDetailPage() {
         setSaving(false)
     }
 
+    const handleOrderTypeUpdate = async (isLeasing: boolean, actorOverride?: { id: string, name: string }) => {
+        if (!order || !workshopId) return
 
+        setSaving(true)
+
+        const updates: any = { is_leasing: isLeasing }
+
+        // If switching to standard, clear leasing fields
+        if (!isLeasing) {
+            updates.leasing_provider = null
+            updates.leasing_portal_email = null
+            updates.contract_id = null
+            updates.service_package = null
+            updates.inspection_code = null
+            updates.pickup_code = null
+            updates.leasing_code = null
+        }
+
+        const { error } = await supabase
+            .from('orders')
+            .update(updates)
+            .eq('id', order.id)
+
+        if (error) {
+            toastError('Fehler', 'Auftragstyp konnte nicht aktualisiert werden.')
+        } else {
+            setOrder({ ...order, ...updates })
+
+            // Log Event
+            logOrderEvent(order.id, {
+                type: 'info',
+                title: 'Auftragstyp geändert',
+                description: `Auftragstyp zu ${isLeasing ? 'Leasing' : 'Standard'} geändert.`,
+                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : (user ? { id: user.id, name: user.email || 'User' } : undefined))
+            }, user).catch(console.error)
+
+            toastSuccess('Aktualisiert', `Auftrag wurde auf ${isLeasing ? 'Leasing' : 'Standard'} umgestellt.`)
+        }
+        setSaving(false)
+        setShowOrderTypeConfirm(false)
+        setPendingOrderTypeUpdate(null)
+    }
 
     const handleApplyTemplate = async () => {
         if (!order || !selectedTemplateId) return
@@ -1136,17 +1179,87 @@ export default function OrderDetailPage() {
                                         <h1 className="text-3xl font-bold tracking-tight text-foreground">
                                             {order.order_number}
                                         </h1>
-                                        <Badge
-                                            variant="outline"
-                                            className={cn(
-                                                "text-xs font-medium",
-                                                order.is_leasing
-                                                    ? "bg-primary/10 text-primary border-primary/25"
-                                                    : "bg-muted text-muted-foreground border-border"
-                                            )}
+                                        <Button
+                                            variant="ghost"
+                                            size="icon-sm"
+                                            className="text-muted-foreground hover:text-foreground hover:ring-1 hover:ring-border transition-all duration-200"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(order.order_number)
+                                                toastSuccess('Kopiert', 'Auftragsnummer wurde kopiert.')
+                                            }}
+                                            title="Auftragsnummer kopieren"
                                         >
-                                            {order.is_leasing ? "Leasing" : "Standard"}
-                                        </Badge>
+                                            <Copy className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <button
+                                                    disabled={isReadOnly}
+                                                    className={cn(
+                                                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-transparent transition-all duration-200 focus:outline-none",
+                                                        isReadOnly ? "cursor-default text-muted-foreground bg-muted/50" : "cursor-pointer hover:bg-muted/10 hover:ring-1 hover:ring-border/50",
+                                                        order.is_leasing
+                                                            ? "bg-primary/10 text-primary border-primary/20 hover:border-primary/40"
+                                                            : "bg-muted text-muted-foreground border-border/50 hover:border-border"
+                                                    )}
+                                                >
+                                                    {order.is_leasing ? "Leasing" : "Standard"}
+                                                    {!isReadOnly && <span className="opacity-50">▾</span>}
+                                                </button>
+                                            </PopoverTrigger>
+                                            {!isReadOnly && (
+                                                <PopoverContent className="w-64 p-2" align="start" sideOffset={6}>
+                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2 pb-2">Auftragstyp</p>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (!order.is_leasing) return
+                                                            setPendingOrderTypeUpdate(false)
+                                                            setShowOrderTypeConfirm(true)
+                                                        }}
+                                                        className={cn(
+                                                            "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors mb-1",
+                                                            !order.is_leasing
+                                                                ? "bg-foreground/5 ring-1 ring-border cursor-default"
+                                                                : "hover:bg-muted/60 cursor-pointer"
+                                                        )}
+                                                    >
+                                                        <div className={cn(
+                                                            "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                                                            !order.is_leasing ? "border-primary" : "border-border"
+                                                        )}>
+                                                            {!order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium leading-tight">Standard</p>
+                                                            <p className="text-[11px] text-muted-foreground mt-0.5">Normale Reparatur ohne Leasing</p>
+                                                        </div>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (order.is_leasing) return
+                                                            handleOrderTypeUpdate(true)
+                                                        }}
+                                                        className={cn(
+                                                            "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
+                                                            order.is_leasing
+                                                                ? "bg-foreground/5 ring-1 ring-border cursor-default"
+                                                                : "hover:bg-muted/60 cursor-pointer"
+                                                        )}
+                                                    >
+                                                        <div className={cn(
+                                                            "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                                                            order.is_leasing ? "border-primary" : "border-border"
+                                                        )}>
+                                                            {order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-medium leading-tight">Leasing</p>
+                                                            <p className="text-[11px] text-muted-foreground mt-0.5">Auftrag über einen Leasing-Anbieter</p>
+                                                        </div>
+                                                    </button>
+                                                </PopoverContent>
+                                            )}
+                                        </Popover>
                                     </div>
 
                                     {/* TAGS */}
@@ -2320,6 +2433,33 @@ export default function OrderDetailPage() {
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
                             Trotzdem zurücksetzen
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={showOrderTypeConfirm} onOpenChange={setShowOrderTypeConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Zu Standard wechseln?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Achtung: Alle eingetragenen Leasing-Daten dieses Auftrags (Anbieter, Vertrags-ID, Codes etc.) werden dabei unwiderruflich gelöscht.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => {
+                            setShowOrderTypeConfirm(false)
+                            setPendingOrderTypeUpdate(null)
+                        }}>Abbrechen</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (pendingOrderTypeUpdate !== null) {
+                                    handleOrderTypeUpdate(pendingOrderTypeUpdate)
+                                }
+                            }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Leasing-Daten löschen & wechseln
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
