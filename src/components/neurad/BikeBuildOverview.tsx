@@ -34,7 +34,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
-import { NEURAD_STATUS_MAP, NEURAD_STATUSES } from "@/lib/constants"
+import { NEURAD_STATUS_MAP } from "@/lib/constants"
 import { OrderHistory } from "@/components/OrderHistory"
 import useSWR from "swr"
 
@@ -123,27 +123,6 @@ export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds'
             setShowSelectionModal(false)
             onUpdate?.()
         }
-    }
-
-    const handleStatusChange = async (newStatus: string) => {
-        setIsSaving(true)
-        try {
-            const { error } = await supabase.from('bike_builds').update({ status: newStatus }).eq('id', build.id)
-            if (error) throw error
-            toast.success("Status aktualisiert")
-
-            // Log Status Change
-            const oldStatusLabel = NEURAD_STATUS_MAP[build.status]?.label || build.status
-            const newStatusLabel = NEURAD_STATUS_MAP[newStatus]?.label || newStatus
-            await logBikeBuildEvent(build.id, {
-                type: 'status_change',
-                title: 'Status geändert',
-                description: `Von "${oldStatusLabel}" zu "${newStatusLabel}"`,
-                metadata: { old_status: build.status, new_status: newStatus }
-            }, user).catch(console.error)
-
-            onUpdate?.()
-        } catch { toast.error("Fehler beim Status") } finally { setIsSaving(false) }
     }
 
     const openEditBike = () => {
@@ -275,7 +254,8 @@ export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds'
                                     Erstellt am {new Date(build.created_at).toLocaleDateString('de-DE')}
                                 </span>
                             </div>
-                            {/* Status Switcher */}
+                            {/* Status Switcher - Disabled as status is now automatic */}
+                            {/* 
                             {userRole !== 'read' && (
                                 <div className="flex flex-wrap gap-1.5 mt-3">
                                     {NEURAD_STATUSES.map(s => (
@@ -295,6 +275,7 @@ export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds'
                                     ))}
                                 </div>
                             )}
+                            */}
                         </div>
 
                         {/* Action Buttons */}
@@ -338,7 +319,7 @@ export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds'
                         <div
                             className={cn(
                                 "h-full rounded-full transition-all",
-                                assemblyPct === 100 ? "bg-green-500" : "bg-primary"
+                                assemblyPct === 100 ? "bg-yellow-400" : "bg-orange-600"
                             )}
                             style={{ width: `${assemblyPct}%` }}
                         />
@@ -368,7 +349,7 @@ export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds'
                         <div
                             className={cn(
                                 "h-full rounded-full transition-all",
-                                controlPct === 100 ? "bg-green-500" : "bg-indigo-500"
+                                controlPct === 100 ? "bg-green-500" : "bg-orange-600"
                             )}
                             style={{ width: `${controlPct}%` }}
                         />

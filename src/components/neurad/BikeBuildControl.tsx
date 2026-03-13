@@ -98,9 +98,31 @@ export function BikeBuildControl({ build, onBack, onComplete }: ComponentProps) 
         if (!build) return
         setIsSaving(true)
         try {
+            const assemblyCompletedCount = (build.assembly_progress?.completed_steps?.length || 0) + (build.assembly_progress?.skipped_steps?.length || 0)
+            const assemblyTotalSteps = build.assembly_progress?.total_steps || steps.length
+            
+            let newStatus = build.status
+            // Status remains 'abgeschlossen' if it already was, or becomes 'abgeschlossen' if qc is done.
+            // If assembly isn't finished, it shouldn't really be 'abgeschlossen', but we prioritize the 'completed' flag of QC.
+            // If QC isn't completed yet, we use the assembly status logic.
+            
+            if (newData.completed) {
+                newStatus = 'abgeschlossen'
+            } else {
+                // Same logic as in Wizard but for QC updates
+                if (assemblyCompletedCount === 0) {
+                    newStatus = 'offen'
+                } else if (assemblyCompletedCount < assemblyTotalSteps) {
+                    newStatus = 'in_progress'
+                } else {
+                    newStatus = 'fertig'
+                }
+            }
+
             await supabase
                 .from('bike_builds')
                 .update({
+                    status: newStatus,
                     qc_mechanic_id: activeEmployee?.id || null,
                     control_data: {
                         ...newData,
@@ -173,6 +195,7 @@ export function BikeBuildControl({ build, onBack, onComplete }: ComponentProps) 
                 completed: true,
                 completed_at: new Date().toISOString()
             }
+            // saveControlData handles status update to 'abgeschlossen'
             await saveControlData(finalData)
             toast.success("Kontrolle abgeschlossen")
 

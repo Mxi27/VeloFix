@@ -133,9 +133,27 @@ export function BikeBuildWizard({ build, onBack, onComplete }: ComponentProps) {
         setIsSaving(true)
 
         try {
+            const completedCount = newCompleted.size + newSkipped.size
+            const totalStepsCount = steps.length
+            
+            let newStatus = build.status
+            // Status logic: 
+            // - If zero steps: 'offen'
+            // - If some steps but not all: 'in_progress'
+            // - If all steps: 'fertig' (only if it wasn't already 'abgeschlossen')
+            
+            if (completedCount === 0) {
+                newStatus = 'offen'
+            } else if (completedCount < totalStepsCount) {
+                newStatus = 'in_progress'
+            } else if (completedCount === totalStepsCount && build.status !== 'abgeschlossen') {
+                newStatus = 'fertig'
+            }
+
             await supabase
                 .from('bike_builds')
                 .update({
+                    status: newStatus,
                     assembly_progress: {
                         completed_steps: Array.from(newCompleted),
                         skipped_steps: Array.from(newSkipped),
