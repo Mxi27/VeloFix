@@ -65,5 +65,6 @@ export const BIKE_TYPE_LABELS: Record<string, string> = {
     road: 'Rennrad',
     mtb: 'Mountainbike',
     city: 'Citybike',
-    ebike: 'E-Bike'
+    ebike: 'E-Bike',
+    other: 'Sonstiges'
 }

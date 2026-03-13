@@ -317,6 +317,7 @@ export default function IntakePage() {
                                             <BikeTypeCard type="road" label="Rennrad" icon={Bike} />
                                             <BikeTypeCard type="mtb" label="MTB" icon={MountainSnow} />
                                             <BikeTypeCard type="city" label="City/Trekking" icon={Bike} />
+                                            <BikeTypeCard type="other" label="Sonstiges" icon={Bike} />
                                         </div>
                                     </div>
 

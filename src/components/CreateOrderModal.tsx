@@ -769,6 +769,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                                 <SelectItem value="ebike">E-Bike</SelectItem>
                                                 <SelectItem value="mtb">Mountainbike</SelectItem>
                                                 <SelectItem value="road">Rennrad</SelectItem>
+                                                <SelectItem value="other">Sonstiges</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
