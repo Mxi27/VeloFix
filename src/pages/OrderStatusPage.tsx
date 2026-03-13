@@ -91,11 +91,11 @@ export default function OrderStatusPage() {
                 if (!data) throw new Error("Auftrag nicht gefunden")
 
                 // Fallback direct fetch for fields not returned by RPC
-                if (data.customer_note === undefined || data.estimated_price === undefined || data.bike_brand === undefined) {
+                if (data.customer_note === undefined || data.estimated_price === undefined || data.bike_brand === undefined || data.bike_color === undefined) {
                     try {
                         const { data: directData } = await supabase
                             .from('orders')
-                            .select('customer_note, estimated_price, bike_brand')
+                            .select('customer_note, estimated_price, bike_brand, bike_color')
                             .eq('id', orderId)
                             .single()
 
@@ -103,6 +103,7 @@ export default function OrderStatusPage() {
                             data.customer_note = directData.customer_note
                             data.estimated_price = directData.estimated_price
                             data.bike_brand = directData.bike_brand
+                            data.bike_color = directData.bike_color
                         }
                     } catch (e) {
                         console.warn("Could not fetch extra fields directly:", e)
@@ -333,7 +334,9 @@ export default function OrderStatusPage() {
                         <div>
                             <p className="text-[10px] uppercase tracking-widest text-slate-600 mb-0.5">Fahrrad</p>
                             <p className="text-sm font-semibold text-white">
-                                {order.bike_brand} {order.bike_model || "Keine Angabe"}
+                                {order.bike_brand && <span>{order.bike_brand} </span>}
+                                {order.bike_model || "Keine Angabe"}
+                                {order.bike_color && <span className="text-slate-400 font-normal"> · {order.bike_color}</span>}
                             </p>
                         </div>
 

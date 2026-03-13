@@ -89,6 +89,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const [bikeModel, setCustomerBikeModel] = useState("")
     const [bikeBrand, setCustomerBikeBrand] = useState("")
     const [bikeType, setCustomerBikeType] = useState("")
+    const [bikeColor, setCustomerBikeColor] = useState("")
     const [estimatedPrice, setEstimatedPrice] = useState("")
     const [leasingProvider, setLeasingProvider] = useState("")
     const [customerNote, setCustomerNote] = useState("")
@@ -172,6 +173,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setCustomerBikeBrand("")
             setCustomerBikeModel("")
             setCustomerBikeType("")
+            setCustomerBikeColor("")
             setEstimatedPrice("")
             setLeasingProvider("")
             setLeasingProvider("")
@@ -200,6 +202,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         setCustomerBikeBrand(request.bike_brand || "")
         setCustomerBikeModel(request.bike_model || "")
         setCustomerBikeType(request.bike_type || "")
+        setCustomerBikeColor(request.bike_color || "")
 
         // Base notes from description
         // Base notes from description
@@ -420,6 +423,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     bike_brand: bikeBrand || null,
                     bike_model: bikeModel || null,
                     bike_type: bikeType || null,
+                    bike_color: bikeColor || null,
                     is_leasing: orderType === 'leasing',
                     status: 'eingegangen',
                     leasing_provider: orderType === 'leasing' ? leasingProvider : null,
@@ -772,6 +776,16 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                                 <SelectItem value="other">Sonstiges</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="bike_color">Farbe</Label>
+                                        <Input
+                                            id="bike_color"
+                                            placeholder="z.B. Schwarz / Blau"
+                                            className="bg-muted/50"
+                                            value={bikeColor}
+                                            onChange={e => setCustomerBikeColor(e.target.value)}
+                                        />
                                     </div>
 
                                     <div className="grid gap-2">
