@@ -523,9 +523,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 {children && <DialogTrigger asChild>{children}</DialogTrigger>}
                 <DialogContent
                     className="sm:max-w-[650px] p-0 overflow-hidden bg-card text-card-foreground border-border gap-0"
-                    onInteractOutside={(e) => {
-                        e.preventDefault()
-                    }}
                 >
                     <div className="p-6 pb-4 border-b border-border/50">
                         <DialogHeader>
@@ -550,9 +547,9 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         </div>
                     </div>
 
-                    <div className="p-6 max-h-[70vh] overflow-y-auto">
+                    <div className="p-6 min-h-[450px] max-h-[75vh] overflow-y-auto overflow-x-hidden" style={{ scrollbarGutter: 'stable' }}>
                         {step === 0 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                                         <UserCheck className="h-5 w-5 text-primary" />
@@ -570,7 +567,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                             </div>
                         )}
                         {step === 1 && !showIntakeSelection && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <h3 className="text-lg font-medium">Auftragstyp wählen</h3>
 
                                 {intakeRequests.length > 0 && (
@@ -630,7 +627,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         )}
 
                         {step === 1 && showIntakeSelection && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between">
                                         <h3 className="text-lg font-medium">Anfrage auswählen</h3>
@@ -687,7 +684,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         )}
 
                         {step === 2 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <h3 className="text-lg font-medium">Leasing-Informationen</h3>
                                 <div className="space-y-2">
                                     <Label htmlFor="provider">Leasing-Anbieter *</Label>
@@ -724,7 +721,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         )}
 
                         {step === 3 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <h3 className="text-lg font-medium">Kunden- & Fahrraddaten</h3>
                                 <div className="grid gap-4">
                                     <div className="space-y-2">
@@ -839,7 +836,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
 
                         {step === 4 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <div className="flex items-center gap-3">
                                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                                         <ClipboardList className="h-5 w-5 text-primary" />
@@ -976,7 +973,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
                         {/* Step 5: Service Checklist Selection (NEW) */}
                         {step === 5 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <div className="flex items-center gap-3">
                                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                                         <ClipboardList className="h-5 w-5 text-primary" />
@@ -1036,7 +1033,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         )}
 
                         {step === 6 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <h3 className="text-lg font-medium">Bereit zum Erstellen?</h3>
                                 <div className="bg-muted p-4 rounded-lg space-y-3">
                                     <h4 className="font-semibold mb-2">Zusammenfassung</h4>
@@ -1094,7 +1091,19 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
                     {/* Footer Actions */}
                     <div className="p-6 pt-2 border-t border-border/50 bg-muted/10 flex justify-between items-center">
-                        {step > (isSharedMode ? 0 : 1) ? (
+                        {showIntakeSelection ? (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowIntakeSelection(false);
+                                    setIntakeSearchTerm("");
+                                }}
+                                className="px-6 border-border/50"
+                            >
+                                <ChevronLeft className="mr-2 h-4 w-4" />
+                                Zurück
+                            </Button>
+                        ) : step > (isSharedMode ? 0 : 1) ? (
                             <Button variant="outline" onClick={handleBack} className="px-6 border-border/50">
                                 <ChevronLeft className="mr-2 h-4 w-4" />
                                 Zurück
@@ -1103,7 +1112,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                             <div />
                         )}
 
-                        {step < 6 ? (
+                        {step < 6 && !showIntakeSelection && (
                             <Button
                                 onClick={() => {
                                     if (isStepValid()) {
@@ -1134,7 +1143,9 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                 Weiter
                                 <ChevronRight className="ml-2 h-4 w-4" />
                             </Button>
-                        ) : (
+                        )}
+
+                        {step === 6 && (
                             <Button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting}
