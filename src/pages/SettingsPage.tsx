@@ -176,6 +176,24 @@ export default function SettingsPage() {
 
 
     const renderContent = () => {
+        // Double check admin sections for safety
+        const isAdminSection = navGroups.some(group => 
+            group.items.some(item => item.id === activeSection && item.adminOnly)
+        )
+        
+        if (isAdminSection && !isAdmin) {
+            return (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Zugriff verweigert</CardTitle>
+                        <CardDescription>
+                            Sie benötigen Administrator-Rechte, um diese Einstellungen zu sehen oder zu bearbeiten.
+                        </CardDescription>
+                    </CardHeader>
+                </Card>
+            )
+        }
+
         switch (activeSection) {
             case 'profile':
                 return (

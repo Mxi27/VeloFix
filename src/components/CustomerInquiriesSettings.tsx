@@ -50,7 +50,8 @@ type IntakeRequest = {
 };
 
 export function CustomerInquiriesSettings() {
-    const { workshopId } = useAuth();
+    const { userRole, workshopId } = useAuth();
+    const isAdmin = userRole === 'owner' || userRole === 'admin';
     const [inquiries, setInquiries] = useState<IntakeRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [retentionDays, setRetentionDays] = useState<string>("null");
@@ -59,11 +60,11 @@ export function CustomerInquiriesSettings() {
     const [selectedInquiries, setSelectedInquiries] = useState<Set<string>>(new Set());
 
     useEffect(() => {
-        if (workshopId) {
+        if (workshopId && isAdmin) {
             fetchInquiries();
             fetchSettings();
         }
-    }, [workshopId]);
+    }, [workshopId, isAdmin]);
 
     const fetchInquiries = async () => {
         setLoading(true);
@@ -181,6 +182,19 @@ export function CustomerInquiriesSettings() {
         }
     };
 
+
+    if (!isAdmin) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Zugriff verweigert</CardTitle>
+                    <CardDescription>
+                        Sie benötigen Administrator-Rechte, um Kundenanfragen zu verwalten.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        );
+    }
 
     return (
         <div className="space-y-6">

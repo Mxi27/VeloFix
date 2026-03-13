@@ -21,7 +21,8 @@ import {
 import { IntakeQRGenerator } from './IntakeQRGenerator'
 
 export function AcceptanceSettings() {
-    const { workshopId } = useAuth()
+    const { userRole, workshopId } = useAuth()
+    const isAdmin = userRole === 'owner' || userRole === 'admin'
     const [items, setItems] = useState<string[]>([])
     const [newItem, setNewItem] = useState('')
     const [loading, setLoading] = useState(true)
@@ -33,10 +34,10 @@ export function AcceptanceSettings() {
     const [itemToDelete, setItemToDelete] = useState<string | null>(null)
 
     useEffect(() => {
-        if (workshopId) {
+        if (workshopId && isAdmin) {
             fetchChecklist()
         }
-    }, [workshopId])
+    }, [workshopId, isAdmin])
 
     const fetchChecklist = async () => {
         setLoading(true)
@@ -129,6 +130,19 @@ export function AcceptanceSettings() {
 
     if (loading) {
         return <div className="p-4 text-center text-muted-foreground">Lade Checkliste...</div>
+    }
+
+    if (!isAdmin) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Zugriff verweigert</CardTitle>
+                    <CardDescription>
+                        Sie benötigen Administrator-Rechte, um den Annahme-Prozess zu verwalten.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        )
     }
 
     return (

@@ -94,7 +94,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
         },
     ]
 
-    if (userRole === 'admin') {
+    if (userRole === 'admin' || userRole === 'owner') {
         navItems.splice(4, 0, {
             title: "Papierkorb",
             icon: Trash2,

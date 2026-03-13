@@ -29,7 +29,8 @@ const PRESET_COLORS = [
 ]
 
 export function TagsSettings() {
-    const { workshopId } = useAuth()
+    const { userRole, workshopId } = useAuth()
+    const isAdmin = userRole === 'owner' || userRole === 'admin'
     const [tags, setTags] = useState<WorkshopTag[]>([])
     const [loading, setLoading] = useState(true)
 
@@ -40,8 +41,8 @@ export function TagsSettings() {
     const [saving, setSaving] = useState(false)
 
     useEffect(() => {
-        if (workshopId) fetchTags()
-    }, [workshopId])
+        if (workshopId && isAdmin) fetchTags()
+    }, [workshopId, isAdmin])
 
     const fetchTags = async () => {
         if (!workshopId) return
@@ -122,6 +123,19 @@ export function TagsSettings() {
         } catch (error: any) {
             toastError("Fehler", "Tag konnte nicht gelöscht werden.")
         }
+    }
+
+    if (!isAdmin) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Zugriff verweigert</CardTitle>
+                    <CardDescription>
+                        Sie benötigen Administrator-Rechte, um Tags zu verwalten.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        )
     }
 
     return (

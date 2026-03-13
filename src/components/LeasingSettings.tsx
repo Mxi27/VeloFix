@@ -18,7 +18,8 @@ import {
 } from "@/components/ui/alert-dialog"
 
 export function LeasingSettings() {
-    const { workshopId } = useAuth()
+    const { userRole, workshopId } = useAuth()
+    const isAdmin = userRole === 'owner' || userRole === 'admin'
     const [providers, setProviders] = useState<string[]>([])
     const [newProvider, setNewProvider] = useState('')
     const [loading, setLoading] = useState(true)
@@ -30,10 +31,10 @@ export function LeasingSettings() {
     const [providerToDelete, setProviderToDelete] = useState<string | null>(null)
 
     useEffect(() => {
-        if (workshopId) {
+        if (workshopId && isAdmin) {
             fetchProviders()
         }
-    }, [workshopId])
+    }, [workshopId, isAdmin])
 
     const fetchProviders = async () => {
         setLoading(true)
@@ -128,6 +129,19 @@ export function LeasingSettings() {
 
     if (loading) {
         return <div className="p-4 text-center text-muted-foreground">Lade Anbieter...</div>
+    }
+
+    if (!isAdmin) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Zugriff verweigert</CardTitle>
+                    <CardDescription>
+                        Sie benötigen Administrator-Rechte, um Leasing-Anbieter zu verwalten.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        )
     }
 
     return (

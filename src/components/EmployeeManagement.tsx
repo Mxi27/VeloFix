@@ -31,7 +31,8 @@ import { toast } from 'sonner'
 type Employee = Database['public']['Tables']['employees']['Row']
 
 export function EmployeeManagement() {
-    const { workshopId } = useAuth()
+    const { workshopId, userRole } = useAuth()
+    const isAdmin = userRole === 'owner' || userRole === 'admin'
     const [employees, setEmployees] = useState<Employee[]>([])
     const [loading, setLoading] = useState(true)
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -49,11 +50,11 @@ export function EmployeeManagement() {
     })
 
     useEffect(() => {
-        if (workshopId) {
+        if (workshopId && isAdmin) {
             fetchEmployees()
             fetchWorkshopSettings()
         }
-    }, [workshopId])
+    }, [workshopId, isAdmin])
 
     const fetchWorkshopSettings = async () => {
         if (!workshopId) return
@@ -244,6 +245,19 @@ export function EmployeeManagement() {
             case 'read': return 'Nur Lesen'
             default: return role
         }
+    }
+
+    if (!isAdmin) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Zugriff verweigert</CardTitle>
+                    <CardDescription>
+                        Sie benötigen Administrator-Rechte, um diese Einstellungen zu sehen oder zu bearbeiten.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        )
     }
 
     return (

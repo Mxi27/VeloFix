@@ -7,12 +7,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 
+import { useAuth } from '@/contexts/AuthContext'
+
 interface WorkshopSettingsProps {
     workshopId: string
     onSaveSuccess?: () => void
 }
 
 export function WorkshopSettings({ workshopId, onSaveSuccess }: WorkshopSettingsProps) {
+    const { userRole } = useAuth()
+    const isAdmin = userRole === 'owner' || userRole === 'admin'
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [form, setForm] = useState({
@@ -34,10 +38,10 @@ export function WorkshopSettings({ workshopId, onSaveSuccess }: WorkshopSettings
     })
 
     useEffect(() => {
-        if (workshopId) {
+        if (workshopId && isAdmin) {
             fetchWorkshop()
         }
-    }, [workshopId])
+    }, [workshopId, isAdmin])
 
     const fetchWorkshop = async () => {
         setLoading(true)
@@ -103,6 +107,19 @@ export function WorkshopSettings({ workshopId, onSaveSuccess }: WorkshopSettings
             if (onSaveSuccess) onSaveSuccess()
         }
         setSaving(false)
+    }
+
+    if (!isAdmin) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Zugriff verweigert</CardTitle>
+                    <CardDescription>
+                        Sie benötigen Administrator-Rechte, um diese Einstellungen zu sehen oder zu bearbeiten.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        )
     }
 
     if (loading) {

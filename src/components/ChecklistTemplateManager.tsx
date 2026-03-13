@@ -197,7 +197,8 @@ function SortableItem({
 }
 
 export function ChecklistTemplateManager() {
-    const { workshopId } = useAuth()
+    const { userRole, workshopId } = useAuth()
+    const isAdmin = userRole === 'owner' || userRole === 'admin'
     const [templates, setTemplates] = useState<ChecklistTemplate[]>([])
     const [loading, setLoading] = useState(true)
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -224,10 +225,10 @@ export function ChecklistTemplateManager() {
     )
 
     useEffect(() => {
-        if (workshopId) {
+        if (workshopId && isAdmin) {
             fetchTemplates()
         }
-    }, [workshopId])
+    }, [workshopId, isAdmin])
 
     const fetchTemplates = async () => {
         if (!workshopId) return
@@ -463,6 +464,19 @@ export function ChecklistTemplateManager() {
 
     const getItemsArray = (template: ChecklistTemplate): any[] => {
         return Array.isArray(template.items) ? template.items as any[] : []
+    }
+
+    if (!isAdmin) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Zugriff verweigert</CardTitle>
+                    <CardDescription>
+                        Sie benötigen Administrator-Rechte, um Checklisten zu verwalten.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        )
     }
 
     return (

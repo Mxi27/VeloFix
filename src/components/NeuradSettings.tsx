@@ -33,7 +33,8 @@ const COLUMN_LABELS: Record<string, string> = {
 */
 
 export function NeuradSettings() {
-    const { workshopId } = useAuth()
+    const { userRole, workshopId } = useAuth()
+    const isAdmin = userRole === 'owner' || userRole === 'admin'
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
 
@@ -54,9 +55,10 @@ export function NeuradSettings() {
     ])
 
     useEffect(() => {
-        if (!workshopId) return
-        fetchConfig()
-    }, [workshopId])
+        if (workshopId && isAdmin) {
+            fetchConfig()
+        }
+    }, [workshopId, isAdmin])
 
     const fetchConfig = async () => {
         try {
@@ -136,6 +138,19 @@ export function NeuradSettings() {
     }
 
     if (loading) return <div className="p-4"><Loader2 className="animate-spin" /></div>
+
+    if (!isAdmin) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Zugriff verweigert</CardTitle>
+                    <CardDescription>
+                        Sie benötigen Administrator-Rechte, um Neurad-Einstellungen zu verwalten.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        )
+    }
 
     return (
         <div className="space-y-8">

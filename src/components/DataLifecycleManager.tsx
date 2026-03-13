@@ -34,7 +34,8 @@ import { BikeBuildsTable } from "./BikeBuildsTable"
 import { Progress } from "@/components/ui/progress"
 
 export function DataLifecycleManager() {
-    const { workshopId } = useAuth()
+    const { userRole, workshopId } = useAuth()
+    const isAdmin = userRole === 'owner' || userRole === 'admin'
     const [loading, setLoading] = useState(false)
     const [stats, setStats] = useState({
         activeOrders: 0,
@@ -51,11 +52,11 @@ export function DataLifecycleManager() {
     const [trashRetention, setTrashRetention] = useState(30)
 
     useEffect(() => {
-        if (workshopId) {
+        if (workshopId && isAdmin) {
             fetchStats()
             fetchSettings()
         }
-    }, [workshopId])
+    }, [workshopId, isAdmin])
 
     const fetchStats = async () => {
         if (!workshopId) return
@@ -175,6 +176,19 @@ export function DataLifecycleManager() {
         } finally {
             setLoading(false)
         }
+    }
+
+    if (!isAdmin) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Zugriff verweigert</CardTitle>
+                    <CardDescription>
+                        Sie benötigen Administrator-Rechte, um Datenbestände zu verwalten.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        )
     }
 
     return (

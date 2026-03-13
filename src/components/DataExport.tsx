@@ -16,7 +16,8 @@ import { toastSuccess, toastError } from '@/lib/toast-utils'
 import * as XLSX from 'xlsx'
 
 export function DataExport() {
-    const { workshopId } = useAuth()
+    const { userRole, workshopId } = useAuth()
+    const isAdmin = userRole === 'owner' || userRole === 'admin'
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString())
     const [exporting, setExporting] = useState(false)
 
@@ -157,6 +158,19 @@ export function DataExport() {
         } finally {
             setExporting(false)
         }
+    }
+
+    if (!isAdmin) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Zugriff verweigert</CardTitle>
+                    <CardDescription>
+                        Sie benötigen Administrator-Rechte, um Daten zu exportieren.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        )
     }
 
     return (
