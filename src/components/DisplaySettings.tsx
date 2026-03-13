@@ -166,17 +166,21 @@ export function DisplaySettings() {
                                     key={color.hex}
                                     onClick={() => handleColorChange(color.hex)}
                                     className={cn(
-                                        "h-10 w-10 rounded-full flex items-center justify-center transition-all ring-offset-background",
+                                        "h-10 w-10 rounded-full flex items-center justify-center transition-all p-1 border-2",
                                         accentColor === color.hex
-                                            ? "ring-2 ring-offset-2 ring-primary scale-110"
-                                            : "hover:scale-105 hover:ring-2 hover:ring-offset-1 hover:ring-muted-foreground/20"
+                                            ? "border-primary bg-background"
+                                            : "border-transparent hover:border-muted-foreground/20"
                                     )}
-                                    style={{ backgroundColor: color.hex }}
                                     aria-label={color.name}
                                 >
-                                    {accentColor === color.hex && (
-                                        <Check className="h-5 w-5 text-white drop-shadow-md" />
-                                    )}
+                                    <div 
+                                        className="h-full w-full rounded-full flex items-center justify-center transition-transform"
+                                        style={{ backgroundColor: color.hex }}
+                                    >
+                                        {accentColor === color.hex && (
+                                            <Check className="h-4 w-4 text-white drop-shadow-sm" />
+                                        )}
+                                    </div>
                                 </button>
                             ))}
                         </div>
