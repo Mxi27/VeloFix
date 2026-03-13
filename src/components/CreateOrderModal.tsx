@@ -148,7 +148,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 .then(({ data }) => {
                     if (data) {
                         // Ensure it's sorted client-side too as a safety measure
-                        const sortedData = [...data].sort((a, b) => 
+                        const sortedData = [...data].sort((a, b) =>
                             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                         );
                         setIntakeRequests(sortedData);
@@ -249,11 +249,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         // Mark as imported (optimistic update local state only)
         setSelectedIntakeRequestId(request.id)
 
-        // Remove from local list to avoid duplicate selection in this session? 
-        // Or keep it but greyed out? 
-        // Let's remove it from the view for now, effectively "selected"
-        setIntakeRequests(prev => prev.filter(r => r.id !== request.id))
-
         setShowIntakeSelection(false)
         setStep(3) // Jump to Date Step (skip type selection as we set it, skip leasing if set?)
 
@@ -331,10 +326,15 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const handleBack = () => {
         if (step === 3 && orderType === "standard") {
             setStep(1) // Skip Leasing Step back
+            setSelectedIntakeRequestId(null)
             return
         }
         if (step > 1) {
-            setStep(step - 1)
+            const newStep = step - 1
+            setStep(newStep)
+            if (newStep === 1) {
+                setSelectedIntakeRequestId(null)
+            }
         }
     }
 
@@ -660,25 +660,36 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                                 req.bike_model?.toLowerCase().includes(search)
                                             );
                                         })
-                                        .map(req => (
-                                        <div
-                                            key={req.id}
-                                            className="p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors space-y-2"
-                                            onClick={() => handleImportRequest(req)}
-                                        >
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex flex-col">
-                                                    <div className="font-medium">{req.customer_name}</div>
-                                                    <div className="text-[11px] text-muted-foreground">
-                                                        {req.bike_brand} {req.bike_model} {req.bike_color && `· ${req.bike_color}`}
+                                        .map(req => {
+                                            const isSelected = req.id === selectedIntakeRequestId;
+                                            return (
+                                                <div
+                                                    key={req.id}
+                                                    className={cn(
+                                                        "p-4 border rounded-lg transition-colors space-y-2",
+                                                        isSelected
+                                                            ? "opacity-50 cursor-not-allowed bg-muted border-primary/30"
+                                                            : "hover:bg-accent/50 cursor-pointer"
+                                                    )}
+                                                    onClick={!isSelected ? () => handleImportRequest(req) : undefined}
+                                                >
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex flex-col">
+                                                            <div className="font-medium flex items-center gap-2">
+                                                                {req.customer_name}
+                                                                {isSelected && <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase font-bold">Ausgewählt</span>}
+                                                            </div>
+                                                            <div className="text-[11px] text-muted-foreground">
+                                                                {req.bike_brand} {req.bike_model} {req.bike_color && `· ${req.bike_color}`}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground font-mono">
+                                                            {format(new Date(req.created_at), "dd.MM.yyyy HH:mm", { locale: de })}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <div className="text-xs text-muted-foreground font-mono">
-                                                    {format(new Date(req.created_at), "dd.MM.yyyy HH:mm", { locale: de })}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                                            );
+                                        })}
                                 </div>
                             </div>
                         )}
