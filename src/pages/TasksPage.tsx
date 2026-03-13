@@ -24,7 +24,6 @@ import {
     Filter,
     LayoutGrid,
     List,
-    GripVertical,
 } from "lucide-react"
 import { format, isPast, isToday } from "date-fns"
 import { de } from "date-fns/locale"
@@ -55,6 +54,7 @@ import {
     useSensor,
     useSensors,
     DragOverlay,
+    useDndContext,
     type DragStartEvent,
     type DragEndEvent,
 } from "@dnd-kit/core"
@@ -225,7 +225,15 @@ export default function TasksPage() {
         if (!over) return
 
         const taskId = active.id as string
-        const targetColumn = over.id as string
+        let targetColumn = over.id as string
+
+        // If dropped over another task, resolve that task's column
+        if (!STATUS_ORDER.includes(targetColumn as any)) {
+            const targetTask = tasks.find(t => t.id === targetColumn)
+            if (targetTask) {
+                targetColumn = targetTask.status
+            }
+        }
 
         // Only process if dropped on a valid column
         if (!STATUS_ORDER.includes(targetColumn as any)) return
@@ -433,6 +441,10 @@ export default function TasksPage() {
                 ) : (
                     <ListView
                         tasks={filteredTasks}
+                        sensors={sensors}
+                        activeTask={activeTask}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
                         onTaskClick={(task) => { setSelectedTask(task); setIsDetailOpen(true) }}
                         onStatusChange={handleQuickStatusChange}
                         onDelete={deleteTask}
@@ -523,10 +535,20 @@ interface DroppableColumnProps {
 
 function DroppableColumn({ column, tasks, onTaskClick, onStatusChange, onDelete, getNextStatus }: DroppableColumnProps) {
     const { setNodeRef, isOver } = useDroppable({ id: column.key })
+    const { over } = useDndContext()
     const taskIds = useMemo(() => tasks.map(t => t.id), [tasks])
 
+    // Enhanced highlight logic: Highlight if over the column OR over any task inside it
+    const isActive = isOver || (over && taskIds.includes(over.id as string))
+
     return (
-        <div className="flex flex-col">
+        <div 
+            ref={setNodeRef}
+            className={`flex flex-col h-full min-h-[500px] p-2 rounded-2xl transition-all duration-200 ${isActive
+                ? 'bg-primary/5 ring-2 ring-primary/20 ring-dashed shadow-inner'
+                : ''
+            }`}
+        >
             {/* Column Header */}
             <div className={`flex items-center justify-between px-4 py-3 rounded-xl ${column.headerBg} mb-3`}>
                 <div className="flex items-center gap-2.5">
@@ -538,14 +560,8 @@ function DroppableColumn({ column, tasks, onTaskClick, onStatusChange, onDelete,
                 </Badge>
             </div>
 
-            {/* Droppable Area */}
-            <div
-                ref={setNodeRef}
-                className={`space-y-2.5 min-h-[200px] p-1 rounded-xl transition-all duration-200 ${isOver
-                    ? 'bg-primary/5 ring-2 ring-primary/20 ring-dashed'
-                    : ''
-                    }`}
-            >
+            {/* Task List Area */}
+            <div className="space-y-2.5 flex-1">
                 <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
                     <AnimatePresence mode="popLayout">
                         {tasks.length > 0 ? (
@@ -604,8 +620,8 @@ function SortableTaskCard(props: SortableTaskCardProps) {
     }
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes}>
-            <TaskCard {...props} dragListeners={listeners} isDragging={isDragging} />
+        <div ref={setNodeRef} style={style}>
+            <TaskCard {...props} dragAttributes={attributes} dragListeners={listeners} isDragging={isDragging} />
         </div>
     )
 }
@@ -621,9 +637,10 @@ interface TaskCardProps {
     getNextStatus: (s: string) => string
     isDragging?: boolean
     dragListeners?: any
+    dragAttributes?: any
 }
 
-function TaskCard({ task, index, onClick, onStatusChange, onDelete, getNextStatus, isDragging, dragListeners }: TaskCardProps) {
+function TaskCard({ task, index, onClick, onStatusChange, onDelete, getNextStatus, isDragging, dragListeners, dragAttributes }: TaskCardProps) {
     const priorityConfig = PRIORITY_CONFIG[task.priority]
     const isOverdue = task.due_date && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date)) && task.status !== 'done'
     const isDueToday = task.due_date && isToday(new Date(task.due_date)) && task.status !== 'done'
@@ -638,9 +655,11 @@ function TaskCard({ task, index, onClick, onStatusChange, onDelete, getNextStatu
         >
             <div
                 onClick={onClick}
-                className={`group relative bg-card border rounded-xl overflow-hidden cursor-pointer transition-all duration-200 ${isDragging
-                    ? 'border-primary/30 shadow-lg ring-2 ring-primary/10'
-                    : 'border-border/50 hover:border-primary/20 hover:shadow-md'
+                {...dragAttributes}
+                {...dragListeners}
+                className={`group relative bg-card border rounded-xl overflow-hidden transition-all duration-200 ${isDragging
+                    ? 'border-primary/30 shadow-lg ring-2 ring-primary/10 cursor-grabbing'
+                    : 'border-border/50 hover:border-primary/20 hover:shadow-md cursor-pointer'
                     }`}
             >
                 {/* Priority Strip */}
@@ -650,17 +669,6 @@ function TaskCard({ task, index, onClick, onStatusChange, onDelete, getNextStatu
                     {/* Title Row */}
                     <div className="flex items-start justify-between gap-2 mb-2">
                         <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                            {/* Drag Handle */}
-                            {dragListeners && (
-                                <button
-                                    {...dragListeners}
-                                    className="mt-0.5 flex-shrink-0 h-5 w-5 rounded flex items-center justify-center text-muted-foreground/30 hover:text-muted-foreground/60 cursor-grab active:cursor-grabbing transition-colors"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    <GripVertical className="h-3.5 w-3.5" />
-                                </button>
-                            )}
-
                             {/* Quick Toggle */}
                             <button
                                 className={`mt-0.5 flex-shrink-0 h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${task.status === 'done'
@@ -670,6 +678,7 @@ function TaskCard({ task, index, onClick, onStatusChange, onDelete, getNextStatu
                                         : 'border-muted-foreground/25 hover:border-primary/50'
                                     }`}
                                 onClick={(e) => onStatusChange(e, task.id, getNextStatus(task.status))}
+                                onPointerDown={(e) => e.stopPropagation()}
                             >
                                 {task.status === 'done' && <CheckCircle2 className="h-3 w-3" />}
                                 {task.status === 'in_progress' && <PlayCircle className="h-3 w-3 text-blue-500" />}
@@ -690,7 +699,13 @@ function TaskCard({ task, index, onClick, onStatusChange, onDelete, getNextStatu
                         {/* Actions Menu */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                    onClick={(e) => e.stopPropagation()}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                >
                                     <MoreHorizontal className="h-3.5 w-3.5" />
                                 </Button>
                             </DropdownMenuTrigger>
@@ -754,13 +769,17 @@ function TaskCard({ task, index, onClick, onStatusChange, onDelete, getNextStatu
 
 interface ListViewProps {
     tasks: ShopTask[]
+    sensors: ReturnType<typeof useSensors>
+    activeTask: ShopTask | null
+    onDragStart: (e: DragStartEvent) => void
+    onDragEnd: (e: DragEndEvent) => void
     onTaskClick: (task: ShopTask) => void
     onStatusChange: (e: React.MouseEvent, taskId: string, newStatus: string) => void
     onDelete: (e: React.MouseEvent, taskId: string) => void
     getNextStatus: (s: string) => string
 }
 
-function ListView({ tasks, onTaskClick, onStatusChange, onDelete, getNextStatus }: ListViewProps) {
+function ListView({ tasks, sensors, activeTask, onDragStart, onDragEnd, onTaskClick, onStatusChange, onDelete, getNextStatus }: ListViewProps) {
     // Group by status for list view too
     const grouped = useMemo(() => {
         return COLUMN_CONFIG.map(col => ({
@@ -770,38 +789,129 @@ function ListView({ tasks, onTaskClick, onStatusChange, onDelete, getNextStatus 
     }, [tasks])
 
     return (
-        <div className="space-y-6">
-            {grouped.map(group => (
-                <div key={group.key}>
-                    {/* Section Header */}
-                    <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl ${group.headerBg} mb-2`}>
-                        <group.icon className={`h-4 w-4 ${group.iconColor}`} />
-                        <span className="font-semibold text-sm tracking-tight">{group.title}</span>
-                        <Badge variant="secondary" className={`text-xs px-2 py-0.5 font-medium ${group.badgeBg}`}>
-                            {group.tasks.length}
-                        </Badge>
-                    </div>
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+        >
+            <div className="space-y-6">
+                {grouped.map(group => (
+                    <DroppableListSection
+                        key={group.key}
+                        group={group}
+                        onTaskClick={onTaskClick}
+                        onStatusChange={onStatusChange}
+                        onDelete={onDelete}
+                        getNextStatus={getNextStatus}
+                    />
+                ))}
+            </div>
 
-                    {group.tasks.length > 0 ? (
-                        <div className="divide-y divide-border/30">
-                            {group.tasks.map(task => (
-                                <ListRow
-                                    key={task.id}
-                                    task={task}
-                                    onClick={() => onTaskClick(task)}
-                                    onStatusChange={onStatusChange}
-                                    onDelete={onDelete}
-                                    getNextStatus={getNextStatus}
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="py-6 text-center text-sm text-muted-foreground/40">
-                            {group.emptyText}
-                        </div>
-                    )}
+            <DragOverlay dropAnimation={{ duration: 200 }}>
+                {activeTask && (
+                    <div className="opacity-90 scale-[1.02] shadow-xl ring-1 ring-primary/20 rounded-lg overflow-hidden border border-border bg-background">
+                        <ListRow
+                            task={activeTask}
+                            onClick={() => { }}
+                            onStatusChange={() => { }}
+                            onDelete={() => { }}
+                            getNextStatus={getNextStatus}
+                            isDragging
+                        />
+                    </div>
+                )}
+            </DragOverlay>
+        </DndContext>
+    )
+}
+
+// ── Droppable List Section ─────────────────────────────────────────────
+
+interface DroppableListSectionProps {
+    group: typeof COLUMN_CONFIG[number] & { tasks: ShopTask[] }
+    onTaskClick: (task: ShopTask) => void
+    onStatusChange: (e: React.MouseEvent, taskId: string, newStatus: string) => void
+    onDelete: (e: React.MouseEvent, taskId: string) => void
+    getNextStatus: (s: string) => string
+}
+
+function DroppableListSection({ group, onTaskClick, onStatusChange, onDelete, getNextStatus }: DroppableListSectionProps) {
+    const { setNodeRef, isOver } = useDroppable({ id: group.key })
+    const { over } = useDndContext()
+    const taskIds = useMemo(() => group.tasks.map(t => t.id), [group.tasks])
+
+    const isActive = isOver || (over && taskIds.includes(over.id as string))
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`flex flex-col rounded-2xl transition-all duration-200 p-2 ${isActive
+                ? 'bg-primary/5 ring-2 ring-primary/20 ring-dashed shadow-inner'
+                : ''
+            }`}
+        >
+            {/* Section Header */}
+            <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl ${group.headerBg} mb-2`}>
+                <group.icon className={`h-4 w-4 ${group.iconColor}`} />
+                <span className="font-semibold text-sm tracking-tight">{group.title}</span>
+                <Badge variant="secondary" className={`text-xs px-2 py-0.5 font-medium ${group.badgeBg}`}>
+                    {group.tasks.length}
+                </Badge>
+            </div>
+
+            {group.tasks.length > 0 ? (
+                <div className="divide-y divide-border/30">
+                    <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+                        {group.tasks.map(task => (
+                            <SortableListRow
+                                key={task.id}
+                                task={task}
+                                onClick={() => onTaskClick(task)}
+                                onStatusChange={onStatusChange}
+                                onDelete={onDelete}
+                                getNextStatus={getNextStatus}
+                            />
+                        ))}
+                    </SortableContext>
                 </div>
-            ))}
+            ) : (
+                <div className="py-6 text-center text-sm text-muted-foreground/40">
+                    {group.emptyText}
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ── Sortable List Row ──────────────────────────────────────────────────
+
+interface SortableListRowProps extends ListRowProps { }
+
+function SortableListRow(props: SortableListRowProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id: props.task.id })
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+    }
+
+    return (
+        <div ref={setNodeRef} style={style}>
+            <ListRow
+                {...props}
+                dragAttributes={attributes}
+                dragListeners={listeners}
+                isDragging={isDragging}
+            />
         </div>
     )
 }
@@ -814,9 +924,12 @@ interface ListRowProps {
     onStatusChange: (e: React.MouseEvent, taskId: string, newStatus: string) => void
     onDelete: (e: React.MouseEvent, taskId: string) => void
     getNextStatus: (s: string) => string
+    dragAttributes?: any
+    dragListeners?: any
+    isDragging?: boolean
 }
 
-function ListRow({ task, onClick, onStatusChange, onDelete, getNextStatus }: ListRowProps) {
+function ListRow({ task, onClick, onStatusChange, onDelete, getNextStatus, dragAttributes, dragListeners, isDragging }: ListRowProps) {
     const priorityConfig = PRIORITY_CONFIG[task.priority]
     const isOverdue = task.due_date && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date)) && task.status !== 'done'
     const isDueToday = task.due_date && isToday(new Date(task.due_date)) && task.status !== 'done'
@@ -824,7 +937,13 @@ function ListRow({ task, onClick, onStatusChange, onDelete, getNextStatus }: Lis
     return (
         <div
             onClick={onClick}
-            className="group flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer rounded-lg"
+            {...dragAttributes}
+            {...dragListeners}
+            className={`group flex items-center gap-4 px-4 py-3 transition-all rounded-lg ${
+                isDragging 
+                    ? 'bg-background shadow-lg opacity-50 z-50 cursor-grabbing' 
+                    : 'hover:bg-muted/30 cursor-pointer'
+            }`}
         >
             {/* Status Toggle */}
             <button
@@ -835,6 +954,7 @@ function ListRow({ task, onClick, onStatusChange, onDelete, getNextStatus }: Lis
                         : 'border-muted-foreground/25 hover:border-primary/50'
                     }`}
                 onClick={(e) => onStatusChange(e, task.id, getNextStatus(task.status))}
+                onPointerDown={(e) => e.stopPropagation()}
             >
                 {task.status === 'done' && <CheckCircle2 className="h-3 w-3" />}
                 {task.status === 'in_progress' && <PlayCircle className="h-3 w-3 text-blue-500" />}
@@ -887,7 +1007,13 @@ function ListRow({ task, onClick, onStatusChange, onDelete, getNextStatus }: Lis
             {/* Delete Action */}
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" 
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                    >
                         <MoreHorizontal className="h-3.5 w-3.5" />
                     </Button>
                 </DropdownMenuTrigger>

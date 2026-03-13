@@ -212,7 +212,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onUpdate }: TaskDet
                                     <FormItem>
                                         <FormControl>
                                             <Input
-                                                className="text-3xl font-bold tracking-tight border-none shadow-none px-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/30 bg-transparent"
+                                                className="text-3xl font-bold tracking-tight border-none shadow-none px-4 py-2 h-auto focus-visible:ring-0 placeholder:text-muted-foreground/30 bg-transparent -ml-4"
                                                 placeholder="Aufgabentitel"
                                                 {...field}
                                             />
@@ -470,7 +470,7 @@ export function TaskDetailDialog({ task, open, onOpenChange, onUpdate }: TaskDet
                                     <FormItem className="flex-1">
                                         <FormControl>
                                             <Textarea
-                                                className="min-h-[400px] resize-none border-none shadow-none focus-visible:ring-0 p-0 text-lg leading-relaxed placeholder:text-muted-foreground/30 bg-transparent"
+                                                className="min-h-[400px] resize-none border-none shadow-none focus-visible:ring-0 p-4 text-lg leading-relaxed placeholder:text-muted-foreground/30 bg-transparent -ml-4"
                                                 placeholder="Beschreibung, Notizen oder Details hier hinzufügen..."
                                                 {...field}
                                             />
