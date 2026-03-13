@@ -46,6 +46,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
 
 interface BikeBuild {
     id: string
@@ -62,6 +63,7 @@ interface BikeBuild {
     assembly_progress: any
     control_data: any
     is_ebike?: boolean
+    checklist_template?: string | null
 }
 
 // Helper to get human-readable status
@@ -70,14 +72,15 @@ function getNeuradStatus(status: string) {
 }
 
 // Helper to calculate real progress % from assembly_progress
-function getAssemblyProgress(build: BikeBuild): { pct: number; done: number; total: number } {
+function getAssemblyProgress(build: BikeBuild, fallbackTotal?: number): { pct: number; done: number; total: number } {
     const prog = build.assembly_progress
     if (!prog) return { pct: 0, done: 0, total: 0 }
     const done = (prog.completed_steps?.length || 0)
     const skipped = (prog.skipped_steps?.length || 0)
-    const total = done + skipped + (prog.remaining_steps?.length || 0)
-    // If we don't have remaining, just show what we have
-    if (total === 0 && done > 0) return { pct: 100, done, total: done }
+    
+    // Prefer saved total_steps, then provided fallback, then calculate from current data
+    const total = prog.total_steps || fallbackTotal || (done + skipped + (prog.remaining_steps?.length || 0))
+    
     if (total === 0) return { pct: 0, done: 0, total: 0 }
     return { pct: Math.round(((done + skipped) / total) * 100), done, total }
 }
@@ -108,6 +111,27 @@ export function BikeAssemblyTable() {
         workshopId ? ['bike_builds', workshopId] : null,
         fetchBuilds,
         { refreshInterval: 30000, revalidateOnFocus: true }
+    )
+
+    // Fetch step counts per template for fallback calculation
+    const { data: templateCounts = {} } = useSWR(
+        workshopId ? ['neurad_template_counts', workshopId] : null,
+        async () => {
+            const { data, error } = await supabase
+                .from('neurad_steps')
+                .select('template_name')
+                .eq('workshop_id', workshopId)
+                .eq('is_active', true)
+            
+            if (error) throw error
+            
+            const counts: Record<string, number> = {}
+            data.forEach(step => {
+                const name = step.template_name || 'default'
+                counts[name] = (counts[name] || 0) + 1
+            })
+            return counts
+        }
     )
 
     const handleAssignEmployee = async (buildId: string, employeeId: string | null) => {
@@ -405,7 +429,8 @@ export function BikeAssemblyTable() {
                             ) : (
                                 filteredBuilds.map(build => {
                                     const statusInfo = getNeuradStatus(build.status)
-                                    const progress = getAssemblyProgress(build)
+                                    const fallbackTotal = templateCounts[build.checklist_template || 'default']
+                                    const progress = getAssemblyProgress(build, fallbackTotal)
 
                                     return (
                                         <TableRow
@@ -464,12 +489,14 @@ export function BikeAssemblyTable() {
                                                 {progress.total > 0 ? (
                                                     <div className="flex items-center gap-2.5 min-w-[90px]">
                                                         <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden shadow-inner border border-border/5">
-                                                            <div
+                                                            <motion.div
+                                                                initial={{ width: 0 }}
+                                                                animate={{ width: `${progress.pct}%` }}
+                                                                transition={{ duration: 0.8, ease: "easeOut" }}
                                                                 className={cn(
-                                                                    "h-full rounded-full transition-all duration-500 ease-out shadow-sm",
+                                                                    "h-full rounded-full shadow-sm",
                                                                     progress.pct === 100 ? "bg-emerald-500" : "bg-primary"
                                                                 )}
-                                                                style={{ width: `${progress.pct}%` }}
                                                             />
                                                         </div>
                                                         <span className="text-[10px] text-muted-foreground font-bold font-mono whitespace-nowrap bg-muted/40 px-1 py-0.5 rounded border border-border/20">

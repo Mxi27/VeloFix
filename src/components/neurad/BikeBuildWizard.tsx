@@ -139,6 +139,7 @@ export function BikeBuildWizard({ build, onBack, onComplete }: ComponentProps) {
                     assembly_progress: {
                         completed_steps: Array.from(newCompleted),
                         skipped_steps: Array.from(newSkipped),
+                        total_steps: steps.length,
                         step_notes: newNotes,
                         last_updated: new Date().toISOString(),
                         last_actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : { id: user?.id, name: 'User' }

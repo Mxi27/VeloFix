@@ -220,8 +220,9 @@ export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds'
     const assemblyProg = build.assembly_progress
     const completedSteps = assemblyProg?.completed_steps?.length || 0
     const skippedSteps = assemblyProg?.skipped_steps?.length || 0
-    const totalSteps = stepCount || (completedSteps + skippedSteps) || 0
-    const assemblyPct = totalSteps > 0 ? Math.round(((completedSteps + skippedSteps) / totalSteps) * 100) : (completedSteps > 0 ? 100 : 0)
+    // Prefer saved total_steps, then SWR-fetched stepCount, then use completed+skipped as minimal total
+    const totalSteps = assemblyProg?.total_steps || stepCount || (completedSteps + skippedSteps) || 0
+    const assemblyPct = totalSteps > 0 ? Math.round(((completedSteps + skippedSteps) / totalSteps) * 100) : 0
 
     const controlProg = build.control_data
     const controlVerified = controlProg?.verified_steps?.length || 0
