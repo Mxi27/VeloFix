@@ -115,7 +115,9 @@ interface Order {
     customer_name: string
     customer_email: string | null
     customer_phone: string | null
+    bike_brand: string | null
     bike_model: string | null
+    bike_color: string | null
     bike_type: string | null
     is_leasing: boolean
     leasing_provider: string | null
@@ -306,8 +308,10 @@ export default function OrderDetailPage() {
 
     // Bike Edit State
     const [isBikeEditDialogOpen, setIsBikeEditDialogOpen] = useState(false)
+    const [editBikeBrand, setEditBikeBrand] = useState("")
     const [editBikeModel, setEditBikeModel] = useState("")
     const [editBikeType, setEditBikeType] = useState("")
+    const [editBikeColor, setEditBikeColor] = useState("")
 
     // Standardized Edit States
     const [isInternalNoteEditDialogOpen, setIsInternalNoteEditDialogOpen] = useState(false)
@@ -502,8 +506,10 @@ export default function OrderDetailPage() {
 
         setSaving(true)
         const updates = {
+            bike_brand: editBikeBrand || null,
             bike_model: editBikeModel,
-            bike_type: editBikeType || null
+            bike_type: editBikeType || null,
+            bike_color: editBikeColor || null
         }
 
         const { error } = await supabase
@@ -1390,8 +1396,10 @@ export default function OrderDetailPage() {
                                             size="icon"
                                             className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                             onClick={() => {
+                                                setEditBikeBrand(order.bike_brand || "")
                                                 setEditBikeModel(order.bike_model || "")
                                                 setEditBikeType(order.bike_type || "")
+                                                setEditBikeColor(order.bike_color || "")
                                                 setIsBikeEditDialogOpen(true)
                                             }}
                                         >
@@ -1399,10 +1407,18 @@ export default function OrderDetailPage() {
                                         </Button>
                                     )}
                                 </div>
-                                <div className="px-4 py-3 grid grid-cols-2 gap-3">
+                                <div className="px-4 py-3 grid grid-cols-2 gap-y-4 gap-x-3">
+                                    <div>
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Marke</p>
+                                        <p className="text-sm font-medium">{order.bike_brand || '—'}</p>
+                                    </div>
                                     <div>
                                         <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Modell</p>
                                         <p className="text-sm font-medium">{order.bike_model || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Farbe</p>
+                                        <p className="text-sm font-medium">{order.bike_color || '—'}</p>
                                     </div>
                                     <div>
                                         <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Typ</p>
@@ -1877,26 +1893,46 @@ export default function OrderDetailPage() {
                             <DialogTitle>Fahrraddaten bearbeiten</DialogTitle>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label>Modell</Label>
-                                <Input
-                                    value={editBikeModel}
-                                    onChange={e => setEditBikeModel(e.target.value)}
-                                    placeholder="Modell eingeben"
-                                />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Marke</Label>
+                                    <Input
+                                        value={editBikeBrand}
+                                        onChange={e => setEditBikeBrand(e.target.value)}
+                                        placeholder="Marke eingeben"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Modell</Label>
+                                    <Input
+                                        value={editBikeModel}
+                                        onChange={e => setEditBikeModel(e.target.value)}
+                                        placeholder="Modell eingeben"
+                                    />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Typ</Label>
-                                <Select value={editBikeType} onValueChange={setEditBikeType}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Typ wählen" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {Object.entries(BIKE_TYPE_LABELS).map(([key, label]) => (
-                                            <SelectItem key={key} value={key}>{label}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Farbe</Label>
+                                    <Input
+                                        value={editBikeColor}
+                                        onChange={e => setEditBikeColor(e.target.value)}
+                                        placeholder="Farbe eingeben"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Typ</Label>
+                                    <Select value={editBikeType} onValueChange={setEditBikeType}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Typ wählen" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {Object.entries(BIKE_TYPE_LABELS).map(([key, label]) => (
+                                                <SelectItem key={key} value={key}>{label}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
                             </div>
                         </div>
                         <DialogFooter>
