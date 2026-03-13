@@ -44,12 +44,41 @@ export default function BikeBuildDetailPage() {
         }
 
         fetchBuild()
+
+        // Realtime subscription
+        const channel = supabase
+            .channel(`bike_build_detail_${id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'bike_builds',
+                    filter: `id=eq.${id}`
+                },
+                (payload) => {
+                    setBuild((current: any) => {
+                        if (!current) return payload.new
+                        return { ...current, ...payload.new }
+                    })
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
     }, [id, workshopId, navigate])
 
     const refreshBuild = async () => {
         if (!id) return
         const { data } = await supabase.from('bike_builds').select('*').eq('id', id).single()
-        if (data) setBuild(data)
+        if (data) {
+            setBuild((current: any) => {
+                if (!current) return data
+                return { ...current, ...data }
+            })
+        }
     }
 
     const handleDelete = async () => {

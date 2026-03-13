@@ -9,6 +9,7 @@ import { useEmployee } from "@/contexts/EmployeeContext"
 
 import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
 import { BikeDataCompletionDialog } from "@/components/BikeDataCompletionDialog"
+import { logBikeBuildEvent } from "@/lib/history"
 import { cn } from "@/lib/utils"
 
 interface Step {
@@ -167,6 +168,15 @@ export function BikeBuildWizard({ build, onBack, onComplete }: ComponentProps) {
         setSkippedSteps(newSkipped)
         await saveProgress(newCompleted, newSkipped, stepNotes)
 
+        // Log Step Completion
+        await logBikeBuildEvent(build.id, {
+            type: 'service_step',
+            title: currentStep.title,
+            description: `Schritt "${currentStep.title}" als erledigt markiert.`,
+            metadata: { step_id: currentStep.id, action: 'complete' },
+            actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined
+        }, user).catch(console.error)
+
         if (currentStepIndex < steps.length - 1) {
             setCurrentStepIndex(prev => prev + 1)
         } else {
@@ -187,6 +197,15 @@ export function BikeBuildWizard({ build, onBack, onComplete }: ComponentProps) {
         setCompletedSteps(newCompleted)
         await saveProgress(newCompleted, newSkipped, stepNotes)
 
+        // Log Step Skip
+        await logBikeBuildEvent(build.id, {
+            type: 'service_step',
+            title: currentStep.title,
+            description: `Schritt "${currentStep.title}" übersprungen.`,
+            metadata: { step_id: currentStep.id, action: 'skip' },
+            actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined
+        }, user).catch(console.error)
+
         if (currentStepIndex < steps.length - 1) {
             setCurrentStepIndex(prev => prev + 1)
         } else {
@@ -205,6 +224,16 @@ export function BikeBuildWizard({ build, onBack, onComplete }: ComponentProps) {
         setCompletedSteps(newCompleted)
         setSkippedSteps(newSkipped)
         await saveProgress(newCompleted, newSkipped, stepNotes)
+
+        // Log Step Reversal
+        await logBikeBuildEvent(build.id, {
+            type: 'checklist_update',
+            title: currentStep.title,
+            description: `Schritt "${currentStep.title}" zurückgesetzt.`,
+            metadata: { step_id: currentStep.id, action: 'revert' },
+            actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined
+        }, user).catch(console.error)
+
         toast.success("Status zurückgesetzt")
     }
 

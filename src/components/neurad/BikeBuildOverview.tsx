@@ -4,13 +4,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
     ArrowLeft, Wrench, User, Bike, ShieldCheck, Trash2, Pencil,
-    Zap, Key, StickyNote, TrendingUp, ZapOff
+    Zap, Key, StickyNote, TrendingUp, ZapOff, Clock
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
+import { logBikeBuildEvent } from "@/lib/history"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -34,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { NEURAD_STATUS_MAP, NEURAD_STATUSES } from "@/lib/constants"
+import { OrderHistory } from "@/components/OrderHistory"
 import useSWR from "swr"
 
 interface BikeBuildOverviewProps {
@@ -47,7 +49,7 @@ interface BikeBuildOverviewProps {
 
 export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds', onStartWorkshop, onStartControl, onDelete, onUpdate }: BikeBuildOverviewProps) {
     const navigate = useNavigate()
-    const { userRole, workshopId } = useAuth()
+    const { userRole, workshopId, user } = useAuth()
     const { employees } = useEmployee()
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
@@ -108,6 +110,16 @@ export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds'
         if (error) toast.error("Fehler bei der Zuweisung")
         else {
             toast.success("Zuweisung aktualisiert")
+
+            // Log Assignment
+            const employeeName = getEmployeeName(employeeId)
+            await logBikeBuildEvent(build.id, {
+                type: 'assignment',
+                title: assignmentType === 'mechanic' ? 'Monteur zugewiesen' : 'QC Prüfer zugewiesen',
+                description: `${employeeName} wurde als ${assignmentType === 'mechanic' ? 'Monteur' : 'QC Prüfer'} zugewiesen.`,
+                metadata: { employee_id: employeeId, role: assignmentType }
+            }, user).catch(console.error)
+
             setShowSelectionModal(false)
             onUpdate?.()
         }
@@ -119,6 +131,17 @@ export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds'
             const { error } = await supabase.from('bike_builds').update({ status: newStatus }).eq('id', build.id)
             if (error) throw error
             toast.success("Status aktualisiert")
+
+            // Log Status Change
+            const oldStatusLabel = NEURAD_STATUS_MAP[build.status]?.label || build.status
+            const newStatusLabel = NEURAD_STATUS_MAP[newStatus]?.label || newStatus
+            await logBikeBuildEvent(build.id, {
+                type: 'status_change',
+                title: 'Status geändert',
+                description: `Von "${oldStatusLabel}" zu "${newStatusLabel}"`,
+                metadata: { old_status: build.status, new_status: newStatus }
+            }, user).catch(console.error)
+
             onUpdate?.()
         } catch { toast.error("Fehler beim Status") } finally { setIsSaving(false) }
     }
@@ -307,7 +330,7 @@ export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds'
                             <span className="text-sm font-medium">Montage-Fortschritt</span>
                         </div>
                         <span className="text-xs font-mono text-muted-foreground">
-                            {completedSteps}{skippedSteps > 0 ? `+${skippedSteps}` : ''}/{totalSteps || '?'} Schritte
+                            {completedSteps + skippedSteps}/{totalSteps || '?'} Schritte
                         </span>
                     </div>
                     <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
@@ -500,6 +523,17 @@ export function BikeBuildOverview({ build, returnPath = '/dashboard/bike-builds'
                     <Badge variant="outline" className="bg-background/60">{build.checklist_template}</Badge>
                 </div>
             )}
+
+            {/* ── Montage-Verlauf (History) ── */}
+            <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden mt-6">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-semibold">Montage-Verlauf</h3>
+                </div>
+                <div className="p-4">
+                    <OrderHistory history={build.history || []} />
+                </div>
+            </div>
 
             {/* ── Modals & Dialogs ── */}
 

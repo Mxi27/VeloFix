@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
+import { logBikeBuildEvent } from "@/lib/history"
 import { cn } from "@/lib/utils"
 
 interface Step {
@@ -128,6 +129,15 @@ export function BikeBuildControl({ build, onBack, onComplete }: ComponentProps) 
         setControlData(newData)
         await saveControlData(newData)
 
+        // Log QC Step Verification
+        await logBikeBuildEvent(build.id, {
+            type: 'control_step',
+            title: currentStep.title,
+            description: `Schritt "${currentStep.title}" in der Endkontrolle bestätigt.`,
+            metadata: { step_id: currentStep.id, action: 'verify' },
+            actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined
+        }, user).catch(console.error)
+
         if (currentStepIndex < steps.length - 1) {
             setCurrentStepIndex(prev => prev + 1)
         } else {
@@ -165,6 +175,16 @@ export function BikeBuildControl({ build, onBack, onComplete }: ComponentProps) 
             }
             await saveControlData(finalData)
             toast.success("Kontrolle abgeschlossen")
+
+            // Log Final Control Completion
+            await logBikeBuildEvent(build.id, {
+                type: 'control',
+                title: 'Endkontrolle abgeschlossen',
+                description: `Endkontrolle mit ${controlData.rating} Sternen abgeschlossen.`,
+                metadata: { rating: controlData.rating, feedback: controlData.feedback },
+                actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined
+            }, user).catch(console.error)
+
             if (onComplete) onComplete()
             else onBack()
         } catch (error) {

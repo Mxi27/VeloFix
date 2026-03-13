@@ -45,3 +45,31 @@ export async function logOrderEvent(
 
     return historyEvent
 }
+
+export async function logBikeBuildEvent(
+    buildId: string,
+    event: Omit<OrderHistoryEvent, 'id' | 'timestamp'>,
+    user?: { id: string; email?: string; user_metadata?: { full_name?: string } } | null
+) {
+    const historyEvent: OrderHistoryEvent = {
+        ...event,
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        actor: event.actor || (user ? {
+            id: user.id,
+            name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Unbekannt'
+        } : undefined)
+    }
+
+    const { error } = await supabase.rpc('append_bike_build_history', {
+        p_build_id: buildId,
+        p_event: historyEvent
+    })
+
+    if (error) {
+        console.error('Failed to append bike build history:', error)
+        throw error
+    }
+
+    return historyEvent
+}
