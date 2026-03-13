@@ -35,8 +35,10 @@ export default function IntakePage() {
         customer_address: '',
         description: '',
         // Bike Data
+        bike_brand: '',
         bike_model: '',
-        bike_type: '' as 'road' | 'mtb' | 'city' | 'ebike' | '',
+        bike_color: '',
+        bike_type: '' as 'road' | 'mtb' | 'city' | 'ebike' | 'other' | '',
         due_date: undefined as Date | undefined,
         // Leasing specific
         leasing_provider: '',
@@ -78,8 +80,8 @@ export default function IntakePage() {
 
         // Validation based on type
         // Base Requirement: Name, Phone, Description, Bike Data
-        if (!form.customer_name || !form.customer_phone || !form.description || !form.bike_model || !form.bike_type) {
-            setError('Bitte füllen Sie alle Pflichtfelder aus (Name, Telefon, Fahrraddaten, Beschreibung).')
+        if (!form.customer_name || !form.customer_phone || !form.description || !form.bike_brand || !form.bike_model || !form.bike_type) {
+            setError('Bitte füllen Sie alle Pflichtfelder aus (Name, Telefon, Brand, Modell, Typ, Beschreibung).')
             return
         }
 
@@ -101,7 +103,9 @@ export default function IntakePage() {
             customer_address: form.customer_address || null,
             description: form.description,
             status: 'pending',
+            bike_brand: form.bike_brand,
             bike_model: form.bike_model,
+            bike_color: form.bike_color || null,
             bike_type: form.bike_type,
             // Conditional fields
             customer_email: portalType === 'leasing' ? form.customer_email : (form.customer_email || null), // Leasing email is portal email
@@ -317,17 +321,39 @@ export default function IntakePage() {
                                             <BikeTypeCard type="road" label="Rennrad" icon={Bike} />
                                             <BikeTypeCard type="mtb" label="MTB" icon={MountainSnow} />
                                             <BikeTypeCard type="city" label="City/Trekking" icon={Bike} />
+                                            <BikeTypeCard type="other" label="Sonstiges" icon={Bike} />
                                         </div>
                                     </div>
 
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="bike_brand">Marke *</Label>
+                                            <Input
+                                                id="bike_brand"
+                                                required
+                                                value={form.bike_brand}
+                                                onChange={(e) => setForm({ ...form, bike_brand: e.target.value })}
+                                                placeholder="z.B. Specialized, Cube..."
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="bike_model">Modell *</Label>
+                                            <Input
+                                                id="bike_model"
+                                                required
+                                                value={form.bike_model}
+                                                onChange={(e) => setForm({ ...form, bike_model: e.target.value })}
+                                                placeholder="z.B. Stereo Hybrid"
+                                            />
+                                        </div>
+                                    </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="bike_model">Modell / Marke *</Label>
+                                        <Label htmlFor="bike_color">Farbe</Label>
                                         <Input
-                                            id="bike_model"
-                                            required
-                                            value={form.bike_model}
-                                            onChange={(e) => setForm({ ...form, bike_model: e.target.value })}
-                                            placeholder="z.B. Cube Stereo Hybrid"
+                                            id="bike_color"
+                                            value={form.bike_color}
+                                            onChange={(e) => setForm({ ...form, bike_color: e.target.value })}
+                                            placeholder="z.B. Schwarz / Blau"
                                         />
                                     </div>
                                 </div>

@@ -20,7 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Wrench, CreditCard, ChevronRight, ChevronLeft, Check, ClipboardList, CalendarIcon } from "lucide-react"
+import { Wrench, CreditCard, ChevronRight, ChevronLeft, Check, ClipboardList, CalendarIcon, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -89,6 +89,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const [bikeModel, setCustomerBikeModel] = useState("")
     const [bikeBrand, setCustomerBikeBrand] = useState("")
     const [bikeType, setCustomerBikeType] = useState("")
+    const [bikeColor, setCustomerBikeColor] = useState("")
     const [estimatedPrice, setEstimatedPrice] = useState("")
     const [leasingProvider, setLeasingProvider] = useState("")
     const [customerNote, setCustomerNote] = useState("")
@@ -104,6 +105,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const [intakeRequests, setIntakeRequests] = useState<any[]>([])
     const [showIntakeSelection, setShowIntakeSelection] = useState(false)
     const [selectedIntakeRequestId, setSelectedIntakeRequestId] = useState<string | null>(null)
+    const [intakeSearchTerm, setIntakeSearchTerm] = useState("")
 
     // Fetch templates and providers when modal opens
     useEffect(() => {
@@ -144,7 +146,13 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 .eq('status', 'pending')
                 .order('created_at', { ascending: false })
                 .then(({ data }) => {
-                    if (data) setIntakeRequests(data)
+                    if (data) {
+                        // Ensure it's sorted client-side too as a safety measure
+                        const sortedData = [...data].sort((a, b) =>
+                            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                        );
+                        setIntakeRequests(sortedData);
+                    }
                 })
 
             // Fetch Tags
@@ -172,6 +180,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setCustomerBikeBrand("")
             setCustomerBikeModel("")
             setCustomerBikeType("")
+            setCustomerBikeColor("")
             setEstimatedPrice("")
             setLeasingProvider("")
             setLeasingProvider("")
@@ -200,6 +209,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         setCustomerBikeBrand(request.bike_brand || "")
         setCustomerBikeModel(request.bike_model || "")
         setCustomerBikeType(request.bike_type || "")
+        setCustomerBikeColor(request.bike_color || "")
 
         // Base notes from description
         // Base notes from description
@@ -238,11 +248,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
         // Mark as imported (optimistic update local state only)
         setSelectedIntakeRequestId(request.id)
-
-        // Remove from local list to avoid duplicate selection in this session? 
-        // Or keep it but greyed out? 
-        // Let's remove it from the view for now, effectively "selected"
-        setIntakeRequests(prev => prev.filter(r => r.id !== request.id))
 
         setShowIntakeSelection(false)
         setStep(3) // Jump to Date Step (skip type selection as we set it, skip leasing if set?)
@@ -321,10 +326,15 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const handleBack = () => {
         if (step === 3 && orderType === "standard") {
             setStep(1) // Skip Leasing Step back
+            setSelectedIntakeRequestId(null)
             return
         }
         if (step > 1) {
-            setStep(step - 1)
+            const newStep = step - 1
+            setStep(newStep)
+            if (newStep === 1) {
+                setSelectedIntakeRequestId(null)
+            }
         }
     }
 
@@ -420,6 +430,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                     bike_brand: bikeBrand || null,
                     bike_model: bikeModel || null,
                     bike_type: bikeType || null,
+                    bike_color: bikeColor || null,
                     is_leasing: orderType === 'leasing',
                     status: 'eingegangen',
                     leasing_provider: orderType === 'leasing' ? leasingProvider : null,
@@ -512,9 +523,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 {children && <DialogTrigger asChild>{children}</DialogTrigger>}
                 <DialogContent
                     className="sm:max-w-[650px] p-0 overflow-hidden bg-card text-card-foreground border-border gap-0"
-                    onInteractOutside={(e) => {
-                        e.preventDefault()
-                    }}
                 >
                     <div className="p-6 pb-4 border-b border-border/50">
                         <DialogHeader>
@@ -539,9 +547,9 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         </div>
                     </div>
 
-                    <div className="p-6 max-h-[70vh] overflow-y-auto">
+                    <div className="p-6 max-h-[75vh] overflow-y-auto overflow-x-hidden" style={{ scrollbarGutter: 'stable' }}>
                         {step === 0 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <div className="flex items-center gap-3 mb-4">
                                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                                         <UserCheck className="h-5 w-5 text-primary" />
@@ -559,7 +567,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                             </div>
                         )}
                         {step === 1 && !showIntakeSelection && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <h3 className="text-lg font-medium">Auftragstyp wählen</h3>
 
                                 {intakeRequests.length > 0 && (
@@ -619,43 +627,75 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         )}
 
                         {step === 1 && showIntakeSelection && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-medium">Anfrage auswählen</h3>
-                                    <Button variant="ghost" size="sm" onClick={() => setShowIntakeSelection(false)}>
-                                        Abbrechen
-                                    </Button>
+                            <div className="space-y-6 animate-in fade-in duration-300">
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-lg font-medium">Anfrage auswählen</h3>
+                                        <Button variant="ghost" size="sm" onClick={() => {
+                                            setShowIntakeSelection(false);
+                                            setIntakeSearchTerm("");
+                                        }}>
+                                            Abbrechen
+                                        </Button>
+                                    </div>
+
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Suchen nach Name, Marke oder Modell..."
+                                            value={intakeSearchTerm}
+                                            onChange={(e) => setIntakeSearchTerm(e.target.value)}
+                                            className="pl-9 bg-muted/50"
+                                        />
+                                    </div>
                                 </div>
+
                                 <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                                    {intakeRequests.map(req => (
-                                        <div
-                                            key={req.id}
-                                            className="p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors space-y-2"
-                                            onClick={() => handleImportRequest(req)}
-                                        >
-                                            <div className="flex justify-between items-start">
-                                                <div className="font-medium">{req.customer_name}</div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {new Date(req.created_at).toLocaleDateString()}
+                                    {intakeRequests
+                                        .filter(req => {
+                                            const search = intakeSearchTerm.toLowerCase();
+                                            return (
+                                                req.customer_name?.toLowerCase().includes(search) ||
+                                                req.bike_brand?.toLowerCase().includes(search) ||
+                                                req.bike_model?.toLowerCase().includes(search)
+                                            );
+                                        })
+                                        .map(req => {
+                                            const isSelected = req.id === selectedIntakeRequestId;
+                                            return (
+                                                <div
+                                                    key={req.id}
+                                                    className={cn(
+                                                        "p-4 border rounded-lg transition-colors space-y-2",
+                                                        isSelected
+                                                            ? "opacity-50 cursor-not-allowed bg-muted border-primary/30"
+                                                            : "hover:bg-accent/50 cursor-pointer"
+                                                    )}
+                                                    onClick={!isSelected ? () => handleImportRequest(req) : undefined}
+                                                >
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex flex-col">
+                                                            <div className="font-medium flex items-center gap-2">
+                                                                {req.customer_name}
+                                                                {isSelected && <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase font-bold">Ausgewählt</span>}
+                                                            </div>
+                                                            <div className="text-[11px] text-muted-foreground">
+                                                                {req.bike_brand} {req.bike_model} {req.bike_color && `· ${req.bike_color}`}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground font-mono">
+                                                            {format(new Date(req.created_at), "dd.MM.yyyy HH:mm", { locale: de })}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            {req.description && (
-                                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                                    {req.description}
-                                                </p>
-                                            )}
-                                            <div className="flex gap-4 text-xs text-muted-foreground">
-                                                {req.customer_phone && <span>📞 {req.customer_phone}</span>}
-                                                {req.customer_email && <span>✉️ {req.customer_email}</span>}
-                                            </div>
-                                        </div>
-                                    ))}
+                                            );
+                                        })}
                                 </div>
                             </div>
                         )}
 
                         {step === 2 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <h3 className="text-lg font-medium">Leasing-Informationen</h3>
                                 <div className="space-y-2">
                                     <Label htmlFor="provider">Leasing-Anbieter *</Label>
@@ -682,7 +722,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                     <Label htmlFor="leasing_email">Leasing Portal E-Mail</Label>
                                     <Input
                                         id="leasing_email"
-                                        placeholder="email@leasing-portal.de"
                                         value={leasingPortalEmail}
                                         onChange={e => setLeasingPortalEmail(e.target.value)}
                                         className="bg-muted/50"
@@ -693,14 +732,13 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         )}
 
                         {step === 3 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <h3 className="text-lg font-medium">Kunden- & Fahrraddaten</h3>
                                 <div className="grid gap-4">
                                     <div className="space-y-2">
                                         <Label htmlFor="name">Name *</Label>
                                         <Input
                                             id="name"
-                                            placeholder="Max Mustermann"
                                             className="bg-muted/50"
                                             value={customerName}
                                             onChange={e => setCustomerName(e.target.value)}
@@ -712,7 +750,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Label htmlFor="email">E-Mail *</Label>
                                             <Input
                                                 id="email"
-                                                placeholder="max@beispiel.de"
                                                 className="bg-muted/50"
                                                 value={customerEmail}
                                                 onChange={e => setCustomerEmail(e.target.value)}
@@ -722,7 +759,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Label htmlFor="phone">Telefon *</Label>
                                             <Input
                                                 id="phone"
-                                                placeholder="+49 123..."
                                                 className="bg-muted/50"
                                                 value={customerPhone}
                                                 onChange={e => setCustomerPhone(e.target.value)}
@@ -741,7 +777,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Label htmlFor="brand">Marke *</Label>
                                             <Input
                                                 id="brand"
-                                                placeholder="z.B. Specialized, Cube..."
                                                 className="bg-muted/50"
                                                 value={bikeBrand}
                                                 onChange={e => setCustomerBikeBrand(e.target.value)}
@@ -751,7 +786,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Label htmlFor="model">Modell *</Label>
                                             <Input
                                                 id="model"
-                                                placeholder="Trek Domane"
                                                 className="bg-muted/50"
                                                 value={bikeModel}
                                                 onChange={e => setCustomerBikeModel(e.target.value)}
@@ -769,8 +803,18 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                                 <SelectItem value="ebike">E-Bike</SelectItem>
                                                 <SelectItem value="mtb">Mountainbike</SelectItem>
                                                 <SelectItem value="road">Rennrad</SelectItem>
+                                                <SelectItem value="other">Sonstiges</SelectItem>
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="bike_color">Farbe</Label>
+                                        <Input
+                                            id="bike_color"
+                                            className="bg-muted/50"
+                                            value={bikeColor}
+                                            onChange={e => setCustomerBikeColor(e.target.value)}
+                                        />
                                     </div>
 
                                     <div className="grid gap-2">
@@ -803,7 +847,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
 
                         {step === 4 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <div className="flex items-center gap-3">
                                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                                         <ClipboardList className="h-5 w-5 text-primary" />
@@ -888,7 +932,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         <div className="relative">
                                             <Input
                                                 id="price_final_step4"
-                                                placeholder="0.00"
+                                                placeholder="0,00"
                                                 type="number"
                                                 className="pl-3 pr-8"
                                                 value={estimatedPrice}
@@ -940,7 +984,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
                         {/* Step 5: Service Checklist Selection (NEW) */}
                         {step === 5 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <div className="flex items-center gap-3">
                                     <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                                         <ClipboardList className="h-5 w-5 text-primary" />
@@ -1000,7 +1044,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         )}
 
                         {step === 6 && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="space-y-6 animate-in fade-in duration-300">
                                 <h3 className="text-lg font-medium">Bereit zum Erstellen?</h3>
                                 <div className="bg-muted p-4 rounded-lg space-y-3">
                                     <h4 className="font-semibold mb-2">Zusammenfassung</h4>
@@ -1058,7 +1102,19 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
                     {/* Footer Actions */}
                     <div className="p-6 pt-2 border-t border-border/50 bg-muted/10 flex justify-between items-center">
-                        {step > (isSharedMode ? 0 : 1) ? (
+                        {showIntakeSelection ? (
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowIntakeSelection(false);
+                                    setIntakeSearchTerm("");
+                                }}
+                                className="px-6 border-border/50"
+                            >
+                                <ChevronLeft className="mr-2 h-4 w-4" />
+                                Zurück
+                            </Button>
+                        ) : step > (isSharedMode ? 0 : 1) ? (
                             <Button variant="outline" onClick={handleBack} className="px-6 border-border/50">
                                 <ChevronLeft className="mr-2 h-4 w-4" />
                                 Zurück
@@ -1067,7 +1123,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                             <div />
                         )}
 
-                        {step < 6 ? (
+                        {step < 6 && !showIntakeSelection && (
                             <Button
                                 onClick={() => {
                                     if (isStepValid()) {
@@ -1098,7 +1154,9 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                 Weiter
                                 <ChevronRight className="ml-2 h-4 w-4" />
                             </Button>
-                        ) : (
+                        )}
+
+                        {step === 6 && (
                             <Button
                                 onClick={handleSubmit}
                                 disabled={isSubmitting}
