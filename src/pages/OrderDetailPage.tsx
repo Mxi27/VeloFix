@@ -194,6 +194,7 @@ export default function OrderDetailPage() {
 
     // Checkout Dialog
     const [showAbholbereitConfirm, setShowAbholbereitConfirm] = useState(false)
+    const [showRevertConfirm, setShowRevertConfirm] = useState(false)
     const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ status: string, actor?: { id: string, name: string } } | null>(null)
 
 
@@ -555,10 +556,20 @@ export default function OrderDetailPage() {
             return
         }
 
-        // Intercept 'abholbereit' for confirmation
+        // Intercept 'abholbereit' for confirmation (Setting to it)
         if (newStatus === 'abholbereit' && !showAbholbereitConfirm) {
             setPendingStatusUpdate({ status: newStatus, actor: actorOverride })
             setShowAbholbereitConfirm(true)
+            return
+        }
+
+        // Intercept Reversions from 'abholbereit' or 'abgeschlossen'
+        const isReversionFromFinalStatus = (order.status === 'abholbereit' || order.status === 'abgeschlossen') &&
+            newStatus !== 'abholbereit' && newStatus !== 'abgeschlossen'
+
+        if (isReversionFromFinalStatus && !showRevertConfirm) {
+            setPendingStatusUpdate({ status: newStatus, actor: actorOverride })
+            setShowRevertConfirm(true)
             return
         }
 
@@ -2283,6 +2294,32 @@ export default function OrderDetailPage() {
                             className="bg-primary text-primary-foreground hover:bg-primary/90"
                         >
                             Bestätigen & E-Mail senden
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog open={showRevertConfirm} onOpenChange={setShowRevertConfirm}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Status wirklich zurücksetzen?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Der Kunde wurde bereits darüber informiert, dass sein Fahrrad abholbereit ist. Wenn Sie den Status zurücksetzen, wird keine automatische E-Mail versendet, aber der Kunde geht bereits davon aus, sein Rad abholen zu können.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setPendingStatusUpdate(null)}>Abbrechen</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (pendingStatusUpdate) {
+                                    handleStatusChange(pendingStatusUpdate.status, pendingStatusUpdate.actor)
+                                    setPendingStatusUpdate(null)
+                                }
+                                setShowRevertConfirm(false)
+                            }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            Trotzdem zurücksetzen
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
