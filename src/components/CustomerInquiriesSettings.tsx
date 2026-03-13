@@ -78,7 +78,10 @@ export function CustomerInquiriesSettings() {
             console.error("Error fetching inquiries:", error);
             toast.error("Fehler beim Laden der Anfragen");
         } else {
-            setInquiries(data || []);
+            const sortedData = [...(data || [])].sort((a, b) => 
+                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            setInquiries(sortedData);
             setSelectedInquiries(new Set()); // Reset selection on fetch
         }
         setLoading(false);

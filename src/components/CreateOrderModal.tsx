@@ -20,7 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Wrench, CreditCard, ChevronRight, ChevronLeft, Check, ClipboardList, CalendarIcon } from "lucide-react"
+import { Wrench, CreditCard, ChevronRight, ChevronLeft, Check, ClipboardList, CalendarIcon, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -105,6 +105,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     const [intakeRequests, setIntakeRequests] = useState<any[]>([])
     const [showIntakeSelection, setShowIntakeSelection] = useState(false)
     const [selectedIntakeRequestId, setSelectedIntakeRequestId] = useState<string | null>(null)
+    const [intakeSearchTerm, setIntakeSearchTerm] = useState("")
 
     // Fetch templates and providers when modal opens
     useEffect(() => {
@@ -145,7 +146,13 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 .eq('status', 'pending')
                 .order('created_at', { ascending: false })
                 .then(({ data }) => {
-                    if (data) setIntakeRequests(data)
+                    if (data) {
+                        // Ensure it's sorted client-side too as a safety measure
+                        const sortedData = [...data].sort((a, b) => 
+                            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                        );
+                        setIntakeRequests(sortedData);
+                    }
                 })
 
             // Fetch Tags
@@ -624,33 +631,54 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
                         {step === 1 && showIntakeSelection && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-lg font-medium">Anfrage auswählen</h3>
-                                    <Button variant="ghost" size="sm" onClick={() => setShowIntakeSelection(false)}>
-                                        Abbrechen
-                                    </Button>
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-lg font-medium">Anfrage auswählen</h3>
+                                        <Button variant="ghost" size="sm" onClick={() => {
+                                            setShowIntakeSelection(false);
+                                            setIntakeSearchTerm("");
+                                        }}>
+                                            Abbrechen
+                                        </Button>
+                                    </div>
+
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Suchen nach Name, Marke oder Modell..."
+                                            value={intakeSearchTerm}
+                                            onChange={(e) => setIntakeSearchTerm(e.target.value)}
+                                            className="pl-9 bg-muted/50"
+                                        />
+                                    </div>
                                 </div>
+
                                 <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                                    {intakeRequests.map(req => (
+                                    {intakeRequests
+                                        .filter(req => {
+                                            const search = intakeSearchTerm.toLowerCase();
+                                            return (
+                                                req.customer_name?.toLowerCase().includes(search) ||
+                                                req.bike_brand?.toLowerCase().includes(search) ||
+                                                req.bike_model?.toLowerCase().includes(search)
+                                            );
+                                        })
+                                        .map(req => (
                                         <div
                                             key={req.id}
                                             className="p-4 border rounded-lg hover:bg-accent/50 cursor-pointer transition-colors space-y-2"
                                             onClick={() => handleImportRequest(req)}
                                         >
                                             <div className="flex justify-between items-start">
-                                                <div className="font-medium">{req.customer_name}</div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {new Date(req.created_at).toLocaleDateString()}
+                                                <div className="flex flex-col">
+                                                    <div className="font-medium">{req.customer_name}</div>
+                                                    <div className="text-[11px] text-muted-foreground">
+                                                        {req.bike_brand} {req.bike_model} {req.bike_color && `· ${req.bike_color}`}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            {req.description && (
-                                                <p className="text-sm text-muted-foreground line-clamp-2">
-                                                    {req.description}
-                                                </p>
-                                            )}
-                                            <div className="flex gap-4 text-xs text-muted-foreground">
-                                                {req.customer_phone && <span>📞 {req.customer_phone}</span>}
-                                                {req.customer_email && <span>✉️ {req.customer_email}</span>}
+                                                <div className="text-xs text-muted-foreground font-mono">
+                                                    {format(new Date(req.created_at), "dd.MM.yyyy HH:mm", { locale: de })}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -686,7 +714,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                     <Label htmlFor="leasing_email">Leasing Portal E-Mail</Label>
                                     <Input
                                         id="leasing_email"
-                                        placeholder="email@leasing-portal.de"
                                         value={leasingPortalEmail}
                                         onChange={e => setLeasingPortalEmail(e.target.value)}
                                         className="bg-muted/50"
@@ -704,7 +731,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         <Label htmlFor="name">Name *</Label>
                                         <Input
                                             id="name"
-                                            placeholder="Max Mustermann"
                                             className="bg-muted/50"
                                             value={customerName}
                                             onChange={e => setCustomerName(e.target.value)}
@@ -716,7 +742,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Label htmlFor="email">E-Mail *</Label>
                                             <Input
                                                 id="email"
-                                                placeholder="max@beispiel.de"
                                                 className="bg-muted/50"
                                                 value={customerEmail}
                                                 onChange={e => setCustomerEmail(e.target.value)}
@@ -726,7 +751,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Label htmlFor="phone">Telefon *</Label>
                                             <Input
                                                 id="phone"
-                                                placeholder="+49 123..."
                                                 className="bg-muted/50"
                                                 value={customerPhone}
                                                 onChange={e => setCustomerPhone(e.target.value)}
@@ -745,7 +769,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Label htmlFor="brand">Marke *</Label>
                                             <Input
                                                 id="brand"
-                                                placeholder="z.B. Specialized, Cube..."
                                                 className="bg-muted/50"
                                                 value={bikeBrand}
                                                 onChange={e => setCustomerBikeBrand(e.target.value)}
@@ -755,7 +778,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Label htmlFor="model">Modell *</Label>
                                             <Input
                                                 id="model"
-                                                placeholder="Trek Domane"
                                                 className="bg-muted/50"
                                                 value={bikeModel}
                                                 onChange={e => setCustomerBikeModel(e.target.value)}
@@ -781,7 +803,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         <Label htmlFor="bike_color">Farbe</Label>
                                         <Input
                                             id="bike_color"
-                                            placeholder="z.B. Schwarz / Blau"
                                             className="bg-muted/50"
                                             value={bikeColor}
                                             onChange={e => setCustomerBikeColor(e.target.value)}
@@ -903,7 +924,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         <div className="relative">
                                             <Input
                                                 id="price_final_step4"
-                                                placeholder="0.00"
+                                                placeholder="0,00"
                                                 type="number"
                                                 className="pl-3 pr-8"
                                                 value={estimatedPrice}
