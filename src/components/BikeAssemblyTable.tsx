@@ -467,9 +467,7 @@ export function BikeAssemblyTable() {
                                             <TableCell className="hidden lg:table-cell py-3.5">
                                                 <div className="flex flex-col text-sm">
                                                     <span className="font-semibold text-foreground/80">{build.customer_name || <span className="text-muted-foreground/60 italic font-medium text-xs">Lager</span>}</span>
-                                                    {build.customer_email && (
-                                                        <span className="text-[11px] text-muted-foreground/60 truncate max-w-[140px] font-medium leading-none mt-0.5">{build.customer_email}</span>
-                                                    )}
+                                                        <span className="text-[11px] text-muted-foreground/60 truncate max-w-[140px] font-medium leading-none mt-0.5 customer-email">{build.customer_email}</span>
                                                 </div>
                                             </TableCell>
 

@@ -21,7 +21,7 @@ import IntakePage from "@/pages/IntakePage";
 import FeedbackPage from "@/pages/FeedbackPage";
 import { Toaster } from "sonner";
 import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
-import { loadThemeColor, loadTheme } from "@/lib/theme";
+import { loadThemeColor, loadTheme, loadCompactMode } from "@/lib/theme";
 
 import OnboardingPage from "@/pages/OnboardingPage";
 import TasksPage from "@/pages/TasksPage";
@@ -185,6 +185,7 @@ export function App() {
     useEffect(() => {
         loadThemeColor();
         loadTheme();
+        loadCompactMode();
     }, []);
 
     return (

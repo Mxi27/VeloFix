@@ -30,6 +30,7 @@ export interface WorkshopDesignConfig {
   // UI Customization
   borderRadius?: 'smooth' | 'rounded' | 'sharp'
   theme?: 'light' | 'dark' | 'system'
+  isCompact?: boolean
 }
 
 export const DEFAULT_DESIGN_CONFIG: WorkshopDesignConfig = {
@@ -44,6 +45,7 @@ export const DEFAULT_DESIGN_CONFIG: WorkshopDesignConfig = {
   showBarcode: true,
   borderRadius: 'smooth',
   theme: 'system',
+  isCompact: false,
 }
 
 // Design presets for quick customization

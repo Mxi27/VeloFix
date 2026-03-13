@@ -689,7 +689,7 @@ function TaskCard({ task, index, onClick, onStatusChange, onDelete, getNextStatu
                                     {task.title}
                                 </h3>
                                 {task.description && (
-                                    <p className="text-xs text-muted-foreground/60 mt-1 line-clamp-2 leading-relaxed">
+                                    <p className="text-xs text-muted-foreground/60 mt-1 line-clamp-2 leading-relaxed task-description">
                                         {task.description}
                                     </p>
                                 )}
@@ -971,7 +971,7 @@ function ListRow({ task, onClick, onStatusChange, onDelete, getNextStatus, dragA
                     )}
                 </div>
                 {task.description && (
-                    <p className="text-xs text-muted-foreground/50 truncate mt-0.5">{task.description}</p>
+                    <p className="text-xs text-muted-foreground/50 truncate mt-0.5 task-description">{task.description}</p>
                 )}
             </div>
 

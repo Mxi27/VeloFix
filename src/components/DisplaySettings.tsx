@@ -62,8 +62,9 @@ export function DisplaySettings() {
 
     const handleCompactChange = (enabled: boolean) => {
         setCompactMode(enabled)
-        localStorage.setItem('compact-mode', enabled.toString())
-        // Could apply compact mode styling here
+        import('@/lib/theme').then(({ applyCompactMode }) => {
+            applyCompactMode(enabled)
+        })
     }
 
     const handleColorChange = async (color: string) => {

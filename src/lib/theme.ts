@@ -76,9 +76,22 @@ export function applyTheme(theme: Theme) {
     localStorage.setItem('theme', theme)
 }
 
+export function applyCompactMode(enabled: boolean) {
+    const root = document.documentElement
+    root.classList.toggle('compact-mode', enabled)
+    localStorage.setItem('compact-mode', enabled.toString())
+}
+
 export function loadTheme(): Theme {
     const savedTheme = localStorage.getItem('theme') as Theme | null
     const theme = savedTheme || 'system'
     applyTheme(theme)
     return theme
+}
+
+export function loadCompactMode(): boolean {
+    const savedCompact = localStorage.getItem('compact-mode')
+    const isCompact = savedCompact === 'true'
+    applyCompactMode(isCompact)
+    return isCompact
 }

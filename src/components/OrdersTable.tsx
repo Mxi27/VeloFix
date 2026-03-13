@@ -339,7 +339,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 <TableCell className="hidden sm:table-cell py-4">
                                     <div className="flex flex-col min-w-0 max-w-[140px] md:max-w-[200px]">
                                         <span className="font-medium text-sm text-foreground truncate">{order.customer_name}</span>
-                                        <span className="text-xs text-muted-foreground/80 truncate">
+                                        <span className="text-xs text-muted-foreground/80 truncate customer-email">
                                             {order.customer_email || '—'}
                                         </span>
                                     </div>
