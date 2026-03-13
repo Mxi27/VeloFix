@@ -453,7 +453,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             }
 
             toastSuccess('Auftrag erstellt', 'Der Auftrag wurde erfolgreich erstellt.')
-            
+
             handleOpenChange(false)
             onOrderCreated?.()
 
@@ -738,7 +738,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="brand">Fahrrad-Marke *</Label>
+                                            <Label htmlFor="brand">Marke *</Label>
                                             <Input
                                                 id="brand"
                                                 placeholder="z.B. Specialized, Cube..."
@@ -748,7 +748,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label htmlFor="model">Fahrrad-Modell *</Label>
+                                            <Label htmlFor="model">Modell *</Label>
                                             <Input
                                                 id="model"
                                                 placeholder="Trek Domane"
@@ -759,7 +759,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="type">Fahrrad-Typ *</Label>
+                                        <Label htmlFor="type">Typ *</Label>
                                         <Select value={bikeType} onValueChange={setCustomerBikeType}>
                                             <SelectTrigger className="bg-muted/50">
                                                 <SelectValue placeholder="Auswählen" />
