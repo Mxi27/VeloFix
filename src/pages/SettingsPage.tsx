@@ -44,7 +44,6 @@ import {
     Bell,
     Shield,
     Palette,
-    ChevronRight,
     FileSpreadsheet,
     Database as DatabaseIcon,
     Wrench,
@@ -380,7 +379,7 @@ export default function SettingsPage() {
                                                         "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200",
                                                         isActive
                                                             ? "bg-background shadow-sm border text-foreground"
-                                                            : "hover:bg-background/50 text-muted-foreground hover:text-foreground"
+                                                            : "hover:bg-background hover:shadow-sm hover:border-border/50 border border-transparent text-muted-foreground hover:text-foreground"
                                                     )}
                                                 >
                                                     <div className={cn(
@@ -390,9 +389,6 @@ export default function SettingsPage() {
                                                         <Icon className="h-4 w-4" />
                                                     </div>
                                                     <span className="font-medium text-sm">{item.label}</span>
-                                                    {isActive && (
-                                                        <ChevronRight className="h-4 w-4 ml-auto text-muted-foreground/50" />
-                                                    )}
                                                 </button>
                                             )
                                         })}
