@@ -10,6 +10,7 @@ import {
     Star,
     CheckSquare,
     BookOpen,
+    BarChart3,
 } from "lucide-react"
 import {
     Sidebar,
@@ -86,6 +87,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
             console.error("Logout error:", error)
         }
     }
+
 
     const initials = user?.user_metadata?.full_name
         ?.split(" ")
@@ -164,11 +166,18 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                                 <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
                             ))}
                             {(userRole === 'admin' || userRole === 'owner') && (
-                                <SidebarItem 
-                                    item={{ title: "Papierkorb", icon: Trash2, href: "/dashboard/trash" }} 
-                                    location={location} 
-                                    navigate={navigate} 
-                                />
+                                <>
+                                    <SidebarItem 
+                                        item={{ title: "Papierkorb", icon: Trash2, href: "/dashboard/trash" }} 
+                                        location={location} 
+                                        navigate={navigate} 
+                                    />
+                                    <SidebarItem 
+                                        item={{ title: "Feedback Analyse", icon: BarChart3, href: "/dashboard/feedback-analysis" }} 
+                                        location={location} 
+                                        navigate={navigate} 
+                                    />
+                                </>
                             )}
                         </SidebarMenu>
                     </SidebarGroupContent>

@@ -67,8 +67,13 @@ class DesignConfigManager {
         this.saveLocalFallback(this.config)
         this.applyConfig()
       }
-    } catch (error) {
-      console.error('Failed to fetch design config from server:', error)
+    } catch (error: any) {
+      // PGRST204 = No results from .single(), 42703 = Column does not exist
+      if (error?.code === 'PGRST204' || error?.code === '42703' || error?.message?.includes('design_config')) {
+        console.warn('Design config column missing or workshop not found. Initializing with defaults.')
+      } else {
+        console.error('Failed to fetch design config from server:', error)
+      }
     }
   }
 

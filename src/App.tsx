@@ -19,6 +19,7 @@ import BikeBuildDetailPage from "@/pages/BikeBuildDetailPage";
 import OrderStatusPage from "@/pages/OrderStatusPage";
 import IntakePage from "@/pages/IntakePage";
 import FeedbackPage from "@/pages/FeedbackPage";
+import FeedbackDashboard from "@/pages/FeedbackDashboard";
 import { Toaster } from "sonner";
 import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 import { loadThemeColor, loadTheme, loadCompactMode } from "@/lib/theme";
@@ -157,6 +158,14 @@ function AppRoutes() {
                 element={
                     <ProtectedRoute>
                         {workshopId ? <LeasingBillingPage /> : <Navigate to="/onboarding" replace />}
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/dashboard/feedback-analysis"
+                element={
+                    <ProtectedRoute>
+                        {workshopId ? <FeedbackDashboard /> : <Navigate to="/onboarding" replace />}
                     </ProtectedRoute>
                 }
             />
