@@ -19,7 +19,7 @@ export function DashboardLayout({
                 <header className="flex h-14 items-center gap-4 border-b bg-background px-6 flex-shrink-0">
                     <SidebarTrigger />
                     <div className="w-[1px] h-4 bg-border" />
-                    <span className="font-medium text-sm">Dashboard</span>
+                    <span className="font-medium text-sm">Werkstatt</span>
                 </header>
                 <div className={cn(
                     "flex-1 min-h-0 min-w-0 w-full overflow-x-hidden",

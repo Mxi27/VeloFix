@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 
 
 export function DisplaySettings() {
-    const { workshopId } = useAuth()
+    const { workshopId, broadcastThemeChange } = useAuth()
     const [theme, setTheme] = useState<Theme>('system')
     const [compactMode, setCompactMode] = useState(false)
     const [accentColor, setAccentColor] = useState('#3b82f6')
@@ -36,24 +36,27 @@ export function DisplaySettings() {
             setAccentColor(savedColor)
         }
 
-        if (workshopId) {
-            fetchSettings()
-        }
-    }, [workshopId])
+        // Listen for internal theme updates (from broadcast, storage, or focus events)
+        const handleThemeUpdateEvent = (e: Event) => {
+            const customEvent = e as CustomEvent<string>;
+            if (customEvent.detail) {
+                setAccentColor(customEvent.detail);
+            }
+        };
+        const handleCompactUpdateEvent = (e: Event) => {
+            const customEvent = e as CustomEvent<boolean>;
+            if (customEvent.detail !== undefined) {
+                setCompactMode(customEvent.detail);
+            }
+        };
+        window.addEventListener('velofix-theme-update', handleThemeUpdateEvent);
+        window.addEventListener('velofix-compact-update', handleCompactUpdateEvent);
 
-    const fetchSettings = async () => {
-        if (!workshopId) return
-        const { data } = await supabase
-            .from('workshops')
-            .select('accent_color')
-            .eq('id', workshopId)
-            .single()
-
-        if (data?.accent_color) {
-            setAccentColor(data.accent_color)
-            applyThemeColor(data.accent_color)
-        }
-    }
+        return () => {
+            window.removeEventListener('velofix-theme-update', handleThemeUpdateEvent);
+            window.removeEventListener('velofix-compact-update', handleCompactUpdateEvent);
+        };
+    }, [])
 
     const handleThemeChange = (newTheme: Theme) => {
         setTheme(newTheme)
@@ -61,29 +64,44 @@ export function DisplaySettings() {
     }
 
     const handleCompactChange = (enabled: boolean) => {
-        setCompactMode(enabled)
+        // We do not setCompactMode(enabled) here.
+        // applyCompactMode will trigger the event that updates the local state.
         import('@/lib/theme').then(({ applyCompactMode }) => {
             applyCompactMode(enabled)
         })
     }
 
     const handleColorChange = async (color: string) => {
-        setAccentColor(color)
+        // We do NOT setAccentColor(color) here anymore.
+        // applyThemeColor will update the CSS, which then dispatches 'velofix-theme-update',
+        // which then updates accentColor state. This guarantees the UI checkmark always follows reality.
         applyThemeColor(color)
 
         if (workshopId) {
+            // Update both the accent_color column and the design_config JSON
+            const { data: workshop } = await supabase
+                .from('workshops')
+                .select('design_config')
+                .eq('id', workshopId)
+                .single()
 
+            const currentConfig = workshop?.design_config as any || {}
+            
             const { error } = await supabase
                 .from('workshops')
-                .update({ accent_color: color })
+                .update({ 
+                    accent_color: color,
+                    design_config: { ...currentConfig, primaryColor: color }
+                })
                 .eq('id', workshopId)
 
             if (error) {
                 console.error('Error saving accent color:', error)
             } else {
                 toast.success('Akzentfarbe aktualisiert')
+                // Use the centralized broadcast function for instant sync
+                broadcastThemeChange(color)
             }
-
         } else {
             // Local only if no workshop
             localStorage.setItem('velofix-accent-color', color)

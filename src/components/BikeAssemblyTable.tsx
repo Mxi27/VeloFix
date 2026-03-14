@@ -548,9 +548,9 @@ export function BikeAssemblyTable() {
                                                                     className="text-xs py-2 px-3 focus:bg-muted"
                                                                     onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, emp.id) }}
                                                                 >
-                                                                    <Users className="mr-2 h-3.5 w-3.5 text-muted-foreground/60" />
-                                                                    <span className="font-medium">{emp.name}</span>
-                                                                    {build.assigned_employee_id === emp.id && <Check className="ml-auto h-3.5 w-3.5 text-primary" />}
+                                                                    <Users className="mr-2 h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
+                                                                    <span className="font-medium truncate flex-1">{emp.name}</span>
+                                                                    {build.assigned_employee_id === emp.id && <Check className="ml-auto h-3.5 w-3.5 text-primary shrink-0" />}
                                                                 </DropdownMenuItem>
                                                             ))}
                                                         </DropdownMenuContent>
