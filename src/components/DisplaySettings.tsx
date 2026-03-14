@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 
 
 export function DisplaySettings() {
-    const { workshopId } = useAuth()
+    const { workshopId, broadcastThemeChange } = useAuth()
     const [theme, setTheme] = useState<Theme>('system')
     const [compactMode, setCompactMode] = useState(false)
     const [accentColor, setAccentColor] = useState('#3b82f6')
@@ -75,12 +75,8 @@ export function DisplaySettings() {
                 console.error('Error saving accent color:', error)
             } else {
                 toast.success('Akzentfarbe aktualisiert')
-                // Send broadcast for instant sync across other clients
-                supabase.channel(`workshop-updates-${workshopId}`).send({
-                    type: 'broadcast',
-                    event: 'THEME_UPDATE',
-                    payload: { accent_color: color },
-                })
+                // Use the centralized broadcast function for instant sync
+                broadcastThemeChange(color)
             }
         } else {
             // Local only if no workshop

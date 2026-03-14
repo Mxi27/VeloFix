@@ -16,6 +16,7 @@ interface AuthContextType {
     leaveWorkshop: () => Promise<void>
     workshopId: string | null
     refreshSession: () => Promise<void>
+    broadcastThemeChange: (color: string) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [workshopId, setWorkshopId] = useState<string | null>(null)
     const [userRole, setUserRole] = useState<UserRole>(null)
     const [loading, setLoading] = useState(true)
+    const channelRef = useRef<any>(null)
 
     // Helper to fetch and apply workshop accent color
     const syncAccentColor = async (wId: string) => {
@@ -65,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 },
                 async (payload) => {
                     const { applyThemeColor } = await import('@/lib/theme')
+                    console.log('Realtime DB update received:', payload.new)
                     if (payload.new && payload.new.design_config?.primaryColor) {
                         applyThemeColor(payload.new.design_config.primaryColor)
                     } else if (payload.new && payload.new.accent_color) {
@@ -76,18 +79,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 'broadcast',
                 { event: 'THEME_UPDATE' },
                 async ({ payload }) => {
+                    console.log('Broadcast message received:', payload)
                     if (payload.accent_color) {
                         const { applyThemeColor } = await import('@/lib/theme')
                         applyThemeColor(payload.accent_color)
                     }
                 }
             )
-            .subscribe()
+            .subscribe((status) => {
+                console.log(`Realtime subscription status for workshop ${workshopId}:`, status)
+            })
+
+        channelRef.current = channel
 
         return () => {
             supabase.removeChannel(channel)
+            channelRef.current = null
         }
     }, [workshopId])
+
+    const broadcastThemeChange = (color: string) => {
+        if (channelRef.current) {
+            console.log('Broadcasting theme change:', color)
+            channelRef.current.send({
+                type: 'broadcast',
+                event: 'THEME_UPDATE',
+                payload: { accent_color: color },
+            })
+        } else {
+            console.warn('Cannot broadcast theme change: no active workshop channel')
+        }
+    }
 
     // Initial accent color sync when workshopId is set
     useEffect(() => {
@@ -381,7 +403,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         leaveWorkshop,
         workshopId,
-        refreshSession
+        refreshSession,
+        broadcastThemeChange
     }
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
