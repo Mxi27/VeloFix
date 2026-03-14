@@ -95,12 +95,16 @@ export default function FeedbackDashboard() {
         const avgRating = feedback.reduce((acc, curr) => acc + curr.rating, 0) / feedback.length
 
         const priceCounts = feedback.reduce((acc: any, curr) => {
-            acc[curr.price_perception] = (acc[curr.price_perception] || 0) + 1
+            if (curr.price_perception) {
+                acc[curr.price_perception] = (acc[curr.price_perception] || 0) + 1
+            }
             return acc
         }, {})
 
         const valueCounts = feedback.reduce((acc: any, curr) => {
-            acc[curr.main_value] = (acc[curr.main_value] || 0) + 1
+            if (curr.main_value) {
+                acc[curr.main_value] = (acc[curr.main_value] || 0) + 1
+            }
             return acc
         }, {})
 
@@ -422,10 +426,14 @@ export default function FeedbackDashboard() {
                                                     variant="outline"
                                                     className={cn(
                                                         "capitalize text-[10px] border shrink-0",
-                                                        PRICE_COLOR[item.price_perception] || "bg-muted/50 text-muted-foreground"
+                                                        item.price_perception && PRICE_COLOR[item.price_perception] 
+                                                            ? PRICE_COLOR[item.price_perception] 
+                                                            : "bg-muted/50 text-muted-foreground"
                                                     )}
                                                 >
-                                                    {PRICE_LABEL[item.price_perception] || item.price_perception.replace('_', ' ')}
+                                                    {item.price_perception 
+                                                        ? (PRICE_LABEL[item.price_perception] || item.price_perception.replace('_', ' ')) 
+                                                        : (item.main_value || "Keine Angabe")}
                                                 </Badge>
                                             </div>
 
