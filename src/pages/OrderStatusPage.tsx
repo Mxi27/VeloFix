@@ -63,7 +63,7 @@ const STATUS_STEPS = [
     {
         value: 'abgeholt',
         label: 'Abgeholt',
-        sublabel: 'Vielen Dank – gute Fahrt!',
+        sublabel: 'Gute Fahrt! Wir freuen uns auf dein Feedback.',
         icon: Star,
         colorClass: 'text-primary',
         bgClass: 'bg-primary/10',
@@ -384,16 +384,24 @@ export default function OrderStatusPage() {
 
                 {/* ── Feedback Section ── */}
                 {effectiveStatus === 'abgeholt' && (
-                    <OrderFeedback
-                        orderId={order.id}
-                        workshopId={order.workshop_id || order.workshop?.id}
-                        customerPostalCode={order.workshop?.postal_code || undefined}
-                    />
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2 px-1">
+                            <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                            <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                                Deine Bewertung
+                            </p>
+                        </div>
+                        <OrderFeedback
+                            orderId={order.id}
+                            workshopId={order.workshop_id || order.workshop?.id}
+                            customerPostalCode={order.workshop?.postal_code || undefined}
+                        />
+                    </div>
                 )}
 
                 {/* ── Footer ── */}
-                <p className="text-center text-xs text-muted-foreground/50 pt-2">
-                    © {new Date().getFullYear()} {order.workshop?.name || "VeloFix"} · Powered by VeloFix
+                <p className="text-center text-xs text-muted-foreground/40 pt-2">
+                    © {new Date().getFullYear()} {order.workshop?.name || "VeloFix"}
                 </p>
             </div>
         </div>

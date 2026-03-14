@@ -360,8 +360,8 @@ export interface Database {
                     order_id: string
                     workshop_id: string
                     rating: number
-                    price_perception: string
-                    main_value: string
+                    price_perception: string | null
+                    main_value: string | null
                     comment: string | null
                     customer_postal_code: string | null
                 }
@@ -371,8 +371,8 @@ export interface Database {
                     order_id: string
                     workshop_id: string
                     rating: number
-                    price_perception: string
-                    main_value: string
+                    price_perception?: string | null
+                    main_value?: string | null
                     comment?: string | null
                     customer_postal_code?: string | null
                 }
@@ -382,8 +382,8 @@ export interface Database {
                     order_id?: string
                     workshop_id?: string
                     rating?: number
-                    price_perception?: string
-                    main_value?: string
+                    price_perception?: string | null
+                    main_value?: string | null
                     comment?: string | null
                     customer_postal_code?: string | null
                 }
