@@ -16,6 +16,7 @@ interface AuthContextType {
     leaveWorkshop: () => Promise<void>
     workshopId: string | null
     refreshSession: () => Promise<void>
+    syncAccentColor: (wId: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -83,6 +84,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (workshopId) {
             syncAccentColor(workshopId)
+
+            // Periodic background sync (Heartbeat)
+            // This ensures the theme eventually updates even if real-time fails
+            const interval = setInterval(() => {
+                syncAccentColor(workshopId)
+            }, 60000) // Every 60 seconds
+
+            return () => clearInterval(interval)
         }
     }, [workshopId])
 
@@ -371,7 +380,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signOut,
         leaveWorkshop,
         workshopId,
-        refreshSession
+        refreshSession,
+        syncAccentColor
     }
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
