@@ -30,6 +30,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [userRole, setUserRole] = useState<UserRole>(null)
     const [loading, setLoading] = useState(true)
 
+    // Helper to fetch and apply workshop accent color
+    const syncAccentColor = async (wId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('workshops')
+                .select('accent_color')
+                .eq('id', wId)
+                .single()
+
+            if (error) throw error
+            if (data?.accent_color) {
+                const { applyThemeColor } = await import('@/lib/theme')
+                applyThemeColor(data.accent_color)
+            }
+        } catch (err) {
+            console.error('Failed to sync accent color:', err)
+        }
+    }
+
+    // Subscribe to workshop changes (Real-time)
+    useEffect(() => {
+        if (!workshopId) return
+
+        const channel = supabase
+            .channel(`workshop-updates-${workshopId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'workshops',
+                    filter: `id=eq.${workshopId}`,
+                },
+                async (payload) => {
+                    if (payload.new && payload.new.accent_color) {
+                        const { applyThemeColor } = await import('@/lib/theme')
+                        applyThemeColor(payload.new.accent_color)
+                    }
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [workshopId])
+
+    // Initial accent color sync when workshopId is set
+    useEffect(() => {
+        if (workshopId) {
+            syncAccentColor(workshopId)
+        }
+    }, [workshopId])
+
     // Helper to load cache synchronously if possible (or effectively so)
     const loadFromCache = () => {
         try {

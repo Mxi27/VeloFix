@@ -35,25 +35,7 @@ export function DisplaySettings() {
         if (savedColor) {
             setAccentColor(savedColor)
         }
-
-        if (workshopId) {
-            fetchSettings()
-        }
-    }, [workshopId])
-
-    const fetchSettings = async () => {
-        if (!workshopId) return
-        const { data } = await supabase
-            .from('workshops')
-            .select('accent_color')
-            .eq('id', workshopId)
-            .single()
-
-        if (data?.accent_color) {
-            setAccentColor(data.accent_color)
-            applyThemeColor(data.accent_color)
-        }
-    }
+    }, [])
 
     const handleThemeChange = (newTheme: Theme) => {
         setTheme(newTheme)
@@ -72,7 +54,6 @@ export function DisplaySettings() {
         applyThemeColor(color)
 
         if (workshopId) {
-
             const { error } = await supabase
                 .from('workshops')
                 .update({ accent_color: color })
@@ -83,7 +64,6 @@ export function DisplaySettings() {
             } else {
                 toast.success('Akzentfarbe aktualisiert')
             }
-
         } else {
             // Local only if no workshop
             localStorage.setItem('velofix-accent-color', color)
