@@ -1,6 +1,6 @@
 import useSWR from "swr"
 import { toastSuccess, toastError } from '@/lib/toast-utils'
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { STATUS_COLORS } from "@/lib/constants"
 import type { DateRange } from "react-day-picker"
@@ -215,6 +215,17 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
             revalidateOnFocus: true
         }
     )
+
+    const statusCounts = useMemo(() => {
+        return {
+            all: orders.length,
+            eingegangen: orders.filter(o => o.status === 'eingegangen').length,
+            warten_auf_teile: orders.filter(o => o.status === 'warten_auf_teile').length,
+            in_bearbeitung: orders.filter(o => o.status === 'in_bearbeitung').length,
+            kontrolle_offen: orders.filter(o => o.status === 'kontrolle_offen').length,
+            abholbereit: orders.filter(o => o.status === 'abholbereit').length
+        }
+    }, [orders])
 
     const loading = isLoading
 
@@ -672,13 +683,53 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                 <CardContent>
                     {effectiveMode === 'active' ? (
                         <Tabs defaultValue="all" className="space-y-6" onValueChange={setFilterStatus}>
-                            <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1">
-                                <TabsTrigger value="all" className="whitespace-nowrap">Alle</TabsTrigger>
-                                <TabsTrigger value="eingegangen" className="whitespace-nowrap">Eingegangen</TabsTrigger>
-                                <TabsTrigger value="warten_auf_teile" className="whitespace-nowrap">Warten auf Teile</TabsTrigger>
-                                <TabsTrigger value="in_bearbeitung" className="whitespace-nowrap">In Bearbeitung</TabsTrigger>
-                                <TabsTrigger value="kontrolle_offen" className="whitespace-nowrap">Kontrolle offen</TabsTrigger>
-                                <TabsTrigger value="abholbereit" className="whitespace-nowrap">Abholbereit</TabsTrigger>
+                            <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1 border-b-0 gap-6">
+                                <TabsTrigger value="all" className="whitespace-nowrap gap-2 pb-2">
+                                    Alle
+                                    <span className="text-[10px] bg-muted-foreground/10 text-muted-foreground px-1.5 py-0.5 rounded-full font-bold">
+                                        {statusCounts.all}
+                                    </span>
+                                </TabsTrigger>
+                                <TabsTrigger value="eingegangen" className="whitespace-nowrap gap-2 pb-2">
+                                    Eingegangen
+                                    {statusCounts.eingegangen > 0 && (
+                                        <span className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-bold">
+                                            {statusCounts.eingegangen}
+                                        </span>
+                                    )}
+                                </TabsTrigger>
+                                <TabsTrigger value="warten_auf_teile" className="whitespace-nowrap gap-2 pb-2">
+                                    Warten auf Teile
+                                    {statusCounts.warten_auf_teile > 0 && (
+                                        <span className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded-full font-bold">
+                                            {statusCounts.warten_auf_teile}
+                                        </span>
+                                    )}
+                                </TabsTrigger>
+                                <TabsTrigger value="in_bearbeitung" className="whitespace-nowrap gap-2 pb-2">
+                                    In Bearbeitung
+                                    {statusCounts.in_bearbeitung > 0 && (
+                                        <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">
+                                            {statusCounts.in_bearbeitung}
+                                        </span>
+                                    )}
+                                </TabsTrigger>
+                                <TabsTrigger value="kontrolle_offen" className="whitespace-nowrap gap-2 pb-2">
+                                    Kontrolle offen
+                                    {statusCounts.kontrolle_offen > 0 && (
+                                        <span className="text-[10px] bg-purple-500/10 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded-full font-bold">
+                                            {statusCounts.kontrolle_offen}
+                                        </span>
+                                    )}
+                                </TabsTrigger>
+                                <TabsTrigger value="abholbereit" className="whitespace-nowrap gap-2 pb-2">
+                                    Abholbereit
+                                    {statusCounts.abholbereit > 0 && (
+                                        <span className="text-[10px] bg-success/10 text-success-foreground px-1.5 py-0.5 rounded-full font-bold">
+                                            {statusCounts.abholbereit}
+                                        </span>
+                                    )}
+                                </TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="all" className="mt-0">
