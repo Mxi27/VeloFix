@@ -49,6 +49,7 @@ export function DisplaySettings() {
                 setCompactMode(customEvent.detail);
             }
         };
+        window.addEventListener('velofix-theme-update', handleThemeUpdateEvent);
         window.addEventListener('velofix-compact-update', handleCompactUpdateEvent);
 
         return () => {
