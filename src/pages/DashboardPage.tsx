@@ -30,7 +30,9 @@ interface Order {
     id: string
     order_number: string
     customer_name: string
-    bike_model: string
+    bike_brand: string | null
+    bike_model: string | null
+    bike_color: string | null
     status: string
     due_date: string | null
     created_at: string
@@ -109,7 +111,7 @@ export default function DashboardPage() {
         const fetchData = async () => {
             try {
                 const [ordersRes, buildsRes, tasksRes] = await Promise.all([
-                    supabase.from('orders').select('id,order_number,customer_name,bike_model,status,due_date,created_at,mechanic_ids,qc_mechanic_id')
+                    supabase.from('orders').select('id,order_number,customer_name,bike_brand,bike_model,bike_color,status,due_date,created_at,mechanic_ids,qc_mechanic_id')
                         .eq('workshop_id', workshopId)
                         .neq('status', 'abgeschlossen').neq('status', 'abgeholt').neq('status', 'trash')
                         .order('due_date', { ascending: true, nullsFirst: false }),
@@ -480,7 +482,9 @@ function OrderRow({ order, onClick, selfCheckWarning }: OrderRowProps) {
             <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                     <span className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                        {order.bike_brand && <span className="mr-1">{order.bike_brand}</span>}
                         {order.bike_model || 'Fahrrad'}
+                        {order.bike_color && <span className="ml-1 text-muted-foreground font-normal">({order.bike_color})</span>}
                     </span>
                     {selfCheckWarning && (
                         <span className="shrink-0 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 font-medium">

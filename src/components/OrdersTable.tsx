@@ -59,7 +59,9 @@ interface Order {
     order_number: string
     customer_name: string
     customer_email: string | null
+    bike_brand: string | null
     bike_model: string | null
+    bike_color: string | null
     is_leasing: boolean
     status: string
     created_at: string
@@ -217,13 +219,19 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     const loading = isLoading
 
     const filteredOrders = orders.filter(order => {
-        const matchesSearch =
-            order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (order.tags && order.tags.some(tagId => {
+        const searchKeywords = searchTerm.toLowerCase().split(/\s+/).filter(Boolean)
+        const matchesSearch = searchKeywords.length === 0 || searchKeywords.every(keyword => {
+            const inName = order.customer_name.toLowerCase().includes(keyword)
+            const inNumber = order.order_number.toLowerCase().includes(keyword)
+            const inBrand = order.bike_brand?.toLowerCase().includes(keyword)
+            const inModel = order.bike_model?.toLowerCase().includes(keyword)
+            const inColor = order.bike_color?.toLowerCase().includes(keyword)
+            const inTags = order.tags?.some(tagId => {
                 const tag = workshopTags.find((t: any) => t.id === tagId)
-                return tag?.name.toLowerCase().includes(searchTerm.toLowerCase())
-            }))
+                return tag?.name.toLowerCase().includes(keyword)
+            })
+            return inName || inNumber || inBrand || inModel || inColor || inTags
+        })
 
         const matchesStatus =
             effectiveMode === 'active'
@@ -345,8 +353,18 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     </div>
                                 </TableCell>
                                 <TableCell className="hidden lg:table-cell py-4 text-sm text-foreground">
-                                    <div className="max-w-[180px] flex flex-col gap-1.5">
-                                        <span className="font-medium truncate text-muted-foreground">{order.bike_model || '—'}</span>
+                                    <div className="max-w-[180px] flex flex-col gap-1">
+                                        <div className="flex flex-col">
+                                            <span className="font-semibold text-foreground truncate">
+                                                {order.bike_brand && <span className="mr-1">{order.bike_brand}</span>}
+                                                {order.bike_model || '—'}
+                                            </span>
+                                            {order.bike_color && (
+                                                <span className="text-[11px] text-muted-foreground truncate">
+                                                    {order.bike_color}
+                                                </span>
+                                            )}
+                                        </div>
                                         {order.tags && order.tags.length > 0 && (
                                             <div className="flex flex-wrap gap-1">
                                                 {order.tags.map(tagId => {
