@@ -1,18 +1,55 @@
-import { toastSuccess, toastError } from '@/lib/toast-utils'
-import { useEffect, useState } from "react"
-import { useParams, useNavigate, useLocation } from "react-router-dom"
-import { supabase } from "@/lib/supabase"
-import { useAuth } from "@/contexts/AuthContext"
-import { OrderHistory } from "@/components/OrderHistory"
-import { logOrderEvent } from "@/lib/history"
-import type { OrderHistoryEvent } from "@/lib/history"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useLocation, useNavigate, useParams } from "react-router-dom"
+import {
+    AlertCircle,
+    Archive,
+    ArrowLeft,
+    Bike,
+    CalendarIcon,
+    CheckCircle2,
+    ChevronRight,
+    Clock,
+    Copy,
+    CreditCard,
+    Euro,
+    Loader2,
+    Mail,
+    NotebookPen,
+    PackageCheck,
+    Pause,
+    Pencil,
+    Phone,
+    Play,
+    Plus,
+    ShieldCheck,
+    Trash2,
+    User,
+    Wrench,
+    X,
+    type LucideIcon,
+} from "lucide-react"
+import { format } from "date-fns"
+import { de } from "date-fns/locale"
+
 import { DashboardLayout } from "@/layouts/DashboardLayout"
+import { LoadingScreen } from "@/components/LoadingScreen"
+import { PageTransition } from "@/components/PageTransition"
+import { OrderHistory } from "@/components/OrderHistory"
+import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
+import { useAuth } from "@/contexts/AuthContext"
+import { useEmployee } from "@/contexts/EmployeeContext"
+import { supabase } from "@/lib/supabase"
+import { logOrderEvent, type OrderHistoryEvent } from "@/lib/history"
+import { BIKE_TYPE_LABELS, STATUS_COLORS } from "@/lib/constants"
+import { toastError, toastSuccess } from "@/lib/toast-utils"
+import { cn } from "@/lib/utils"
+
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
     Select,
     SelectContent,
@@ -28,37 +65,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { Checkbox } from "@/components/ui/checkbox"
-import { cn } from "@/lib/utils"
-import {
-    ArrowLeft,
-    User,
-    Bike,
-    CreditCard,
-    Mail,
-    Phone,
-    Euro,
-    Clock,
-    Play,
-    Pause,
-    PackageCheck,
-    Check,
-    AlertCircle,
-    Loader2,
-    Archive,
-    Wrench,
-    ShieldCheck,
-    Pencil,
-    Trash2,
-    Copy,
-    Plus,
-    X,
-} from "lucide-react"
-import { LoadingScreen } from "@/components/LoadingScreen"
-import { PageTransition } from "@/components/PageTransition"
-import { BIKE_TYPE_LABELS, STATUS_COLORS } from "@/lib/constants"
-import { useEmployee } from "@/contexts/EmployeeContext"
-import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -69,42 +75,17 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Calendar } from "@/components/ui/calendar"
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { CalendarIcon } from "lucide-react"
-import { format } from "date-fns"
-import { de } from "date-fns/locale"
-
-
-const STATUS_FLOW = [
-    { value: 'eingegangen', label: 'Eingegangen', icon: Clock, color: STATUS_COLORS.eingegangen },
-    { value: 'warten_auf_teile', label: 'Warten auf Teile', icon: Pause, color: STATUS_COLORS.warten_auf_teile },
-    { value: 'in_bearbeitung', label: 'In Bearbeitung', icon: Play, color: STATUS_COLORS.in_bearbeitung },
-    { value: 'kontrolle_offen', label: 'Kontrolle offen', icon: ShieldCheck, color: STATUS_COLORS.kontrolle_offen },
-    { value: 'abholbereit', label: 'Abholbereit', icon: PackageCheck, color: STATUS_COLORS.abholbereit },
-]
-
-const LEASING_STATUS = { value: 'abgeholt', label: 'Abgeholt', icon: Check, color: STATUS_COLORS.abgeholt }
-const COMPLETED_STATUS = { value: 'abgeschlossen', label: 'Abgeschlossen', icon: Archive, color: STATUS_COLORS.abgeschlossen }
-
-const STATUS_SOLID_COLORS: Record<string, string> = {
-    eingegangen: "bg-blue-500 shadow-blue-500/40",
-    warten_auf_teile: "bg-rose-500 shadow-rose-500/40",
-    in_bearbeitung: "bg-indigo-500 shadow-indigo-500/40",
-    kontrolle_offen: "bg-amber-500 shadow-amber-500/40",
-    abholbereit: "bg-sky-500 shadow-sky-500/40",
-    abgeholt: "bg-emerald-500 shadow-emerald-500/40",
-    abgeschlossen: "bg-slate-500 shadow-slate-500/40",
-}
+import { Calendar } from "@/components/ui/calendar"
 
 interface ChecklistItem {
     text: string
     completed: boolean
-    type?: 'acceptance' | 'service'
+    type?: "acceptance" | "service"
     completed_by?: string | null
     completed_at?: string | null
 }
@@ -119,729 +100,797 @@ interface Order {
     bike_model: string | null
     bike_color: string | null
     bike_type: string | null
+    frame_number?: string | null
+    frame_size?: string | null
     is_leasing: boolean
-    leasing_provider: string | null
-    leasing_portal_email: string | null
     status: string
     created_at: string
+    created_date?: string | null
     estimated_price: number | null
     final_price: number | null
     checklist: ChecklistItem[] | null
-    notes: string[] | null
     internal_note: string | null
     customer_note: string | null
     contract_id: string | null
     service_package: string | null
     inspection_code: string | null
     pickup_code: string | null
+    leasing_provider: string | null
+    leasing_portal_email: string | null
     leasing_code: string | null
     history: OrderHistoryEvent[] | null
-    end_control: {
-        steps: any[]
-        completed: boolean
-        rating?: number
-        feedback?: string
-    } | null
     tags: string[] | null
-    mechanic_ids: string[] | null // Array of UUIDs
+    mechanic_ids: string[] | null
     qc_mechanic_id: string | null
     due_date: string | null
 }
 
+interface ChecklistTemplate {
+    id: string
+    name: string
+    items: unknown[] | null
+}
 
+interface WorkshopTag {
+    id: string
+    name: string
+    color: string
+}
 
+interface Actor {
+    id: string
+    name: string
+}
 
+type PendingAction =
+    | { type: "status"; status: string }
+    | { type: "toggle_checklist"; index: number; checked: boolean }
+    | { type: "save_customer" }
+    | { type: "save_bike" }
+    | { type: "save_customer_note" }
+    | { type: "save_internal_note" }
+    | { type: "save_pricing" }
+    | { type: "save_leasing_pickup" }
+    | { type: "save_leasing_info" }
+
+type AssignmentMode = "add_mechanic" | "qc"
+
+interface StatusStep {
+    value: string
+    label: string
+    icon: LucideIcon
+    color: string
+    helper: string
+}
+
+const STATUS_FLOW: StatusStep[] = [
+    { value: "eingegangen", label: "Eingegangen", icon: Clock, color: STATUS_COLORS.eingegangen, helper: "Neu angelegt" },
+    { value: "warten_auf_teile", label: "Warten auf Teile", icon: Pause, color: STATUS_COLORS.warten_auf_teile, helper: "Material fehlt" },
+    { value: "in_bearbeitung", label: "In Bearbeitung", icon: Play, color: STATUS_COLORS.in_bearbeitung, helper: "Aktive Reparatur" },
+    { value: "kontrolle_offen", label: "Kontrolle offen", icon: ShieldCheck, color: STATUS_COLORS.kontrolle_offen, helper: "QC noetig" },
+    { value: "abholbereit", label: "Abholbereit", icon: PackageCheck, color: STATUS_COLORS.abholbereit, helper: "Kunde kann kommen" },
+]
+
+const LEASING_STATUS: StatusStep = {
+    value: "abgeholt",
+    label: "Abgeholt",
+    icon: CheckCircle2,
+    color: STATUS_COLORS.abgeholt,
+    helper: "Leasing Rueckgabe",
+}
+
+const COMPLETED_STATUS: StatusStep = {
+    value: "abgeschlossen",
+    label: "Abgeschlossen",
+    icon: Archive,
+    color: STATUS_COLORS.abgeschlossen,
+    helper: "Archiviert",
+}
+
+const TAG_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6", "#6366f1", "#a855f7", "#ec4899", "#64748b"]
+
+function normalizeChecklist(raw: unknown): ChecklistItem[] {
+    if (!Array.isArray(raw)) return []
+
+    const normalized: Array<ChecklistItem | null> = raw.map((item) => {
+            if (typeof item === "string") {
+                return { text: item, completed: false, type: "service" as const }
+            }
+
+            if (!item || typeof item !== "object") return null
+            const value = item as Partial<ChecklistItem> & { text?: unknown; completed?: unknown }
+
+            return {
+                text: typeof value.text === "string" ? value.text : "",
+                completed: Boolean(value.completed),
+                type: value.type === "acceptance" ? "acceptance" : "service",
+                completed_by: typeof value.completed_by === "string" ? value.completed_by : null,
+                completed_at: typeof value.completed_at === "string" ? value.completed_at : null,
+            }
+        })
+
+    return normalized.filter((item): item is ChecklistItem => Boolean(item?.text))
+}
+
+function normalizeHistory(raw: unknown): OrderHistoryEvent[] {
+    if (!Array.isArray(raw)) return []
+    return raw.filter((item): item is OrderHistoryEvent => Boolean(item && typeof item === "object" && "id" in item && "timestamp" in item))
+}
+
+function normalizeOrder(raw: Record<string, unknown>): Order {
+    return {
+        ...raw,
+        id: String(raw.id ?? ""),
+        order_number: String(raw.order_number ?? ""),
+        customer_name: String(raw.customer_name ?? ""),
+        customer_email: typeof raw.customer_email === "string" ? raw.customer_email : null,
+        customer_phone: typeof raw.customer_phone === "string" ? raw.customer_phone : null,
+        bike_brand: typeof raw.bike_brand === "string" ? raw.bike_brand : null,
+        bike_model: typeof raw.bike_model === "string" ? raw.bike_model : null,
+        bike_color: typeof raw.bike_color === "string" ? raw.bike_color : null,
+        bike_type: typeof raw.bike_type === "string" ? raw.bike_type : null,
+        frame_number: typeof raw.frame_number === "string" ? raw.frame_number : null,
+        frame_size: typeof raw.frame_size === "string" ? raw.frame_size : null,
+        is_leasing: Boolean(raw.is_leasing),
+        status: String(raw.status ?? "eingegangen"),
+        created_at: typeof raw.created_at === "string" ? raw.created_at : typeof raw.created_date === "string" ? raw.created_date : new Date().toISOString(),
+        created_date: typeof raw.created_date === "string" ? raw.created_date : null,
+        estimated_price: typeof raw.estimated_price === "number" ? raw.estimated_price : null,
+        final_price: typeof raw.final_price === "number" ? raw.final_price : null,
+        checklist: normalizeChecklist(raw.checklist),
+        internal_note: typeof raw.internal_note === "string" ? raw.internal_note : null,
+        customer_note: typeof raw.customer_note === "string" ? raw.customer_note : null,
+        contract_id: typeof raw.contract_id === "string" ? raw.contract_id : null,
+        service_package: typeof raw.service_package === "string" ? raw.service_package : null,
+        inspection_code: typeof raw.inspection_code === "string" ? raw.inspection_code : null,
+        pickup_code: typeof raw.pickup_code === "string" ? raw.pickup_code : null,
+        leasing_provider: typeof raw.leasing_provider === "string" ? raw.leasing_provider : null,
+        leasing_portal_email: typeof raw.leasing_portal_email === "string" ? raw.leasing_portal_email : null,
+        leasing_code: typeof raw.leasing_code === "string" ? raw.leasing_code : null,
+        history: normalizeHistory(raw.history),
+        tags: Array.isArray(raw.tags) ? raw.tags.filter((tag): tag is string => typeof tag === "string") : [],
+        mechanic_ids: Array.isArray(raw.mechanic_ids) ? raw.mechanic_ids.filter((tag): tag is string => typeof tag === "string") : [],
+        qc_mechanic_id: typeof raw.qc_mechanic_id === "string" ? raw.qc_mechanic_id : null,
+        due_date: typeof raw.due_date === "string" ? raw.due_date : null,
+    }
+}
+
+function formatCurrency(value: number | null) {
+    if (value == null) return "Offen"
+    return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(value)
+}
+
+function formatDateLabel(value: string | null) {
+    if (!value) return "Kein Termin"
+    return format(new Date(value), "dd. MMM yyyy", { locale: de })
+}
+
+function SurfaceCard({ children, className }: { children: ReactNode; className?: string }) {
+    return <section className={cn("rounded-[28px] border border-border/50 bg-card/90 shadow-[0_18px_60px_-38px_rgba(0,0,0,0.85)] backdrop-blur-xl", className)}>{children}</section>
+}
+
+function SectionHeader({ icon: Icon, title, subtitle, action }: { icon: LucideIcon; title: string; subtitle?: string; action?: ReactNode }) {
+    return (
+        <div className="flex items-start justify-between gap-4 px-5 py-5">
+            <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/10">
+                    <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                    <h2 className="text-base font-semibold tracking-tight text-foreground">{title}</h2>
+                    {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
+                </div>
+            </div>
+            {action}
+        </div>
+    )
+}
+
+function DetailRow({ label, value, mono }: { label: string; value: ReactNode; mono?: boolean }) {
+    return (
+        <div className="rounded-2xl border border-border/40 bg-background/50 px-4 py-3">
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
+            <div className={cn("mt-1 text-sm text-foreground", mono && "font-mono text-[13px]")}>{value}</div>
+        </div>
+    )
+}
 
 export default function OrderDetailPage() {
     const { orderId } = useParams<{ orderId: string }>()
     const navigate = useNavigate()
-    const { workshopId, user, userRole } = useAuth()
     const location = useLocation()
-    const returnPath = location.state?.from || '/dashboard'
+    const { workshopId, user, userRole } = useAuth()
+    const { activeEmployee, employees, isSharedMode } = useEmployee()
+
+    const returnPath = (location.state as { from?: string } | null)?.from || "/dashboard"
+    const isReadOnly = userRole === "read"
+
     const [order, setOrder] = useState<Order | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const [templates, setTemplates] = useState<any[]>([])
-    const [workshopTags, setWorkshopTags] = useState<any[]>([])
-    const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
+    const [templates, setTemplates] = useState<ChecklistTemplate[]>([])
+    const [workshopTags, setWorkshopTags] = useState<WorkshopTag[]>([])
+    const [selectedTemplateId, setSelectedTemplateId] = useState("")
     const [tagInput, setTagInput] = useState("")
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-    const isReadOnly = userRole === 'read'
+    const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+    const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
+    const [assignmentMode, setAssignmentMode] = useState<AssignmentMode>("add_mechanic")
 
-    // Editable fields
-    const [internalNote, setInternalNote] = useState("")
-    const [customerNote, setCustomerNote] = useState("")
+    const [showTemplateConfirm, setShowTemplateConfirm] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [showAbholbereitConfirm, setShowAbholbereitConfirm] = useState(false)
+    const [showRevertConfirm, setShowRevertConfirm] = useState(false)
+    const [showOrderTypeConfirm, setShowOrderTypeConfirm] = useState(false)
+    const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ status: string; actor?: Actor } | null>(null)
+    const [pendingOrderTypeUpdate, setPendingOrderTypeUpdate] = useState<boolean | null>(null)
 
-
-    // Leasing dialog state
+    const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false)
+    const [isBikeDialogOpen, setIsBikeDialogOpen] = useState(false)
+    const [isPricingDialogOpen, setIsPricingDialogOpen] = useState(false)
     const [isLeasingDialogOpen, setIsLeasingDialogOpen] = useState(false)
-    const [leasingCodeInput, setLeasingCodeInput] = useState("") // Acts as Pickup Code in Dialog
-    const [dialogLeasingCode, setDialogLeasingCode] = useState("") // Acts as Leasing Code in Dialog
+    const [isLeasingPickupDialogOpen, setIsLeasingPickupDialogOpen] = useState(false)
 
-    // Editable Leasing Fields
-    const [isLeasingEditDialogOpen, setIsLeasingEditDialogOpen] = useState(false)
+    const [editCustomerName, setEditCustomerName] = useState("")
+    const [editCustomerEmail, setEditCustomerEmail] = useState("")
+    const [editCustomerPhone, setEditCustomerPhone] = useState("")
+    const [editBikeBrand, setEditBikeBrand] = useState("")
+    const [editBikeModel, setEditBikeModel] = useState("")
+    const [editBikeType, setEditBikeType] = useState("")
+    const [editBikeColor, setEditBikeColor] = useState("")
+    const [editFrameNumber, setEditFrameNumber] = useState("")
+    const [editFrameSize, setEditFrameSize] = useState("")
+    const [editCustomerNote, setEditCustomerNote] = useState("")
+    const [editInternalNote, setEditInternalNote] = useState("")
+    const [editEstimatedPrice, setEditEstimatedPrice] = useState("")
+    const [editFinalPrice, setEditFinalPrice] = useState("")
     const [editLeasingProvider, setEditLeasingProvider] = useState("")
     const [editLeasingPortalEmail, setEditLeasingPortalEmail] = useState("")
     const [editContractId, setEditContractId] = useState("")
     const [editServicePackage, setEditServicePackage] = useState("")
     const [editInspectionCode, setEditInspectionCode] = useState("")
     const [editPickupCode, setEditPickupCode] = useState("")
+    const [editLeasingCode, setEditLeasingCode] = useState("")
 
-    // Assignment State
-    const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
-    const [assignmentType, setAssignmentType] = useState<'add_mechanic' | 'qc'>('add_mechanic')
-
-    // Checkout Dialog
-    const [showAbholbereitConfirm, setShowAbholbereitConfirm] = useState(false)
-    const [showRevertConfirm, setShowRevertConfirm] = useState(false)
-    const [showOrderTypeConfirm, setShowOrderTypeConfirm] = useState(false)
-    const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ status: string, actor?: { id: string, name: string } } | null>(null)
-    const [pendingOrderTypeUpdate, setPendingOrderTypeUpdate] = useState<boolean | null>(null)
-
-
-    const getEmployeeName = (id: string) => {
-        if (!employees) return "Lade..."
-        return employees.find(e => e.id === id)?.name || "Unbekannt"
+    const syncDraftsFromOrder = (nextOrder: Order) => {
+        setEditCustomerName(nextOrder.customer_name)
+        setEditCustomerEmail(nextOrder.customer_email || "")
+        setEditCustomerPhone(nextOrder.customer_phone || "")
+        setEditBikeBrand(nextOrder.bike_brand || "")
+        setEditBikeModel(nextOrder.bike_model || "")
+        setEditBikeType(nextOrder.bike_type || "")
+        setEditBikeColor(nextOrder.bike_color || "")
+        setEditFrameNumber(nextOrder.frame_number || "")
+        setEditFrameSize(nextOrder.frame_size || "")
+        setEditCustomerNote(nextOrder.customer_note || "")
+        setEditInternalNote(nextOrder.internal_note || "")
+        setEditEstimatedPrice(nextOrder.estimated_price != null ? String(nextOrder.estimated_price) : "")
+        setEditFinalPrice(nextOrder.final_price != null ? String(nextOrder.final_price) : "")
+        setEditLeasingProvider(nextOrder.leasing_provider || "")
+        setEditLeasingPortalEmail(nextOrder.leasing_portal_email || "")
+        setEditContractId(nextOrder.contract_id || "")
+        setEditServicePackage(nextOrder.service_package || "")
+        setEditInspectionCode(nextOrder.inspection_code || "")
+        setEditPickupCode(nextOrder.pickup_code || "")
+        setEditLeasingCode(nextOrder.leasing_code || "")
     }
-
-    const handleAssignment = async (employeeId: string) => {
-        if (!order) return
-
-        let updateData: any = {}
-
-        if (assignmentType === 'add_mechanic') {
-            // Add to array, prevent duplicates
-            const currentIds = order.mechanic_ids || []
-            if (!currentIds.includes(employeeId)) {
-                updateData = { mechanic_ids: [...currentIds, employeeId] }
-            } else {
-                // Already assigned, just close modal
-                setIsAssignmentModalOpen(false)
-                return
-            }
-        } else {
-            updateData = { qc_mechanic_id: employeeId }
-        }
-
-        const { error } = await supabase
-            .from('orders')
-            .update(updateData)
-            .eq('id', order.id)
-
-        if (error) {
-            console.error(error)
-            toastError("Fehler", "Zuweisung konnte nicht gespeichert werden.")
-        } else {
-            // Update local state
-            setOrder(prev => prev ? ({ ...prev, ...updateData }) : null)
-            setIsAssignmentModalOpen(false)
-            toastSuccess("Zuweisung aktualisiert", `Mitarbeiter wurde erfolgreich zugewiesen.`)
-
-            // Log Event
-            const empName = getEmployeeName(employeeId)
-            const fieldName = assignmentType === 'add_mechanic' ? 'Mechaniker' : 'Qualitätskontrolle'
-            logOrderEvent(order.id, {
-                type: 'info',
-                title: 'Zuweisung geändert',
-                description: `${empName} wurde als ${fieldName} zugewiesen.`,
-                actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : (user ? { id: user.id, name: user.email || 'User' } : undefined)
-            }, user).catch(console.error)
-        }
-    }
-
-    const handleRemoveMechanic = async (employeeId: string) => {
-        if (!order || !order.mechanic_ids) return
-
-        const newIds = order.mechanic_ids.filter(id => id !== employeeId)
-
-        const { error } = await supabase
-            .from('orders')
-            .update({ mechanic_ids: newIds })
-            .eq('id', order.id)
-
-        if (error) {
-            toastError("Fehler", "Mitarbeiter konnte nicht entfernt werden.")
-        } else {
-            setOrder({ ...order, mechanic_ids: newIds })
-            toastSuccess("Entfernt", "Mitarbeiter wurde entfernt.")
-        }
-    }
-
-    // Shared Mode Interception
-    const { isSharedMode, employees, activeEmployee } = useEmployee()
-    const [showEmployeeSelect, setShowEmployeeSelect] = useState(false)
-    const [pendingAction, setPendingAction] = useState<{
-        type: 'status' | 'save_notes_data' | 'save_leasing' | 'save_price_data' | 'toggle_checklist' | 'save_customer' | 'save_bike' | 'save_customer_note',
-        payload?: any
-    } | null>(null)
-
-    const [showExitDialog, setShowExitDialog] = useState(false)
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-
-    const handleDeleteOrder = async () => {
-        if (!order) return
-
-        try {
-            // Soft Delete (Move to Trash)
-            const { error } = await supabase
-                .from('orders')
-                .update({ status: 'trash', trash_date: new Date().toISOString() })
-                .eq('id', order.id)
-
-            if (error) throw error
-
-            // Smooth transition support
-            if (document.startViewTransition) {
-                document.startViewTransition(() => {
-                    navigate(returnPath)
-                })
-            } else {
-                navigate(returnPath)
-            }
-        } catch (error: any) {
-            toastError('Fehler beim Löschen', error.message || 'Der Auftrag konnte nicht gelöscht werden.')
-        }
-    }
-
-    // Customer Edit State
-    const [isCustomerEditDialogOpen, setIsCustomerEditDialogOpen] = useState(false)
-    const [editCustomerName, setEditCustomerName] = useState("")
-    const [editCustomerEmail, setEditCustomerEmail] = useState("")
-    const [editCustomerPhone, setEditCustomerPhone] = useState("")
-
-
-    // Bike Edit State
-    const [isBikeEditDialogOpen, setIsBikeEditDialogOpen] = useState(false)
-    const [editBikeBrand, setEditBikeBrand] = useState("")
-    const [editBikeModel, setEditBikeModel] = useState("")
-    const [editBikeType, setEditBikeType] = useState("")
-    const [editBikeColor, setEditBikeColor] = useState("")
-
-    // Standardized Edit States
-    const [isInternalNoteEditDialogOpen, setIsInternalNoteEditDialogOpen] = useState(false)
-    const [editInternalNote, setEditInternalNote] = useState("")
-
-    const [isPriceEditDialogOpen, setIsPriceEditDialogOpen] = useState(false)
-    const [editEstimatedPrice, setEditEstimatedPrice] = useState("")
-    const [editFinalPrice, setEditFinalPrice] = useState("")
 
     useEffect(() => {
+        if (!workshopId || !orderId) {
+            setLoading(false)
+            return
+        }
+
+        let active = true
+
         const fetchOrder = async () => {
-            if (!workshopId || !orderId) return
-
             setLoading(true)
-
-            // Fetch order and templates in parallel
             const [orderResult, templatesResult, tagsResult] = await Promise.all([
-                supabase
-                    .from('orders')
-                    .select('*')
-                    .eq('id', orderId)
-                    .eq('workshop_id', workshopId)
-                    .single(),
-                supabase
-                    .from('checklist_templates')
-                    .select('*')
-                    .eq('workshop_id', workshopId)
-                    .order('name'),
-                supabase
-                    .from('workshop_tags')
-                    .select('*')
-                    .eq('workshop_id', workshopId)
-                    .order('name')
+                supabase.from("orders").select("*").eq("id", orderId).eq("workshop_id", workshopId).single(),
+                supabase.from("checklist_templates").select("*").eq("workshop_id", workshopId).order("name"),
+                supabase.from("workshop_tags").select("*").eq("workshop_id", workshopId).order("name"),
             ])
 
+            if (!active) return
+
             if (orderResult.error) {
-                console.error("Error fetching order:", orderResult.error)
+                console.error(orderResult.error)
+                setOrder(null)
             } else {
-                setOrder(orderResult.data)
-                setInternalNote(orderResult.data.internal_note || "")
-                setCustomerNote(orderResult.data.customer_note || "")
-                setEditInternalNote(orderResult.data.internal_note || "")
-                setEditInternalNote(orderResult.data.internal_note || "")
-
-
-                setEditFinalPrice(orderResult.data.final_price?.toString() || "")
-                setEditEstimatedPrice(orderResult.data.estimated_price?.toString() || "")
-                // Initialize leasing code input properly to allow editing
-                setLeasingCodeInput(orderResult.data.leasing_code || "")
-
-                // Initialize leasing edit fields
-                setEditLeasingProvider(orderResult.data.leasing_provider || "")
-                setEditLeasingPortalEmail(orderResult.data.leasing_portal_email || "")
-                setEditContractId(orderResult.data.contract_id || "")
-                setEditServicePackage(orderResult.data.service_package || "")
-                setEditInspectionCode(orderResult.data.inspection_code || "")
-                setEditPickupCode(orderResult.data.pickup_code || "")
+                const nextOrder = normalizeOrder(orderResult.data as Record<string, unknown>)
+                setOrder(nextOrder)
+                syncDraftsFromOrder(nextOrder)
             }
 
-            if (templatesResult.data) {
-                setTemplates(templatesResult.data)
-            }
-
-            if (tagsResult.data) {
-                setWorkshopTags(tagsResult.data)
-            }
-
+            setTemplates((templatesResult.data || []) as ChecklistTemplate[])
+            setWorkshopTags((tagsResult.data || []) as WorkshopTag[])
             setLoading(false)
         }
 
         fetchOrder()
 
-        // Realtime subscription
         const channel = supabase
             .channel(`order_detail_${orderId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'orders',
-                    filter: `id=eq.${orderId}`
-                },
-                (payload) => {
-                    const newOrder = payload.new as Order
-                    setOrder((currentOrder) => {
-                        if (!currentOrder) return null;
-                        // Merge updates safely
-                        return {
-                            ...currentOrder,
-                            status: newOrder.status,
-                            checklist: newOrder.checklist,
-                            notes: newOrder.notes,
-                            leasing_code: newOrder.leasing_code,
-                            final_price: newOrder.final_price,
-                            tags: newOrder.tags
-                            // updated_at not strictly needed or in interface
-                        } as Order
-                    })
-
-                    // Also update editable fields to match new state if we aren't editing them right now?
-                    // For simplicity, we assume we want latest server state. 
-                    // To avoid overwriting local edits if user is typing, we might check saving state 
-                    // but for checklist sync (primary goal), updating state is key.
-                }
-            )
+            .on("postgres_changes", { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${orderId}` }, (payload) => {
+                const nextOrder = normalizeOrder(payload.new as Record<string, unknown>)
+                setOrder((current) => (current ? { ...current, ...nextOrder } : nextOrder))
+            })
             .subscribe()
 
         return () => {
+            active = false
             supabase.removeChannel(channel)
         }
-    }, [workshopId, orderId])
+    }, [orderId, workshopId])
+
+    const actorFromContext = useMemo<Actor | undefined>(() => {
+        if (activeEmployee) return { id: activeEmployee.id, name: activeEmployee.name }
+        if (user) return { id: user.id, name: user.user_metadata?.full_name || user.email || "User" }
+        return undefined
+    }, [activeEmployee, user])
+
+    const statusSteps = useMemo(() => (order?.is_leasing ? [...STATUS_FLOW, LEASING_STATUS, COMPLETED_STATUS] : [...STATUS_FLOW, COMPLETED_STATUS]), [order])
+
+    const selectedTags = useMemo(() => {
+        if (!order?.tags?.length) return []
+        return workshopTags.filter((tag) => order.tags?.includes(tag.id))
+    }, [order, workshopTags])
+
+    const checklistItems = order?.checklist || []
+    const completedChecklistCount = checklistItems.filter((item) => item.completed).length
+    const checklistProgress = checklistItems.length ? Math.round((completedChecklistCount / checklistItems.length) * 100) : 0
+    const nextChecklistItem = checklistItems.find((item) => !item.completed)
+    const activeStatus = statusSteps.find((step) => step.value === order?.status) || statusSteps[0]
+    const assignedMechanics = (order?.mechanic_ids || []).map((id) => employees.find((employee) => employee.id === id)).filter(Boolean)
+    const qcEmployee = employees.find((employee) => employee.id === order?.qc_mechanic_id)
+    const customerNoteDirty = editCustomerNote !== (order?.customer_note || "")
+    const internalNoteDirty = editInternalNote !== (order?.internal_note || "")
+
+    const queueSharedAction = (action: PendingAction) => {
+        if (!isSharedMode) return false
+        setPendingAction(action)
+        setShowEmployeeSelect(true)
+        return true
+    }
+
+    const pushHistoryEvent = async (event: Omit<OrderHistoryEvent, "id" | "timestamp">) => {
+        if (!order) return
+        try {
+            const savedEvent = await logOrderEvent(order.id, event, user)
+            setOrder((current) => (current ? { ...current, history: [savedEvent, ...(current.history || [])] } : current))
+        } catch (error) {
+            console.error(error)
+        }
+    }
 
     const handleSaveDueDate = async (date: Date | undefined) => {
         if (!order) return
 
-        // Optimistic update
-        const oldDate = order.due_date
-        const newDateStr = date ? date.toISOString() : null
+        const previousDate = order.due_date
+        const nextDate = date ? date.toISOString() : null
+        setOrder({ ...order, due_date: nextDate })
 
-        setOrder({ ...order, due_date: newDateStr })
-
-        const { error } = await supabase
-            .from('orders')
-            .update({ due_date: newDateStr })
-            .eq('id', order.id)
-
+        const { error } = await supabase.from("orders").update({ due_date: nextDate }).eq("id", order.id)
         if (error) {
-            setOrder({ ...order, due_date: oldDate })
-            toastError("Fehler", "Datum konnte nicht gespeichert werden.")
-        } else {
-            const dateFormatted = date ? format(date, 'dd.MM.yyyy', { locale: de }) : 'Entfernt'
-            toastSuccess("Termin aktualisiert", `Fertigstellungstermin: ${dateFormatted}`)
-
-            logOrderEvent(order.id, {
-                type: 'info',
-                title: 'Fertigstellungstermin geändert',
-                description: date ? `Termin auf ${dateFormatted} gesetzt.` : 'Termin entfernt.',
-                actor: activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : (user ? { id: user.id, name: user.email || 'User' } : undefined)
-            }, user).catch(console.error)
-        }
-    }
-
-
-
-    const handleSaveCustomerData = async (actorOverride?: { id: string, name: string }) => {
-        if (!order) return
-
-        if (isSharedMode && !actorOverride) {
-            setPendingAction({ type: 'save_customer' })
-            setShowEmployeeSelect(true)
+            setOrder({ ...order, due_date: previousDate })
+            toastError("Fehler", "Der Termin konnte nicht gespeichert werden.")
             return
         }
+
+        toastSuccess("Termin aktualisiert", date ? `Fertigstellung geplant fuer ${format(date, "dd.MM.yyyy", { locale: de })}` : "Termin entfernt")
+        await pushHistoryEvent({
+            type: "info",
+            title: "Termin aktualisiert",
+            description: nextDate ? `Faelligkeit gesetzt auf ${format(date!, "dd.MM.yyyy", { locale: de })}` : "Faelligkeit entfernt",
+            actor: actorFromContext,
+        })
+    }
+
+    const handleSaveCustomerData = async (actorOverride?: Actor) => {
+        if (!order) return
+        if (!actorOverride && queueSharedAction({ type: "save_customer" })) return
 
         setSaving(true)
         const updates = {
             customer_name: editCustomerName,
             customer_email: editCustomerEmail || null,
-            customer_phone: editCustomerPhone || null
+            customer_phone: editCustomerPhone || null,
         }
-
-        const { error } = await supabase
-            .from('orders')
-            .update(updates)
-            .eq('id', order.id)
+        const { error } = await supabase.from("orders").update(updates).eq("id", order.id)
+        setSaving(false)
 
         if (error) {
-            toastError('Fehler beim Speichern', 'Die Kundendaten konnten nicht gespeichert werden.')
-        } else {
-            setOrder({ ...order, ...updates })
-            setIsCustomerEditDialogOpen(false)
-
-            // Log Event
-            logOrderEvent(order.id, {
-                type: 'info',
-                title: 'Kundendaten aktualisiert',
-                description: `Kundendaten bearbeitet von ${actorOverride?.name || activeEmployee?.name || user?.email || 'User'}`,
-                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
-            }, user).catch(console.error)
-        }
-        setSaving(false)
-    }
-
-    const handleSaveBikeData = async (actorOverride?: { id: string, name: string }) => {
-        if (!order) return
-
-        if (isSharedMode && !actorOverride) {
-            setPendingAction({ type: 'save_bike' })
-            setShowEmployeeSelect(true)
+            toastError("Fehler", "Kundendaten konnten nicht gespeichert werden.")
             return
         }
+
+        setOrder({ ...order, ...updates })
+        setIsCustomerDialogOpen(false)
+        toastSuccess("Gespeichert", "Kundendaten aktualisiert.")
+        await pushHistoryEvent({
+            type: "info",
+            title: "Kundendaten aktualisiert",
+            description: "Kundendaten wurden bearbeitet.",
+            actor: actorOverride || actorFromContext,
+        })
+    }
+
+    const handleSaveBikeData = async (actorOverride?: Actor) => {
+        if (!order) return
+        if (!actorOverride && queueSharedAction({ type: "save_bike" })) return
 
         setSaving(true)
         const updates = {
             bike_brand: editBikeBrand || null,
-            bike_model: editBikeModel,
+            bike_model: editBikeModel || null,
             bike_type: editBikeType || null,
-            bike_color: editBikeColor || null
+            bike_color: editBikeColor || null,
+            frame_number: editFrameNumber || null,
+            frame_size: editFrameSize || null,
         }
-
-        const { error } = await supabase
-            .from('orders')
-            .update(updates)
-            .eq('id', order.id)
+        const { error } = await supabase.from("orders").update(updates).eq("id", order.id)
+        setSaving(false)
 
         if (error) {
-            toastError('Fehler beim Speichern', 'Die Fahrraddaten konnten nicht gespeichert werden.')
-        } else {
-            setOrder({ ...order, ...updates })
-            setIsBikeEditDialogOpen(false)
-
-            // Log Event
-            logOrderEvent(order.id, {
-                type: 'info',
-                title: 'Fahrraddaten aktualisiert',
-                description: `Fahrraddaten bearbeitet von ${actorOverride?.name || activeEmployee?.name || user?.email || 'User'}`,
-                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
-            }, user).catch(console.error)
+            toastError("Fehler", "Fahrraddaten konnten nicht gespeichert werden.")
+            return
         }
-        setSaving(false)
+
+        setOrder({ ...order, ...updates })
+        setIsBikeDialogOpen(false)
+        toastSuccess("Gespeichert", "Fahrraddaten aktualisiert.")
+        await pushHistoryEvent({
+            type: "info",
+            title: "Fahrraddaten aktualisiert",
+            description: "Fahrraddaten wurden bearbeitet.",
+            actor: actorOverride || actorFromContext,
+        })
     }
 
-    const handleStatusChange = async (newStatus: string, actorOverride?: { id: string, name: string }) => {
-        if (!order || saving) return
+    const handleSaveCustomerNote = async (actorOverride?: Actor) => {
+        if (!order) return
+        if (!actorOverride && queueSharedAction({ type: "save_customer_note" })) return
 
-        // Intercept Shared Mode
-        if (isSharedMode && !actorOverride) {
-            setPendingAction({ type: 'status', payload: newStatus })
-            setShowEmployeeSelect(true)
+        setSaving(true)
+        const updates = { customer_note: editCustomerNote || null }
+        const { error } = await supabase.from("orders").update(updates).eq("id", order.id)
+        setSaving(false)
+
+        if (error) {
+            toastError("Fehler", "Kundenwunsch konnte nicht gespeichert werden.")
             return
         }
 
-        // Intercept 'abgeholt' for Leasing orders
-        if (order.is_leasing && newStatus === LEASING_STATUS.value) {
-            // Pre-fill the dialog with current values
-            setLeasingCodeInput(order.pickup_code || "")
-            setDialogLeasingCode(order.leasing_code || "")
-            setIsLeasingDialogOpen(true)
+        setOrder({ ...order, ...updates })
+        toastSuccess("Gespeichert", "Kundenwunsch aktualisiert.")
+        await pushHistoryEvent({
+            type: "info",
+            title: "Kundenwunsch aktualisiert",
+            description: "Der sichtbare Reparaturauftrag wurde angepasst.",
+            actor: actorOverride || actorFromContext,
+        })
+    }
+
+    const handleSaveInternalNote = async (actorOverride?: Actor) => {
+        if (!order) return
+        if (!actorOverride && queueSharedAction({ type: "save_internal_note" })) return
+
+        setSaving(true)
+        const updates = { internal_note: editInternalNote || null }
+        const { error } = await supabase.from("orders").update(updates).eq("id", order.id)
+        setSaving(false)
+
+        if (error) {
+            toastError("Fehler", "Interne Notiz konnte nicht gespeichert werden.")
             return
         }
 
-        // Intercept 'abholbereit' for confirmation (Setting to it)
-        if (newStatus === 'abholbereit' && !showAbholbereitConfirm) {
-            setPendingStatusUpdate({ status: newStatus, actor: actorOverride })
+        setOrder({ ...order, ...updates })
+        toastSuccess("Gespeichert", "Interne Notiz aktualisiert.")
+        await pushHistoryEvent({
+            type: "info",
+            title: "Werkstattnotiz aktualisiert",
+            description: "Die interne Reparaturnotiz wurde angepasst.",
+            actor: actorOverride || actorFromContext,
+        })
+    }
+
+    const handleSavePricing = async (actorOverride?: Actor) => {
+        if (!order) return
+        if (!actorOverride && queueSharedAction({ type: "save_pricing" })) return
+
+        const estimated = editEstimatedPrice === "" ? null : Number(editEstimatedPrice)
+        const final = editFinalPrice === "" ? null : Number(editFinalPrice)
+        if ((estimated !== null && Number.isNaN(estimated)) || (final !== null && Number.isNaN(final))) {
+            toastError("Ungueltiger Wert", "Bitte nur gueltige Zahlen eingeben.")
+            return
+        }
+
+        setSaving(true)
+        const updates = { estimated_price: estimated, final_price: final }
+        const { error } = await supabase.from("orders").update(updates).eq("id", order.id)
+        setSaving(false)
+
+        if (error) {
+            toastError("Fehler", "Preise konnten nicht gespeichert werden.")
+            return
+        }
+
+        setOrder({ ...order, ...updates })
+        setIsPricingDialogOpen(false)
+        toastSuccess("Gespeichert", "Preise aktualisiert.")
+        await pushHistoryEvent({
+            type: "info",
+            title: "Preise aktualisiert",
+            description: "Kostenschaetzung oder Endpreis wurden geaendert.",
+            actor: actorOverride || actorFromContext,
+        })
+    }
+
+    const handleSaveLeasingInfo = async (actorOverride?: Actor) => {
+        if (!order) return
+        if (!actorOverride && queueSharedAction({ type: "save_leasing_info" })) return
+
+        setSaving(true)
+        const updates = {
+            leasing_provider: editLeasingProvider || null,
+            leasing_portal_email: editLeasingPortalEmail || null,
+            contract_id: editContractId || null,
+            service_package: editServicePackage || null,
+            inspection_code: editInspectionCode || null,
+            pickup_code: editPickupCode || null,
+            leasing_code: editLeasingCode || null,
+        }
+        const { error } = await supabase.from("orders").update(updates).eq("id", order.id)
+        setSaving(false)
+
+        if (error) {
+            toastError("Fehler", "Leasingdaten konnten nicht gespeichert werden.")
+            return
+        }
+
+        setOrder({ ...order, ...updates })
+        setIsLeasingDialogOpen(false)
+        toastSuccess("Gespeichert", "Leasingdaten aktualisiert.")
+        await pushHistoryEvent({
+            type: "info",
+            title: "Leasingdaten aktualisiert",
+            description: "Anbieterdaten oder Codes wurden bearbeitet.",
+            actor: actorOverride || actorFromContext,
+        })
+    }
+
+    const handleSaveLeasingPickup = async (actorOverride?: Actor) => {
+        if (!order) return
+        if (!actorOverride && queueSharedAction({ type: "save_leasing_pickup" })) return
+
+        setSaving(true)
+        const updates = {
+            pickup_code: editPickupCode || null,
+            leasing_code: editLeasingCode || null,
+            status: LEASING_STATUS.value,
+        }
+        const { error } = await supabase.from("orders").update(updates).eq("id", order.id)
+        setSaving(false)
+
+        if (error) {
+            toastError("Fehler", "Leasing-Abholung konnte nicht gespeichert werden.")
+            return
+        }
+
+        setOrder({ ...order, ...updates })
+        setIsLeasingPickupDialogOpen(false)
+        toastSuccess("Status aktualisiert", "Auftrag als abgeholt markiert.")
+        await pushHistoryEvent({
+            type: "status_change",
+            title: "Status geaendert",
+            description: `Status zu "${LEASING_STATUS.label}" geaendert`,
+            metadata: { old_status: order.status, new_status: LEASING_STATUS.value, pickup_code: editPickupCode || null },
+            actor: actorOverride || actorFromContext,
+        })
+    }
+
+    const handleStatusChange = async (
+        nextStatus: string,
+        actorOverride?: Actor,
+        options?: { skipReadyConfirm?: boolean; skipRevertConfirm?: boolean }
+    ) => {
+        if (!order || saving || nextStatus === order.status) return
+        if (!actorOverride && queueSharedAction({ type: "status", status: nextStatus })) return
+
+        if (order.is_leasing && nextStatus === LEASING_STATUS.value) {
+            setEditPickupCode(order.pickup_code || "")
+            setEditLeasingCode(order.leasing_code || "")
+            setIsLeasingPickupDialogOpen(true)
+            return
+        }
+
+        if (nextStatus === "abholbereit" && !options?.skipReadyConfirm) {
+            setPendingStatusUpdate({ status: nextStatus, actor: actorOverride })
             setShowAbholbereitConfirm(true)
             return
         }
 
-        // Intercept Reversions from 'abholbereit' or 'abgeschlossen'
-        const isReversionFromFinalStatus = (order.status === 'abholbereit' || order.status === 'abgeschlossen') &&
-            newStatus !== 'abholbereit' && newStatus !== 'abgeschlossen'
+        const revertFromFinal = (order.status === "abholbereit" || order.status === "abgeschlossen") &&
+            nextStatus !== "abholbereit" &&
+            nextStatus !== "abgeschlossen"
 
-        if (isReversionFromFinalStatus && !showRevertConfirm) {
-            setPendingStatusUpdate({ status: newStatus, actor: actorOverride })
+        if (revertFromFinal && !options?.skipRevertConfirm) {
+            setPendingStatusUpdate({ status: nextStatus, actor: actorOverride })
             setShowRevertConfirm(true)
             return
         }
 
         setSaving(true)
+        const updates: Partial<Order> & { status: string } = { status: nextStatus }
 
-        try {
-            // 1. Prepare updates
-            const updates: any = { status: newStatus }
-
-            // Auto-assign QC mechanic if status changed to 'kontrolle_offen'
-            if (newStatus === 'kontrolle_offen') {
-                const actingEmployeeId = actorOverride?.id || activeEmployee?.id
-                // Verify we have a valid ID before assigning
-                if (actingEmployeeId) {
-                    updates.qc_mechanic_id = actingEmployeeId
-
-                    // Also ensure this user is in the mechanic_ids list (as they worked on it)
-                    const currentMechanics = order.mechanic_ids || []
-                    if (!currentMechanics.includes(actingEmployeeId)) {
-                        updates.mechanic_ids = [...currentMechanics, actingEmployeeId]
-                    }
+        if (nextStatus === "kontrolle_offen") {
+            const actingEmployeeId = actorOverride?.id || actorFromContext?.id
+            if (actingEmployeeId) {
+                updates.qc_mechanic_id = actingEmployeeId
+                const currentMechanics = order.mechanic_ids || []
+                if (!currentMechanics.includes(actingEmployeeId)) {
+                    updates.mechanic_ids = [...currentMechanics, actingEmployeeId]
                 }
             }
-
-            // 1. Update status and other fields
-            const { error } = await supabase
-                .from('orders')
-                .update(updates)
-                .eq('id', order.id)
-
-            if (error) throw error
-
-            // 2. Prepare History Event Data
-            const newStatusLabel = [...STATUS_FLOW, LEASING_STATUS, COMPLETED_STATUS].find(s => s.value === newStatus)?.label || newStatus
-
-            const event = await logOrderEvent(
-                order.id,
-                {
-                    type: 'status_change',
-                    title: 'Status geändert',
-                    description: `Status zu "${newStatusLabel}" geändert`,
-                    metadata: { old_status: order.status, new_status: newStatus },
-                    actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
-                },
-                user
-            )
-
-            // 3. Update local state
-            setOrder(prev => prev ? ({
-                ...prev,
-                ...updates,
-                history: [event, ...(prev.history || [])]
-            }) : null)
-
-        } catch (error: any) {
-            toastError('Fehler beim Status-Update', error.message || 'Der Status konnte nicht aktualisiert werden.')
-        } finally {
-            setSaving(false)
         }
-    }
 
-    const handleSaveLeasingCode = async (actorOverride?: { id: string, name: string }) => {
-        if (!order || !workshopId) return
+        const { error } = await supabase.from("orders").update(updates).eq("id", order.id)
+        setSaving(false)
 
-        if (isSharedMode && !actorOverride) {
-            setPendingAction({ type: 'save_leasing' })
-            setShowEmployeeSelect(true)
+        if (error) {
+            toastError("Fehler", "Status konnte nicht aktualisiert werden.")
             return
         }
 
+        setOrder({ ...order, ...updates })
+        const statusLabel = statusSteps.find((step) => step.value === nextStatus)?.label || nextStatus
+        await pushHistoryEvent({
+            type: "status_change",
+            title: "Status geaendert",
+            description: `Status zu "${statusLabel}" geaendert`,
+            metadata: { old_status: order.status, new_status: nextStatus },
+            actor: actorOverride || actorFromContext,
+        })
+    }
+
+    const handleApplyTemplate = async () => {
+        if (!order || !selectedTemplateId) return
+        const template = templates.find((entry) => entry.id === selectedTemplateId)
+        if (!template) return
+
+        const nextChecklist = normalizeChecklist(template.items)
         setSaving(true)
-
-        // The dialog input `leasingCodeInput` is now primarily used for `pickup_code` in this flow
-        // BUT we also have `leasingCode` from the separate state if we want to handle both in the dialog.
-        // Wait, I need to make sure the dialog uses TWO inputs.
-        // Let's refactor this function to read from state directly or passing params?
-        // Actually, let's assume the state variables `leasingCodeInput` (now behaving as Pickup Code) 
-        // and a NEW state or reused state for Leasing Code are available.
-        // I will use `leasingCodeInput` for Pickup Code and `editLeasingCode` (which I need to ensure exists or reuse `editLeasingCode`?)
-        // Let's look at what I have... `leasingCodeInput` was `pickup_code`.
-        // I need a state for the second field in the dialog.
-
-        // Let's assume I add `dialogLeasingCode` state or similar.
-        // For now, I will use `leasingCodeInput` as Pickup Code and add a new state locally or reuse `editLeasingCode` if appropriate?
-        // No, `editLeasingCode` is for the general edit dialog. 
-        // I should probably unify them or just add a second state for this specific dialog.
-
-        // REVISITING logic: I will use `leasingCodeInput` for Pickup Code (as before)
-        // and add `dialogLeasingCode` for Leasing Code.
-
-        const updates: any = {
-            pickup_code: leasingCodeInput,
-            leasing_code: dialogLeasingCode
-        }
-
-        // Only update status if we are in the dialog flow (which we are if this is called)
-        if (isLeasingDialogOpen) {
-            updates.status = LEASING_STATUS.value
-        }
-
-        const { error } = await supabase
-            .from('orders')
-            .update(updates)
-            .eq('id', order.id)
+        const { error } = await supabase.from("orders").update({ checklist: nextChecklist }).eq("id", order.id)
+        setSaving(false)
 
         if (error) {
-            toastError('Fehler beim Speichern', error.message || 'Der Abhol-Code konnte nicht gespeichert werden.')
-        } else {
-            // Create a local update object
-            const updatedOrder = {
-                ...order,
-                ...updates,
-                // If status changed, we need to update history too, but handleStatusChange does it separately.
-                // However, since we intercepted handleStatusChange, we must do the history log here manually
-                // OR we can't easily reuse handleStatusChange because it would trigger recursion or complex logic.
-                // Let's log the event here.
+            toastError("Fehler", "Vorlage konnte nicht angewendet werden.")
+            return
+        }
+
+        setOrder({ ...order, checklist: nextChecklist })
+        setSelectedTemplateId("")
+        setShowTemplateConfirm(false)
+        toastSuccess("Checkliste ersetzt", `${template.name} wurde uebernommen.`)
+        await pushHistoryEvent({
+            type: "info",
+            title: "Checkliste ersetzt",
+            description: `Vorlage "${template.name}" wurde angewendet.`,
+            actor: actorFromContext,
+        })
+    }
+
+    const handleToggleChecklist = async (index: number, checked: boolean, actorOverride?: Actor) => {
+        if (!order?.checklist) return
+        if (!actorOverride && queueSharedAction({ type: "toggle_checklist", index, checked })) return
+
+        const nextChecklist = [...order.checklist]
+        nextChecklist[index] = { ...nextChecklist[index], completed: checked }
+        setOrder({ ...order, checklist: nextChecklist })
+
+        const { error } = await supabase.from("orders").update({ checklist: nextChecklist }).eq("id", order.id)
+        if (error) {
+            setOrder(order)
+            toastError("Fehler", "Checkliste konnte nicht gespeichert werden.")
+            return
+        }
+
+        await pushHistoryEvent({
+            type: "checklist_update",
+            title: checked ? "Checklistenpunkt erledigt" : "Checklistenpunkt geoeffnet",
+            description: `${order.checklist[index].text} wurde ${checked ? "abgehakt" : "zurueckgesetzt"}.`,
+            metadata: { item_index: index, checked },
+            actor: actorOverride || actorFromContext,
+        })
+    }
+
+    const handleAssignment = async (employeeId: string) => {
+        if (!order) return
+
+        let updates: Partial<Order> = {}
+        let eventTitle = ""
+        let eventDescription = ""
+
+        if (assignmentMode === "add_mechanic") {
+            const currentMechanics = order.mechanic_ids || []
+            if (currentMechanics.includes(employeeId)) {
+                setIsAssignmentModalOpen(false)
+                return
             }
-
-            // Log Status Change Event
-            const newStatus = LEASING_STATUS.value
-            const newStatusLabel = LEASING_STATUS.label
-
-            try {
-                const event = await logOrderEvent(
-                    order.id,
-                    {
-                        type: 'status_change',
-                        title: 'Status geändert (Leasing)',
-                        description: `Status zu "${newStatusLabel}" geändert. Abhol-Code: ${leasingCodeInput}`,
-                        metadata: { old_status: order.status, new_status: newStatus, pickup_code: leasingCodeInput },
-                        actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
-                    },
-                    user
-                )
-                updatedOrder.history = [event, ...(order.history || [])]
-            } catch (e) {
-                console.error("Failed to log event", e)
-            }
-
-            setOrder(updatedOrder)
-            setIsLeasingDialogOpen(false)
-            toastSuccess("Abgeschlossen", "Auftrag wurde auf 'Abgeholt' gesetzt.")
-        }
-        setSaving(false)
-    }
-
-    const handleSaveLeasingData = async (actorOverride?: { id: string, name: string }) => {
-        if (!order || !workshopId) return
-
-        // No kiosk interception needed for simple edit unless desired, assuming standard edit flow
-
-        setSaving(true)
-
-        const updates = {
-            leasing_provider: editLeasingProvider,
-            leasing_portal_email: editLeasingPortalEmail || null,
-            contract_id: editContractId || null,
-            service_package: editServicePackage || null,
-            inspection_code: editInspectionCode || null,
-            pickup_code: editPickupCode || null
-        }
-
-        const { error } = await supabase
-            .from('orders')
-            .update(updates)
-            .eq('id', order.id)
-
-        if (error) {
-            toastError('Fehler beim Speichern', 'Die Leasing-Daten konnten nicht gespeichert werden.')
+            const employee = employees.find((entry) => entry.id === employeeId)
+            updates = { mechanic_ids: [...currentMechanics, employeeId] }
+            eventTitle = "Mechaniker zugewiesen"
+            eventDescription = `${employee?.name || "Mitarbeiter"} wurde dem Auftrag zugewiesen.`
         } else {
-            setOrder({ ...order, ...updates })
-            setIsLeasingEditDialogOpen(false)
-
-            logOrderEvent(order.id, {
-                type: 'info',
-                title: 'Leasing-Daten aktualisiert',
-                description: `Leasing-Daten bearbeitet von ${actorOverride?.name || activeEmployee?.name || user?.email || 'User'}`,
-                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
-            }, user).catch(console.error)
+            const employee = employees.find((entry) => entry.id === employeeId)
+            updates = { qc_mechanic_id: employeeId }
+            eventTitle = "Qualitaetskontrolle gesetzt"
+            eventDescription = `${employee?.name || "Mitarbeiter"} uebernimmt die Kontrolle.`
         }
-        setSaving(false)
-    }
 
-    const handleSaveInternalNotesData = async (actorOverride?: { id: string, name: string }) => {
-        if (!order || !workshopId) return
-
-        if (isSharedMode && !actorOverride) {
-            setPendingAction({ type: 'save_notes_data' }) // Reuse type or new type? reusing logic key
-            setShowEmployeeSelect(true)
+        const { error } = await supabase.from("orders").update(updates).eq("id", order.id)
+        if (error) {
+            toastError("Fehler", "Zuweisung konnte nicht gespeichert werden.")
             return
         }
 
-        setSaving(true)
-
-        const { error } = await supabase
-            .from('orders')
-            .update({ internal_note: editInternalNote })
-            .eq('id', order.id)
-            .eq('workshop_id', workshopId)
-
-        if (error) {
-            toastError('Fehler beim Speichern', error.message || 'Die Notizen konnten nicht gespeichert werden.')
-        } else {
-            setOrder({ ...order, internal_note: editInternalNote })
-            setInternalNote(editInternalNote)
-            setIsInternalNoteEditDialogOpen(false)
-
-            logOrderEvent(order.id, {
-                type: 'info',
-                title: 'Interne Notizen aktualisiert',
-                description: `Notizen bearbeitet von ${actorOverride?.name || activeEmployee?.name || user?.email || 'User'}`,
-                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
-            }, user).catch(console.error)
-        }
-        setSaving(false)
+        setOrder({ ...order, ...updates })
+        setIsAssignmentModalOpen(false)
+        toastSuccess("Aktualisiert", "Zuweisung gespeichert.")
+        await pushHistoryEvent({
+            type: "assignment",
+            title: eventTitle,
+            description: eventDescription,
+            actor: actorFromContext,
+        })
     }
 
+    const handleRemoveMechanic = async (employeeId: string) => {
+        if (!order) return
 
-
-    const handleSavePriceData = async (actorOverride?: { id: string, name: string }) => {
-        if (!order || !workshopId) return
-
-        if (isSharedMode && !actorOverride) {
-            setPendingAction({ type: 'save_price_data' })
-            setShowEmployeeSelect(true)
+        const nextMechanics = (order.mechanic_ids || []).filter((id) => id !== employeeId)
+        const { error } = await supabase.from("orders").update({ mechanic_ids: nextMechanics }).eq("id", order.id)
+        if (error) {
+            toastError("Fehler", "Mechaniker konnte nicht entfernt werden.")
             return
         }
 
-        const estPrice = parseFloat(editEstimatedPrice)
-        const actPrice = parseFloat(editFinalPrice)
-
-        // Allow saving empty strings as null? For now keeping strict number parse or 0/null logic if desired.
-        // Assuming user enters valid numbers or we save null if empty string.
-        // Let's safe parse. 
-        const itemsToUpdate: any = {}
-        if (editEstimatedPrice !== "") itemsToUpdate.estimated_price = isNaN(estPrice) ? null : estPrice
-        if (editFinalPrice !== "") itemsToUpdate.final_price = isNaN(actPrice) ? null : actPrice
-
-        setSaving(true)
-        const { error } = await supabase
-            .from('orders')
-            .update(itemsToUpdate)
-            .eq('id', order.id)
-            .eq('workshop_id', workshopId)
-
-        if (error) {
-            toastError('Fehler beim Speichern', 'Die Preisdaten konnten nicht gespeichert werden.')
-        } else {
-            setOrder({ ...order, ...itemsToUpdate })
-            setIsPriceEditDialogOpen(false)
-
-            // Log Event
-            logOrderEvent(order.id, {
-                type: 'info',
-                title: 'Preisdaten aktualisiert',
-                description: `Preisdaten bearbeitet von ${actorOverride?.name || activeEmployee?.name || user?.email || 'User'}`,
-                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
-            }, user).catch(console.error)
-        }
-        setSaving(false)
+        const employee = employees.find((entry) => entry.id === employeeId)
+        setOrder({ ...order, mechanic_ids: nextMechanics })
+        await pushHistoryEvent({
+            type: "assignment",
+            title: "Mechaniker entfernt",
+            description: `${employee?.name || "Mitarbeiter"} wurde entfernt.`,
+            actor: actorFromContext,
+        })
     }
 
-    const handleOrderTypeUpdate = async (isLeasing: boolean, actorOverride?: { id: string, name: string }) => {
-        if (!order || !workshopId) return
+    const handleClearQc = async () => {
+        if (!order?.qc_mechanic_id) return
+
+        const currentQc = employees.find((entry) => entry.id === order.qc_mechanic_id)
+        const { error } = await supabase.from("orders").update({ qc_mechanic_id: null }).eq("id", order.id)
+        if (error) {
+            toastError("Fehler", "Qualitaetskontrolle konnte nicht entfernt werden.")
+            return
+        }
+
+        setOrder({ ...order, qc_mechanic_id: null })
+        await pushHistoryEvent({
+            type: "assignment",
+            title: "QC entfernt",
+            description: `${currentQc?.name || "Mitarbeiter"} wurde als Kontrolle entfernt.`,
+            actor: actorFromContext,
+        })
+    }
+
+    const handleOrderTypeUpdate = async (isLeasing: boolean) => {
+        if (!order) return
 
         setSaving(true)
-
-        const updates: any = { is_leasing: isLeasing }
-
-        // If switching to standard, clear leasing fields
+        const updates: Record<string, unknown> = { is_leasing: isLeasing }
         if (!isLeasing) {
             updates.leasing_provider = null
             updates.leasing_portal_email = null
@@ -852,217 +901,138 @@ export default function OrderDetailPage() {
             updates.leasing_code = null
         }
 
-        const { error } = await supabase
-            .from('orders')
-            .update(updates)
-            .eq('id', order.id)
+        const { error } = await supabase.from("orders").update(updates).eq("id", order.id)
+        setSaving(false)
 
         if (error) {
-            toastError('Fehler', 'Auftragstyp konnte nicht aktualisiert werden.')
-        } else {
-            setOrder({ ...order, ...updates })
-
-            // Log Event
-            logOrderEvent(order.id, {
-                type: 'info',
-                title: 'Auftragstyp geändert',
-                description: `Auftragstyp zu ${isLeasing ? 'Leasing' : 'Standard'} geändert.`,
-                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : (user ? { id: user.id, name: user.email || 'User' } : undefined))
-            }, user).catch(console.error)
-
-            toastSuccess('Aktualisiert', `Auftrag wurde auf ${isLeasing ? 'Leasing' : 'Standard'} umgestellt.`)
-        }
-        setSaving(false)
-        setShowOrderTypeConfirm(false)
-        setPendingOrderTypeUpdate(null)
-    }
-
-    const handleApplyTemplate = async () => {
-        if (!order || !selectedTemplateId) return
-
-        const template = templates.find(t => t.id === selectedTemplateId)
-        if (!template) return
-
-        setSaving(true)
-
-        // Strict overwrite as requested
-        let newChecklist: ChecklistItem[] = []
-        if (template.items && Array.isArray(template.items)) {
-            newChecklist = template.items.map((item: any) => ({
-                text: item.text,
-                completed: false,
-                type: 'service'
-            }))
-        }
-
-        const { error } = await supabase
-            .from('orders')
-            .update({ checklist: newChecklist as any })
-            .eq('id', order.id)
-
-        if (error) {
-            toastError('Fehler', 'Die Vorlage konnte nicht angewendet werden.')
-        } else {
-            setOrder({ ...order, checklist: newChecklist })
-            setIsDialogOpen(false)
-            setSelectedTemplateId("")
-        }
-        setSaving(false)
-    }
-
-    const handleToggleChecklist = async (index: number, checked: boolean, actorOverride?: { id: string, name: string }) => {
-        if (!order || !order.checklist) return
-
-        if (isSharedMode && !actorOverride) {
-            setPendingAction({ type: 'toggle_checklist', payload: { index, checked } })
-            setShowEmployeeSelect(true)
+            toastError("Fehler", "Auftragstyp konnte nicht aktualisiert werden.")
             return
         }
 
-        const newChecklist = [...order.checklist]
-        newChecklist[index] = { ...newChecklist[index], completed: checked }
+        const nextOrder = normalizeOrder({ ...order, ...updates })
+        setOrder(nextOrder)
+        syncDraftsFromOrder(nextOrder)
+        setShowOrderTypeConfirm(false)
+        setPendingOrderTypeUpdate(null)
+        toastSuccess("Aktualisiert", `Auftrag ist jetzt ${isLeasing ? "Leasing" : "Standard"}.`)
+        await pushHistoryEvent({
+            type: "info",
+            title: "Auftragstyp geaendert",
+            description: `Auftragstyp auf ${isLeasing ? "Leasing" : "Standard"} gesetzt.`,
+            actor: actorFromContext,
+        })
+    }
 
-        setOrder({ ...order, checklist: newChecklist })
+    const handleToggleTag = async (tagId: string) => {
+        if (!order || isReadOnly) return
 
-        const { error } = await supabase
-            .from('orders')
-            .update({ checklist: newChecklist as any })
-            .eq('id', order.id)
+        const currentTags = order.tags || []
+        const nextTags = currentTags.includes(tagId) ? currentTags.filter((id) => id !== tagId) : [...currentTags, tagId]
+        setOrder({ ...order, tags: nextTags })
 
+        const { error } = await supabase.from("orders").update({ tags: nextTags }).eq("id", order.id)
         if (error) {
-            setOrder({ ...order, checklist: order.checklist })
-            toastError('Fehler', 'Die Checkliste konnte nicht gespeichert werden.')
-        } else {
-            // Log event with attribution
-            const itemText = order.checklist[index].text
-            const action = checked ? "erledigt" : "unerledigt"
-
-            logOrderEvent(order.id, {
-                type: 'checklist_update',
-                title: checked ? 'Checkliste Fortschritt' : 'Checkliste Änderung',
-                description: `Punkt "${itemText}" markiert als ${action}`,
-                metadata: { item_index: index, checked: checked },
-                actor: actorOverride || (activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined)
-            }, user).catch(console.error)
+            setOrder({ ...order, tags: currentTags })
+            toastError("Fehler", "Tag konnte nicht gespeichert werden.")
         }
     }
 
+    const handleCreateAndAddTag = async () => {
+        if (!order || !workshopId || !tagInput.trim() || isReadOnly) return
 
+        const normalizedInput = tagInput.trim().toLowerCase()
+        let targetTag = workshopTags.find((tag) => tag.name.toLowerCase() === normalizedInput)
 
-    // Handler for Shared Mode selection
+        setSaving(true)
+        try {
+            if (!targetTag) {
+                const randomColor = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)]
+                const { data, error } = await supabase
+                    .from("workshop_tags")
+                    .insert({ workshop_id: workshopId, name: tagInput.trim(), color: randomColor })
+                    .select()
+                    .single()
+
+                if (error) throw error
+                targetTag = data as WorkshopTag
+                setWorkshopTags((current) => [...current, targetTag!])
+            }
+
+            const currentTags = order.tags || []
+            if (!currentTags.includes(targetTag.id)) {
+                const nextTags = [...currentTags, targetTag.id]
+                const { error } = await supabase.from("orders").update({ tags: nextTags }).eq("id", order.id)
+                if (error) throw error
+                setOrder({ ...order, tags: nextTags })
+            }
+
+            setTagInput("")
+        } catch (error) {
+            console.error(error)
+            toastError("Fehler", "Tag konnte nicht verarbeitet werden.")
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleDeleteOrder = async () => {
+        if (!order) return
+
+        setSaving(true)
+        const { error } = await supabase.from("orders").update({ status: "trash", trash_date: new Date().toISOString() }).eq("id", order.id)
+        setSaving(false)
+
+        if (error) {
+            toastError("Fehler", "Auftrag konnte nicht in den Papierkorb verschoben werden.")
+            return
+        }
+
+        toastSuccess("Verschoben", "Auftrag liegt jetzt im Papierkorb.")
+        navigate(returnPath)
+    }
+
     const handleEmployeeSelected = (employeeId: string) => {
-        const selectedEmp = employees.find(e => e.id === employeeId)
-        if (!selectedEmp || !pendingAction) {
+        const selectedEmployee = employees.find((employee) => employee.id === employeeId)
+        if (!selectedEmployee || !pendingAction) {
             setShowEmployeeSelect(false)
             setPendingAction(null)
             return
         }
 
-        const actor = {
-            id: selectedEmp.id,
-            name: selectedEmp.name,
-            email: selectedEmp.email || undefined
-        }
+        const actor = { id: selectedEmployee.id, name: selectedEmployee.name }
 
-        // Execute pending action with actor override
         switch (pendingAction.type) {
-            case 'status':
-                handleStatusChange(pendingAction.payload, actor)
+            case "status":
+                handleStatusChange(pendingAction.status, actor)
                 break
-            case 'save_leasing':
-                handleSaveLeasingCode(actor)
+            case "toggle_checklist":
+                handleToggleChecklist(pendingAction.index, pendingAction.checked, actor)
                 break
-            // Legacy cases removed or updated
-            case 'toggle_checklist':
-                handleToggleChecklist(pendingAction.payload.index, pendingAction.payload.checked, actor)
-                break
-            case 'save_customer':
+            case "save_customer":
                 handleSaveCustomerData(actor)
                 break
-            case 'save_bike':
+            case "save_bike":
                 handleSaveBikeData(actor)
                 break
-            case 'save_notes_data':
-                handleSaveInternalNotesData(actor)
+            case "save_customer_note":
+                handleSaveCustomerNote(actor)
                 break
-            case 'save_price_data':
-                handleSavePriceData(actor)
+            case "save_internal_note":
+                handleSaveInternalNote(actor)
+                break
+            case "save_pricing":
+                handleSavePricing(actor)
+                break
+            case "save_leasing_pickup":
+                handleSaveLeasingPickup(actor)
+                break
+            case "save_leasing_info":
+                handleSaveLeasingInfo(actor)
                 break
         }
 
         setShowEmployeeSelect(false)
         setPendingAction(null)
-    }
-
-    const handleToggleTag = async (tagId: string) => {
-        if (!order || isReadOnly) return
-        const currentTags = order.tags || []
-        const newTags = currentTags.includes(tagId) ? currentTags.filter(id => id !== tagId) : [...currentTags, tagId]
-
-        setOrder({ ...order, tags: newTags })
-        const { error } = await supabase.from('orders').update({ tags: newTags }).eq('id', order.id)
-        if (error) {
-            toastError("Fehler", "Tag konnte nicht gespeichert werden.")
-            setOrder({ ...order, tags: currentTags })
-        }
-    }
-
-    const handleRemoveTag = async (tagId: string, e: React.MouseEvent) => {
-        e.stopPropagation()
-        if (!order || isReadOnly) return
-        const currentTags = order.tags || []
-        const newTags = currentTags.filter(id => id !== tagId)
-
-        setOrder({ ...order, tags: newTags })
-        await supabase.from('orders').update({ tags: newTags }).eq('id', order.id)
-    }
-
-    const handleCreateAndAddTag = async (e: React.FormEvent) => {
-        e.preventDefault()
-        if (!order || isReadOnly || !workshopId || !tagInput.trim()) return
-
-        // Check if tag already exists in workshopTags
-        const normalizedInput = tagInput.trim().toLowerCase()
-        let targetTag = workshopTags.find(t => t.name.toLowerCase() === normalizedInput)
-
-        setSaving(true)
-        try {
-            if (!targetTag) {
-                // Create new tag
-                const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#64748b']
-                const randomColor = colors[Math.floor(Math.random() * colors.length)]
-
-                const { data, error } = await supabase
-                    .from('workshop_tags')
-                    .insert({
-                        workshop_id: workshopId,
-                        name: tagInput.trim(),
-                        color: randomColor
-                    })
-                    .select()
-                    .single()
-
-                if (error) throw error
-                targetTag = data
-                setWorkshopTags(prev => [...prev, data])
-            }
-
-            // Add to order if not already there
-            const currentTags = order.tags || []
-            if (!currentTags.includes(targetTag.id)) {
-                const newTags = [...currentTags, targetTag.id]
-                setOrder({ ...order, tags: newTags })
-                const { error } = await supabase.from('orders').update({ tags: newTags }).eq('id', order.id)
-                if (error) throw error
-            }
-
-            setTagInput("")
-        } catch (error: any) {
-            toastError("Fehler", "Tag konnte nicht verarbeitet werden.")
-            console.error(error)
-        } finally {
-            setSaving(false)
-        }
     }
 
     if (loading) {
@@ -1072,40 +1042,13 @@ export default function OrderDetailPage() {
     if (!order) {
         return (
             <DashboardLayout>
-                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                    <h2 className="text-2xl font-bold">Auftrag nicht gefunden</h2>
+                <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+                    <h1 className="text-2xl font-semibold tracking-tight">Auftrag nicht gefunden</h1>
                     <Button onClick={() => navigate(returnPath)}>
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        Zurück zur Übersicht
+                        Zurueck zur Uebersicht
                     </Button>
                 </div>
-
-                {/* Abholbereit Confirmation Dialog */}
-                <AlertDialog open={showAbholbereitConfirm} onOpenChange={setShowAbholbereitConfirm}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Status auf "Abholbereit" setzen?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Wenn Sie den Status auf "Abholbereit" setzen, wird der Kunde automatisch per E-Mail darüber informiert, dass sein Fahrrad abholbereit ist.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => setPendingStatusUpdate(null)}>Abbrechen</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={() => {
-                                    if (pendingStatusUpdate) {
-                                        handleStatusChange(pendingStatusUpdate.status, pendingStatusUpdate.actor)
-                                        setPendingStatusUpdate(null)
-                                    }
-                                    setShowAbholbereitConfirm(false)
-                                }}
-                                className="bg-primary text-primary-foreground hover:bg-primary/90"
-                            >
-                                Bestätigen & E-Mail senden
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
             </DashboardLayout>
         )
     }
@@ -1113,1257 +1056,676 @@ export default function OrderDetailPage() {
     return (
         <PageTransition>
             <DashboardLayout>
-                <div className="space-y-6 pb-8">
+                <div className="mx-auto max-w-[1560px] space-y-6 pb-10">
+                    <SurfaceCard className="relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-transparent to-background/80" />
+                        <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-primary/20 blur-3xl" />
+                        <div className="absolute bottom-0 left-0 h-32 w-full bg-gradient-to-t from-background/30 to-transparent" />
 
-                    {/* ── Hero Header ─────────────────────────────────────────── */}
-                    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card">
-                        {/* Ambient background glow */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/4 via-transparent to-primary/2 pointer-events-none" />
-                        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/6 blur-3xl pointer-events-none" />
+                        <div className="relative px-5 py-5 sm:px-7 sm:py-7">
+                            <div className="flex flex-col gap-4 border-b border-border/40 pb-5 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="space-y-4">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Button variant="ghost" size="sm" className="-ml-2 h-9 rounded-full px-3 text-muted-foreground" onClick={() => navigate(returnPath)}>
+                                            <ArrowLeft className="h-4 w-4" />
+                                            Zurueck
+                                        </Button>
+                                        <Badge className={cn("rounded-full border px-3 py-1 text-xs font-medium", activeStatus.color)}>
+                                            {activeStatus.label}
+                                        </Badge>
+                                        <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
+                                            {order.is_leasing ? "Leasing" : "Standard"}
+                                        </Badge>
+                                    </div>
 
-                        <div className="relative px-6 py-5">
-                            {/* Top row: back + actions */}
-                            <div className="flex items-center justify-between gap-4 mb-5">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="gap-1.5 text-muted-foreground hover:text-foreground -ml-1 h-8"
-                                    onClick={() => navigate(returnPath)}
-                                >
-                                    <ArrowLeft className="h-3.5 w-3.5" />
-                                    Zurück
-                                </Button>
+                                    <div className="space-y-2">
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <h1 className="text-3xl font-semibold tracking-[-0.03em] text-foreground sm:text-4xl">{order.order_number}</h1>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                className="rounded-full text-muted-foreground"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(order.order_number)
+                                                    toastSuccess("Kopiert", "Auftragsnummer in Zwischenablage.")
+                                                }}
+                                            >
+                                                <Copy className="h-4 w-4" />
+                                            </Button>
+                                        </div>
 
-                                <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                                            <span className="flex items-center gap-2">
+                                                <User className="h-4 w-4" />
+                                                {order.customer_name}
+                                            </span>
+                                            <span className="flex items-center gap-2">
+                                                <Bike className="h-4 w-4" />
+                                                {[order.bike_brand, order.bike_model].filter(Boolean).join(" ") || "Fahrrad"}
+                                            </span>
+                                            {order.bike_type ? (
+                                                <span className="rounded-full bg-background/70 px-3 py-1 text-xs text-foreground/80 ring-1 ring-border/40">
+                                                    {BIKE_TYPE_LABELS[order.bike_type] || order.bike_type}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2">
                                     <Button
-                                        size="sm"
                                         variant="outline"
-                                        className="h-8 gap-1.5 text-xs"
+                                        size="sm"
+                                        className="rounded-full bg-background/75"
                                         onClick={() => {
                                             const url = `${window.location.origin}/status/${order.id}`
                                             navigator.clipboard.writeText(url)
-                                            toastSuccess('Link kopiert', 'Der Status-Link wurde in die Zwischenablage kopiert.')
+                                            toastSuccess("Link kopiert", "Status-Link wurde kopiert.")
                                         }}
                                     >
-                                        <Copy className="h-3.5 w-3.5" />
-                                        <span className="hidden sm:inline">Status-Link</span>
+                                        <Copy className="h-4 w-4" />
+                                        Status-Link
                                     </Button>
+                                    {!isReadOnly ? (
+                                        <Button variant="destructive" size="sm" className="rounded-full" onClick={() => setShowDeleteConfirm(true)}>
+                                            <Trash2 className="h-4 w-4" />
+                                            Entfernen
+                                        </Button>
+                                    ) : null}
                                 </div>
                             </div>
 
-                            {/* Order identity */}
-                            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                                            {order.order_number}
-                                        </h1>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon-sm"
-                                            className="text-muted-foreground hover:text-foreground hover:ring-1 hover:ring-border transition-all duration-200"
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(order.order_number)
-                                                toastSuccess('Kopiert', 'Auftragsnummer wurde kopiert.')
-                                            }}
-                                            title="Auftragsnummer kopieren"
-                                        >
-                                            <Copy className="h-3.5 w-3.5" />
-                                        </Button>
+                            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                <div className="rounded-[24px] border border-border/40 bg-background/70 px-4 py-4">
+                                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Naechster Schritt</p>
+                                    <div className="mt-2 flex items-start gap-3">
+                                        <div className="mt-0.5 rounded-full bg-primary/10 p-2 text-primary">
+                                            <ChevronRight className="h-4 w-4" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-foreground">{nextChecklistItem?.text || "Alles vorbereitet"}</p>
+                                            <p className="mt-1 text-xs text-muted-foreground">{checklistItems.length ? `${completedChecklistCount} von ${checklistItems.length} Punkten erledigt` : "Keine Checkliste hinterlegt"}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-[24px] border border-border/40 bg-background/70 px-4 py-4">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div>
+                                            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Faelligkeit</p>
+                                            <p className="mt-2 text-sm font-medium text-foreground">{formatDateLabel(order.due_date)}</p>
+                                        </div>
                                         <Popover>
                                             <PopoverTrigger asChild>
-                                                <button
-                                                    disabled={isReadOnly}
-                                                    className={cn(
-                                                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-transparent transition-all duration-200 focus:outline-none",
-                                                        isReadOnly ? "cursor-default text-muted-foreground bg-muted/50" : "cursor-pointer hover:bg-muted/10 hover:ring-1 hover:ring-border/50",
-                                                        order.is_leasing
-                                                            ? "bg-primary/10 text-primary border-primary/20 hover:border-primary/40"
-                                                            : "bg-muted text-muted-foreground border-border/50 hover:border-border"
-                                                    )}
-                                                >
-                                                    {order.is_leasing ? "Leasing" : "Standard"}
-                                                    {!isReadOnly && <span className="opacity-50">▾</span>}
-                                                </button>
+                                                <Button variant="outline" size="icon-sm" className="rounded-full" disabled={isReadOnly}>
+                                                    <CalendarIcon className="h-4 w-4" />
+                                                </Button>
                                             </PopoverTrigger>
-                                            {!isReadOnly && (
-                                                <PopoverContent className="w-64 p-2" align="start" sideOffset={6}>
-                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2 pb-2">Auftragstyp</p>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (!order.is_leasing) return
-                                                            setPendingOrderTypeUpdate(false)
-                                                            setShowOrderTypeConfirm(true)
-                                                        }}
-                                                        className={cn(
-                                                            "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors mb-1",
-                                                            !order.is_leasing
-                                                                ? "bg-foreground/5 ring-1 ring-border cursor-default"
-                                                                : "hover:bg-muted/60 cursor-pointer"
-                                                        )}
-                                                    >
-                                                        <div className={cn(
-                                                            "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                                                            !order.is_leasing ? "border-primary" : "border-border"
-                                                        )}>
-                                                            {!order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium leading-tight">Standard</p>
-                                                            <p className="text-[11px] text-muted-foreground mt-0.5">Normale Reparatur ohne Leasing</p>
-                                                        </div>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (order.is_leasing) return
-                                                            handleOrderTypeUpdate(true)
-                                                        }}
-                                                        className={cn(
-                                                            "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
-                                                            order.is_leasing
-                                                                ? "bg-foreground/5 ring-1 ring-border cursor-default"
-                                                                : "hover:bg-muted/60 cursor-pointer"
-                                                        )}
-                                                    >
-                                                        <div className={cn(
-                                                            "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                                                            order.is_leasing ? "border-primary" : "border-border"
-                                                        )}>
-                                                            {order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium leading-tight">Leasing</p>
-                                                            <p className="text-[11px] text-muted-foreground mt-0.5">Auftrag über einen Leasing-Anbieter</p>
-                                                        </div>
-                                                    </button>
-                                                </PopoverContent>
-                                            )}
+                                            <PopoverContent className="w-auto p-0" align="end">
+                                                <Calendar mode="single" selected={order.due_date ? new Date(order.due_date) : undefined} onSelect={handleSaveDueDate} initialFocus />
+                                            </PopoverContent>
                                         </Popover>
                                     </div>
-
-                                    {/* TAGS */}
-                                    <div className="flex flex-wrap items-center gap-2 mb-3 mt-2">
-                                        {order.tags && order.tags.map(tagId => {
-                                            const tagInfo = workshopTags.find(t => t.id === tagId)
-                                            if (!tagInfo) return null
-                                            return (
-                                                <Badge
-                                                    key={tagId}
-                                                    className="px-2 py-0.5 text-xs font-medium text-white shadow-sm border-0 flex items-center gap-1"
-                                                    style={{ backgroundColor: tagInfo.color }}
-                                                >
-                                                    {tagInfo.name}
-                                                    {!isReadOnly && (
-                                                        <button onClick={(e) => handleRemoveTag(tagId, e)} className="hover:bg-black/20 rounded-full p-0.5 ml-0.5">
-                                                            <X className="w-3 h-3" />
-                                                        </button>
-                                                    )}
-                                                </Badge>
-                                            )
-                                        })}
-
-                                        {!isReadOnly && workshopTags.length > 0 && (
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="outline" size="sm" className="h-6 gap-1 px-2 text-[10px] sm:text-xs border-dashed text-muted-foreground hover:text-foreground">
-                                                        <Plus className="w-3 h-3" /> Tag hinzufügen
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-56 p-2" align="start">
-                                                    <form onSubmit={handleCreateAndAddTag} className="flex gap-2 mb-2 p-1">
-                                                        <Input
-                                                            placeholder="Tag tippen (z.B. Leasing)"
-                                                            className="h-7 text-xs"
-                                                            value={tagInput}
-                                                            onChange={(e) => setTagInput(e.target.value)}
-                                                            autoFocus
-                                                        />
-                                                        <Button type="submit" size="sm" className="h-7 px-2">
-                                                            <Plus className="w-3.5 h-3.5" />
-                                                        </Button>
-                                                    </form>
-                                                    <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                                                        <p className="text-[10px] font-semibold text-muted-foreground px-2 pb-1 uppercase tracking-wider">Vorhandene Tags</p>
-                                                        {workshopTags.length === 0 && (
-                                                            <p className="text-[10px] text-muted-foreground px-2 italic">Keine Tags vorhanden</p>
-                                                        )}
-                                                        {workshopTags.map(tag => {
-                                                            const isAssigned = order.tags?.includes(tag.id)
-                                                            return (
-                                                                <button
-                                                                    key={tag.id}
-                                                                    onClick={() => handleToggleTag(tag.id)}
-                                                                    className={cn(
-                                                                        "w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-md transition-colors",
-                                                                        isAssigned ? "bg-primary/5 text-primary" : "hover:bg-muted/50"
-                                                                    )}
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tag.color }} />
-                                                                        {tag.name}
-                                                                    </div>
-                                                                    {isAssigned && <Check className="w-3.5 h-3.5" />}
-                                                                </button>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                </PopoverContent>
-                                            </Popover>
-                                        )}
-                                    </div>
-
-                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                                        <span className="flex items-center gap-1.5">
-                                            <Clock className="h-3.5 w-3.5" />
-                                            Erstellt {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
-                                        </span>
-                                        <span className="text-border">·</span>
-                                        <span className="flex items-center gap-1.5">
-                                            <Bike className="h-3.5 w-3.5" />
-                                            {order.bike_model || 'Fahrrad'}
-                                            {order.bike_type && <span className="text-xs">({BIKE_TYPE_LABELS[order.bike_type] || order.bike_type})</span>}
-                                        </span>
-                                        <span className="text-border">·</span>
-                                        <span className="flex items-center gap-1.5">
-                                            <User className="h-3.5 w-3.5" />
-                                            {order.customer_name}
-                                        </span>
-                                    </div>
                                 </div>
 
-                                {/* Due Date Picker */}
-                                <div className="shrink-0">
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className={cn(
-                                                    "h-8 gap-2 text-xs font-normal",
-                                                    !order.due_date && "text-muted-foreground border-dashed",
-                                                    order.due_date && new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' && "text-red-600 border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 dark:bg-red-950/20 dark:border-red-900/40"
-                                                )}
-                                            >
-                                                <CalendarIcon className="h-3.5 w-3.5" />
-                                                {order.due_date ? format(new Date(order.due_date), "PPP", { locale: de }) : "Termin setzen"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="end">
-                                            <Calendar
-                                                mode="single"
-                                                selected={order.due_date ? new Date(order.due_date) : undefined}
-                                                onSelect={handleSaveDueDate}
-                                                initialFocus
-                                                locale={de}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
+                                <div className="rounded-[24px] border border-border/40 bg-background/70 px-4 py-4">
+                                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Team</p>
+                                    <p className="mt-2 text-sm font-medium text-foreground">
+                                        {assignedMechanics.length ? assignedMechanics.map((employee) => employee?.name).join(", ") : "Noch niemand zugewiesen"}
+                                    </p>
+                                    <p className="mt-1 text-xs text-muted-foreground">QC: {qcEmployee?.name || "Offen"}</p>
+                                </div>
+
+                                <div className="rounded-[24px] border border-border/40 bg-background/70 px-4 py-4">
+                                    <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Preis</p>
+                                    <p className="mt-2 text-sm font-medium text-foreground">{formatCurrency(order.final_price ?? order.estimated_price)}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">Schaetzung: {formatCurrency(order.estimated_price)}</p>
                                 </div>
                             </div>
 
-                            {/* ── Status Progress Timeline ── */}
-                            <div className="mt-6 pt-5 border-t border-border/40">
-                                <div className="flex items-center gap-0">
-                                    {STATUS_FLOW.map((step, idx) => {
-                                        const stepIdx = STATUS_FLOW.findIndex(s => s.value === order.status)
-                                        const isDone = idx < stepIdx
-                                        const isActive = step.value === order.status
-                                        const isLast = idx === STATUS_FLOW.length - 1
+                            <div className="mt-5 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm font-medium text-foreground">Statusfluss</p>
+                                        <p className="text-xs text-muted-foreground">Jeder Schritt ist direkt klickbar und fuer Touch optimiert.</p>
+                                    </div>
+                                    {saving ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
+                                </div>
+
+                                <div className="flex gap-3 overflow-x-auto pb-1">
+                                    {statusSteps.map((step) => {
                                         const Icon = step.icon
+                                        const isActive = order.status === step.value
                                         return (
-                                            <div key={step.value} className="flex items-center flex-1 min-w-0">
-                                                <button
-                                                    onClick={() => !saving && !isReadOnly && handleStatusChange(step.value)}
-                                                    disabled={saving || isReadOnly || isActive}
-                                                    className={cn(
-                                                        "flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 cursor-pointer select-none group",
-                                                        "disabled:cursor-default",
-                                                        isActive && "cursor-default"
-                                                    )}
-                                                >
-                                                    <div className={cn(
-                                                        "relative h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
-                                                        isDone && "bg-primary/15 border border-primary/30",
-                                                        isActive && cn(STATUS_SOLID_COLORS[step.value], "text-primary-foreground shadow-sm scale-110 border-transparent"),
-                                                        !isDone && !isActive && "bg-muted/60 border border-border/50 text-muted-foreground group-hover:border-primary/30 group-hover:bg-primary/5"
-                                                    )}>
-                                                        {isDone
-                                                            ? <Check className="h-4 w-4 text-primary" />
-                                                            : <Icon className={cn("h-4 w-4", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
-                                                        }
-                                                    </div>
-                                                    <span className={cn(
-                                                        "text-[10px] font-medium leading-tight text-center hidden sm:block max-w-[64px] whitespace-nowrap overflow-hidden text-ellipsis",
-                                                        isActive && "text-primary font-semibold",
-                                                        isDone && "text-primary/70",
-                                                        !isDone && !isActive && "text-muted-foreground"
-                                                    )}>
-                                                        {step.label}
-                                                    </span>
-                                                </button>
-                                                {!isLast && (
-                                                    <div className={cn(
-                                                        "flex-1 h-px mx-0.5 transition-all duration-300",
-                                                        idx < stepIdx ? "bg-primary/40" : "bg-border/60"
-                                                    )} />
+                                            <button
+                                                key={step.value}
+                                                type="button"
+                                                disabled={saving || isReadOnly}
+                                                onClick={() => handleStatusChange(step.value)}
+                                                className={cn(
+                                                    "group min-w-[168px] shrink-0 rounded-[22px] border px-4 py-4 text-left transition-all",
+                                                    isActive ? "border-primary/30 bg-primary/10 shadow-[0_12px_30px_-24px_var(--velofix-primary)]" : "border-border/50 bg-background/75 hover:border-border hover:bg-background",
+                                                    (saving || isReadOnly) && "cursor-not-allowed opacity-70"
                                                 )}
-                                            </div>
+                                            >
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className={cn("rounded-2xl p-2.5", isActive ? "bg-primary text-primary-foreground" : "bg-muted text-foreground/70")}>
+                                                        <Icon className="h-4 w-4" />
+                                                    </div>
+                                                    {isActive ? <CheckCircle2 className="mt-1 h-4 w-4 text-primary" /> : null}
+                                                </div>
+                                                <p className="mt-4 text-sm font-semibold text-foreground">{step.label}</p>
+                                                <p className="mt-1 text-xs text-muted-foreground">{step.helper}</p>
+                                            </button>
                                         )
                                     })}
-
-                                    {/* Separator */}
-                                    <div className="w-3 h-px bg-border/40 mx-1 shrink-0" />
-
-                                    {/* Leasing / Abgeholt */}
-                                    {order.is_leasing && (
-                                        <>
-                                            <button
-                                                onClick={() => !saving && !isReadOnly && handleStatusChange(LEASING_STATUS.value)}
-                                                disabled={saving || isReadOnly || order.status === LEASING_STATUS.value || order.status === COMPLETED_STATUS.value}
-                                                className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 cursor-pointer select-none group disabled:cursor-default"
-                                            >
-                                                <div className={cn(
-                                                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
-                                                    order.status === LEASING_STATUS.value && cn(STATUS_SOLID_COLORS.abgeholt, "text-white shadow-sm scale-110"),
-                                                    order.status !== LEASING_STATUS.value && "bg-muted/60 border border-border/50 text-muted-foreground group-hover:border-emerald-300 group-hover:bg-emerald-500/5"
-                                                )}>
-                                                    <LEASING_STATUS.icon className={cn("h-4 w-4", order.status === LEASING_STATUS.value ? "text-white" : "text-muted-foreground")} />
-                                                </div>
-                                                <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block", order.status === LEASING_STATUS.value ? "text-emerald-600 font-semibold" : "text-muted-foreground")}>
-                                                    {LEASING_STATUS.label}
-                                                </span>
-                                            </button>
-                                            <div className="w-4 h-px bg-border/40 mx-1 shrink-0" />
-                                        </>
-                                    )}
-
-                                    {/* Abgeschlossen */}
-                                    <button
-                                        onClick={() => !saving && !isReadOnly && handleStatusChange(COMPLETED_STATUS.value)}
-                                        disabled={saving || isReadOnly || order.status === COMPLETED_STATUS.value}
-                                        className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 cursor-pointer select-none group disabled:cursor-default"
-                                    >
-                                        <div className={cn(
-                                            "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
-                                            order.status === COMPLETED_STATUS.value && cn(STATUS_SOLID_COLORS.abgeschlossen, "text-white shadow-sm scale-110"),
-                                            order.status !== COMPLETED_STATUS.value && "bg-muted/60 border border-border/50 text-muted-foreground group-hover:border-slate-300 group-hover:bg-slate-500/5"
-                                        )}>
-                                            <COMPLETED_STATUS.icon className={cn("h-4 w-4", order.status === COMPLETED_STATUS.value ? "text-white" : "text-muted-foreground")} />
-                                        </div>
-                                        <span className={cn("text-[10px] font-medium hidden sm:block", order.status === COMPLETED_STATUS.value ? "text-slate-600 font-semibold" : "text-muted-foreground")}>
-                                            {COMPLETED_STATUS.label}
-                                        </span>
-                                    </button>
                                 </div>
                             </div>
-
-                            {/* ── Quick Action Bar ── */}
-                            {!isReadOnly && (
-                                <div className="mt-5 pt-4 border-t border-border/40 flex flex-col sm:flex-row gap-2.5">
-                                    <Button
-                                        size="lg"
-                                        onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
-                                        className="flex-1 h-11 gap-2 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20 rounded-xl transition-all active:scale-[0.98]"
-                                    >
-                                        <Wrench className="h-4 w-4" />
-                                        {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
-                                            ? "Weiterarbeiten"
-                                            : "Arbeitsmodus starten"}
-                                    </Button>
-                                    <Button
-                                        size="lg"
-                                        variant="outline"
-                                        onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
-                                        className="flex-1 h-11 gap-2 text-sm font-semibold bg-green-500/8 text-green-600 border-green-200/60 hover:bg-green-500/15 hover:border-green-300 dark:bg-green-500/10 dark:hover:bg-green-500/20 dark:border-green-500/30 rounded-xl transition-all active:scale-[0.98]"
-                                    >
-                                        <ShieldCheck className="h-4 w-4" />
-                                        Kontrolle starten
-                                    </Button>
-                                </div>
-                            )}
                         </div>
-                    </div>
+                    </SurfaceCard>
 
-                    {/* ── Kundenwunsch (full-width) ──────────────────────────── */}
-                    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                        <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border/40">
-                            <div className="h-7 w-7 rounded-lg bg-violet-500/12 flex items-center justify-center">
-                                <AlertCircle className="h-3.5 w-3.5 text-violet-500" />
-                            </div>
-                            <span className="text-sm font-semibold">Kundenwunsch</span>
-                        </div>
-                        <div className="px-5 py-3.5">
-                            <div className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
-                                {customerNote || <span className="text-muted-foreground italic">Keine Beschreibung vorhanden.</span>}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ── 2 Column Grid ──────────────────────────────────────── */}
-                    <div className="grid gap-5 grid-cols-1 lg:grid-cols-5">
-
-                        {/* ━━ LEFT COLUMN (Main Work) ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-                        <div className="lg:col-span-3 space-y-5">
-
-                            {/* Checklist Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                                <div className="px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2.5">
-                                            <div className="h-7 w-7 rounded-lg bg-violet-500/12 flex items-center justify-center">
-                                                <PackageCheck className="h-3.5 w-3.5 text-violet-500" />
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_420px]">
+                        <div className="space-y-6">
+                            <SurfaceCard>
+                                <SectionHeader icon={Wrench} title="Arbeitsfokus" subtitle="Die naechsten Aktionen sind bewusst gross, klar und direkt erreichbar." />
+                                <div className="px-5 pb-5">
+                                    <div className="rounded-[24px] border border-border/40 bg-background/60 p-5">
+                                        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                                            <div className="max-w-2xl">
+                                                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Gerade relevant</p>
+                                                <h3 className="mt-2 text-xl font-semibold tracking-tight text-foreground">{nextChecklistItem?.text || "Reparatur ist fuer den naechsten Schritt bereit."}</h3>
+                                                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                                                    {nextChecklistItem ? "Wenn ihr direkt loslegen wollt, startet den Arbeitsmodus oder hakt den Punkt hier direkt ab." : "Alle Checklistenschritte sind erledigt. Ihr koennt direkt in die Kontrolle oder den Abschluss wechseln."}
+                                                </p>
                                             </div>
-                                            <span className="text-sm font-semibold">Checkliste</span>
+
+                                            <div className="flex flex-col gap-2 sm:flex-row">
+                                                {!isReadOnly ? (
+                                                    <Button size="lg" className="h-12 rounded-2xl px-5 text-sm font-semibold shadow-[0_12px_28px_-18px_var(--velofix-primary)]" onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}>
+                                                        <Wrench className="h-4 w-4" />
+                                                        {completedChecklistCount > 0 ? "Weiterarbeiten" : "Arbeitsmodus starten"}
+                                                    </Button>
+                                                ) : null}
+                                                <Button size="lg" variant="outline" className="h-12 rounded-2xl px-5 text-sm font-semibold" onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}>
+                                                    <ShieldCheck className="h-4 w-4" />
+                                                    Kontrolle
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <span className="text-xs text-muted-foreground font-medium tabular-nums">
-                                            {order.checklist?.filter(i => i.completed).length || 0} / {order.checklist?.length || 0}
-                                        </span>
+
+                                        {checklistItems.length ? (
+                                            <div className="mt-5">
+                                                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                                                    <span>Fortschritt</span>
+                                                    <span>{checklistProgress}%</span>
+                                                </div>
+                                                <div className="h-2 overflow-hidden rounded-full bg-muted/70">
+                                                    <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${checklistProgress}%` }} />
+                                                </div>
+                                            </div>
+                                        ) : null}
                                     </div>
+                                </div>
+                            </SurfaceCard>
 
-                                    {/* Progress Bar */}
-                                    {order.checklist && order.checklist.length > 0 && (
-                                        <div className="w-full h-1.5 bg-muted/60 rounded-full overflow-hidden mb-3">
-                                            <div
-                                                className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-                                                style={{ width: `${Math.round((order.checklist.filter(i => i.completed).length / order.checklist.length) * 100)}%` }}
-                                            />
+                            <SurfaceCard>
+                                <SectionHeader
+                                    icon={AlertCircle}
+                                    title="Kundenauftrag"
+                                    subtitle="Das hier ist die sichtbare Aufgabenbeschreibung fuer die Reparatur."
+                                    action={customerNoteDirty && !isReadOnly ? (
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="ghost" size="sm" className="rounded-full" onClick={() => setEditCustomerNote(order.customer_note || "")}>Zuruecksetzen</Button>
+                                            <Button size="sm" className="rounded-full" onClick={() => handleSaveCustomerNote()} disabled={saving}>Speichern</Button>
                                         </div>
+                                    ) : null}
+                                />
+                                <div className="px-5 pb-5">
+                                    {isReadOnly ? (
+                                        <div className="rounded-[24px] border border-border/40 bg-background/55 px-5 py-5 text-sm leading-7 text-foreground/90">
+                                            {order.customer_note || <span className="italic text-muted-foreground">Kein Kundenwunsch hinterlegt.</span>}
+                                        </div>
+                                    ) : (
+                                        <Textarea value={editCustomerNote} onChange={(event) => setEditCustomerNote(event.target.value)} placeholder="Was soll am Rad gemacht werden, was ist beobachtet worden, welche Hinweise sind fuer den Service wichtig?" className="min-h-[160px] rounded-[24px] border-border/50 bg-background/55 px-5 py-4 text-sm leading-7" />
                                     )}
+                                </div>
+                            </SurfaceCard>
 
-                                    {/* Template Selector */}
-                                    <div className="flex gap-2">
+                            <SurfaceCard>
+                                <SectionHeader icon={PackageCheck} title="Checkliste" subtitle="Grosse Touch-Ziele, klare Reihenfolge und eine Vorlage nur einen Tap entfernt." action={<Badge variant="outline" className="rounded-full px-3 py-1 text-xs">{completedChecklistCount} / {checklistItems.length || 0}</Badge>} />
+                                <div className="space-y-4 px-5 pb-5">
+                                    <div className="flex flex-col gap-3 lg:flex-row">
                                         <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId} disabled={isReadOnly}>
-                                            <SelectTrigger className="h-8 text-xs bg-muted/40 border-border/50 flex-1">
-                                                <SelectValue placeholder="Vorlage wählen..." />
+                                            <SelectTrigger className="h-11 rounded-2xl border-border/50 bg-background/60">
+                                                <SelectValue placeholder="Checklisten-Vorlage waehlen" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {templates.map(t => (
-                                                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                                {templates.map((template) => (
+                                                    <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        <Button
-                                            size="sm"
-                                            className="h-8 text-xs"
-                                            disabled={!selectedTemplateId || isReadOnly}
-                                            onClick={() => setIsDialogOpen(true)}
-                                        >
-                                            Anwenden
+                                        <Button variant="outline" className="h-11 rounded-2xl px-5" disabled={!selectedTemplateId || isReadOnly} onClick={() => setShowTemplateConfirm(true)}>
+                                            Vorlage anwenden
                                         </Button>
-
-                                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                            <DialogContent>
-                                                <DialogHeader>
-                                                    <DialogTitle>Checkliste überschreiben?</DialogTitle>
-                                                    <DialogDescription>
-                                                        Diese Aktion wird die gesamte aktuelle Checkliste löschen und durch die Punkte der Vorlage
-                                                        "{templates.find(t => t.id === selectedTemplateId)?.name}" ersetzen.
-                                                        Dies kann nicht rückgängig gemacht werden.
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <DialogFooter>
-                                                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                                                        Abbrechen
-                                                    </Button>
-                                                    <Button onClick={handleApplyTemplate} disabled={saving}>
-                                                        {saving ? "Wird angewendet..." : "Überschreiben"}
-                                                    </Button>
-                                                </DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
                                     </div>
-                                </div>
 
-                                <div className="px-4 py-3">
-                                    {order.checklist && order.checklist.length > 0 ? (
-                                        <div className="space-y-1.5">
-                                            {order.checklist.map((item, index) => (
-                                                <div
-                                                    key={index}
-                                                    className={cn(
-                                                        "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200",
-                                                        item.completed
-                                                            ? "bg-primary/5 border-primary/15"
-                                                            : "bg-transparent border-border/40 hover:border-border hover:bg-muted/30"
-                                                    )}
-                                                >
-                                                    <Checkbox
-                                                        id={`item-${index}`}
-                                                        checked={item.completed}
-                                                        onCheckedChange={(checked) => handleToggleChecklist(index, checked as boolean)}
-                                                        disabled={isReadOnly}
-                                                        className={cn(
-                                                            "shrink-0 transition-all duration-200",
-                                                            item.completed ? "data-[state=checked]:bg-primary data-[state=checked]:border-primary" : "border-muted-foreground/30"
-                                                        )}
-                                                    />
-                                                    <div className="flex-1 min-w-0 flex items-center gap-2">
-                                                        <label
-                                                            htmlFor={`item-${index}`}
-                                                            className={cn(
-                                                                "text-sm cursor-pointer leading-snug transition-colors duration-200 flex-1",
-                                                                item.completed ? "text-muted-foreground/60 line-through" : "text-foreground"
-                                                            )}
-                                                        >
-                                                            {typeof item === 'string' ? item : item.text}
-                                                        </label>
-                                                        {item.type === 'acceptance' && (
-                                                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal text-muted-foreground bg-background/50 border-border/50 shrink-0">
-                                                                Annahme
-                                                            </Badge>
-                                                        )}
+                                    {checklistItems.length ? (
+                                        <div className="space-y-3">
+                                            {checklistItems.map((item, index) => (
+                                                <label key={`${item.text}-${index}`} className={cn("flex cursor-pointer items-start gap-4 rounded-[24px] border px-4 py-4 transition-all", item.completed ? "border-primary/20 bg-primary/6" : "border-border/45 bg-background/55 hover:border-border hover:bg-background/70")}>
+                                                    <Checkbox checked={item.completed} onCheckedChange={(checked) => handleToggleChecklist(index, checked === true)} disabled={isReadOnly} className="mt-1 h-5 w-5 rounded-md" />
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <p className={cn("text-sm font-medium leading-6", item.completed && "text-muted-foreground line-through")}>{item.text}</p>
+                                                            {item.type === "acceptance" ? <Badge variant="outline" className="rounded-full text-[10px] uppercase tracking-[0.14em]">Annahme</Badge> : null}
+                                                        </div>
+                                                        {item.completed_at ? <p className="mt-1 text-xs text-muted-foreground">Erledigt am {format(new Date(item.completed_at), "dd.MM.yyyy HH:mm", { locale: de })}</p> : null}
                                                     </div>
-                                                </div>
+                                                </label>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border-2 border-dashed rounded-xl border-muted/40 bg-muted/5">
-                                            <PackageCheck className="h-9 w-9 mb-3 opacity-20" />
-                                            <p className="text-sm font-medium mb-0.5">Keine Checkliste</p>
-                                            <p className="text-xs max-w-[180px]">Wähle oben eine Vorlage aus, um zu starten.</p>
+                                        <div className="rounded-[24px] border border-dashed border-border/60 bg-background/40 px-6 py-10 text-center">
+                                            <PackageCheck className="mx-auto h-9 w-9 text-muted-foreground/35" />
+                                            <p className="mt-4 text-sm font-medium text-foreground">Noch keine Checkliste</p>
+                                            <p className="mt-1 text-sm text-muted-foreground">Waehlt oben eine Vorlage aus, damit die Reparatur strukturiert gestartet werden kann.</p>
                                         </div>
                                     )}
                                 </div>
-                            </div>
+                            </SurfaceCard>
 
-                            {/* Internal Notes */}
-                            <div className="rounded-xl border border-amber-200/60 dark:border-amber-900/30 bg-card overflow-hidden flex flex-col">
-                                <div className="flex items-center justify-between px-4 py-3 border-b border-amber-200/40 dark:border-amber-900/20 bg-amber-50/30 dark:bg-amber-950/10">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-amber-900 dark:text-amber-500">Interne Notizen</span>
-                                        {saving && <Loader2 className="h-3 w-3 animate-spin text-amber-500" />}
-                                    </div>
-                                    {!isReadOnly && editInternalNote !== (order?.internal_note || "") && (
-                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded-full">
-                                            Ungespeicherte Änderungen...
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="p-0 flex-1 flex flex-col">
+                            <SurfaceCard>
+                                <SectionHeader
+                                    icon={NotebookPen}
+                                    title="Interne Werkstattnotiz"
+                                    subtitle="Nur fuer das Team sichtbar. Ideal fuer Diagnosen, Rueckfragen und To-dos."
+                                    action={internalNoteDirty && !isReadOnly ? (
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="ghost" size="sm" className="rounded-full" onClick={() => setEditInternalNote(order.internal_note || "")}>Zuruecksetzen</Button>
+                                            <Button size="sm" className="rounded-full" onClick={() => handleSaveInternalNote()} disabled={saving}>Speichern</Button>
+                                        </div>
+                                    ) : null}
+                                />
+                                <div className="px-5 pb-5">
                                     {isReadOnly ? (
-                                        <div className="px-4 py-3.5 bg-amber-50/70 dark:bg-amber-950/20 text-sm whitespace-pre-wrap leading-relaxed min-h-[120px]">
-                                            {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
+                                        <div className="rounded-[24px] border border-border/40 bg-background/55 px-5 py-5 text-sm leading-7 text-foreground/90">
+                                            {order.internal_note || <span className="italic text-muted-foreground">Keine interne Notiz hinterlegt.</span>}
                                         </div>
                                     ) : (
-                                        <Textarea
-                                            value={editInternalNote}
-                                            onChange={(e) => setEditInternalNote(e.target.value)}
-                                            onBlur={() => {
-                                                if (editInternalNote !== (order?.internal_note || "")) {
-                                                    handleSaveInternalNotesData()
-                                                }
-                                            }}
-                                            placeholder="Notizen hier tippen. Speichert automatisch beim Verlassen des Feldes..."
-                                            className="min-h-[120px] resize-y rounded-none border-0 bg-amber-50/70 dark:bg-amber-950/20 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm whitespace-pre-wrap leading-relaxed px-4 py-3.5"
-                                        />
+                                        <Textarea value={editInternalNote} onChange={(event) => setEditInternalNote(event.target.value)} placeholder="Interne Hinweise fuer das Team, z. B. Diagnose, Teilebedarf oder Rueckfragen." className="min-h-[180px] rounded-[24px] border-border/50 bg-background/55 px-5 py-4 text-sm leading-7" />
                                     )}
                                 </div>
-                            </div>
+                            </SurfaceCard>
                         </div>
-
-                        {/* ━━ RIGHT COLUMN (Details) ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-                        <div className="lg:col-span-2 space-y-5">
-
-                            {/* Customer Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-blue-500/12 flex items-center justify-center">
-                                            <User className="h-3.5 w-3.5 text-blue-500" />
-                                        </div>
-                                        <span className="text-sm font-semibold">Kundendaten</span>
-                                    </div>
-                                    {!isReadOnly && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                            onClick={() => {
-                                                setEditCustomerName(order.customer_name)
-                                                setEditCustomerEmail(order.customer_email || "")
-                                                setEditCustomerPhone(order.customer_phone || "")
-                                                setIsCustomerEditDialogOpen(true)
-                                            }}
-                                        >
-                                            <Pencil className="h-3 w-3" />
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="px-4 py-3 space-y-2.5">
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Name</p>
-                                        <p className="text-sm font-medium">{order.customer_name}</p>
-                                    </div>
-                                    {order.customer_email && (
+                        <div className="space-y-6 xl:sticky xl:top-6 xl:self-start">
+                            <SurfaceCard>
+                                <SectionHeader
+                                    icon={User}
+                                    title="Kunde und Fahrrad"
+                                    subtitle="Alles Wichtige kompakt, ohne Sucherei."
+                                    action={!isReadOnly ? (
                                         <div className="flex items-center gap-2">
-                                            <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
-                                            <p className="text-sm truncate">{order.customer_email}</p>
+                                            <Button variant="ghost" size="icon-sm" className="rounded-full" onClick={() => setIsCustomerDialogOpen(true)}><Pencil className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon-sm" className="rounded-full" onClick={() => setIsBikeDialogOpen(true)}><Bike className="h-4 w-4" /></Button>
                                         </div>
-                                    )}
-                                    {order.customer_phone && (
+                                    ) : null}
+                                />
+                                <div className="space-y-3 px-5 pb-5">
+                                    <DetailRow label="Kunde" value={order.customer_name} />
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <DetailRow label="E-Mail" value={order.customer_email ? <a href={`mailto:${order.customer_email}`} className="inline-flex items-center gap-2 hover:text-primary"><Mail className="h-4 w-4 text-muted-foreground" />{order.customer_email}</a> : <span className="text-muted-foreground">Nicht hinterlegt</span>} />
+                                        <DetailRow label="Telefon" value={order.customer_phone ? <a href={`tel:${order.customer_phone}`} className="inline-flex items-center gap-2 hover:text-primary"><Phone className="h-4 w-4 text-muted-foreground" />{order.customer_phone}</a> : <span className="text-muted-foreground">Nicht hinterlegt</span>} />
+                                    </div>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <DetailRow label="Marke" value={order.bike_brand || "Nicht hinterlegt"} />
+                                        <DetailRow label="Modell" value={order.bike_model || "Nicht hinterlegt"} />
+                                    </div>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <DetailRow label="Typ" value={order.bike_type ? BIKE_TYPE_LABELS[order.bike_type] || order.bike_type : "Nicht hinterlegt"} />
+                                        <DetailRow label="Farbe" value={order.bike_color || "Nicht hinterlegt"} />
+                                    </div>
+                                    {(order.frame_number || order.frame_size) ? (
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <DetailRow label="Rahmennummer" value={order.frame_number || "Nicht hinterlegt"} mono />
+                                            <DetailRow label="Rahmengroesse" value={order.frame_size || "Nicht hinterlegt"} />
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </SurfaceCard>
+
+                            <SurfaceCard>
+                                <SectionHeader
+                                    icon={Wrench}
+                                    title="Team und Planung"
+                                    subtitle="Zuweisung und Timing in einem Block."
+                                    action={!isReadOnly ? (
                                         <div className="flex items-center gap-2">
-                                            <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
-                                            <p className="text-sm">{order.customer_phone}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Bike Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-orange-500/12 flex items-center justify-center">
-                                            <Bike className="h-3.5 w-3.5 text-orange-500" />
-                                        </div>
-                                        <span className="text-sm font-semibold">Fahrrad</span>
-                                    </div>
-                                    {!isReadOnly && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                            onClick={() => {
-                                                setEditBikeBrand(order.bike_brand || "")
-                                                setEditBikeModel(order.bike_model || "")
-                                                setEditBikeType(order.bike_type || "")
-                                                setEditBikeColor(order.bike_color || "")
-                                                setIsBikeEditDialogOpen(true)
-                                            }}
-                                        >
-                                            <Pencil className="h-3 w-3" />
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="px-4 py-3 grid grid-cols-2 gap-y-3 gap-x-3">
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Marke</p>
-                                        <p className="text-sm font-medium">{order.bike_brand || '—'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Modell</p>
-                                        <p className="text-sm font-medium">{order.bike_model || '—'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Farbe</p>
-                                        <p className="text-sm font-medium">{order.bike_color || '—'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Typ</p>
-                                        <p className="text-sm font-medium">
-                                            {order.bike_type ? BIKE_TYPE_LABELS[order.bike_type] || order.bike_type : '—'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Price Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-green-500/12 flex items-center justify-center">
-                                            <Euro className="h-3.5 w-3.5 text-green-600" />
-                                        </div>
-                                        <span className="text-sm font-semibold">Preisübersicht</span>
-                                    </div>
-                                    {!isReadOnly && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                            onClick={() => {
-                                                setEditEstimatedPrice(order.estimated_price?.toString() || "")
-                                                setEditFinalPrice(order.final_price?.toString() || "")
-                                                setIsPriceEditDialogOpen(true)
-                                            }}
-                                        >
-                                            <Pencil className="h-3 w-3" />
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="px-4 py-3">
-                                    <div className="flex items-baseline justify-between gap-4">
-                                        <div className="flex-1">
-                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Geschätzt</p>
-                                            <p className="text-xl font-bold tracking-tight text-primary">
-                                                {order.estimated_price !== null
-                                                    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.estimated_price)
-                                                    : '—'
-                                                }
-                                            </p>
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Tatsächlich</p>
-                                            <p className="text-xl font-semibold">
-                                                {order.final_price !== null
-                                                    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.final_price)
-                                                    : <span className="text-muted-foreground italic text-sm font-normal">Offen</span>
-                                                }
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Leasing Card (conditional) */}
-                            {order.is_leasing && (
-                                <div className="rounded-xl border border-primary/20 bg-primary/3 overflow-hidden">
-                                    <div className="flex items-center justify-between px-4 py-3.5 border-b border-primary/15">
-                                        <div className="flex items-center gap-2.5">
-                                            <div className="h-7 w-7 rounded-lg bg-primary/15 flex items-center justify-center">
-                                                <CreditCard className="h-3.5 w-3.5 text-primary" />
-                                            </div>
-                                            <span className="text-sm font-semibold">Leasing</span>
-                                        </div>
-                                        {!isReadOnly && (
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-primary/10"
-                                                onClick={() => {
-                                                    setEditLeasingProvider(order.leasing_provider || "")
-                                                    setEditLeasingPortalEmail(order.leasing_portal_email || "")
-                                                    setEditContractId(order.contract_id || "")
-                                                    setEditServicePackage(order.service_package || "")
-                                                    setEditInspectionCode(order.inspection_code || "")
-                                                    setEditPickupCode(order.pickup_code || "")
-                                                    setIsLeasingEditDialogOpen(true)
-                                                }}
-                                            >
-                                                <Pencil className="h-3 w-3" />
+                                            <Button variant="outline" size="sm" className="rounded-full" onClick={() => { setAssignmentMode("add_mechanic"); setIsAssignmentModalOpen(true) }}>
+                                                <Plus className="h-4 w-4" />
+                                                Mechaniker
                                             </Button>
-                                        )}
+                                            <Button variant="outline" size="sm" className="rounded-full" onClick={() => { setAssignmentMode("qc"); setIsAssignmentModalOpen(true) }}>
+                                                <ShieldCheck className="h-4 w-4" />
+                                                QC
+                                            </Button>
+                                        </div>
+                                    ) : null}
+                                />
+                                <div className="space-y-4 px-5 pb-5">
+                                    <div>
+                                        <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Mechaniker</p>
+                                        {assignedMechanics.length ? (
+                                            <div className="flex flex-wrap gap-2">
+                                                {assignedMechanics.map((employee) => (
+                                                    <div key={employee!.id} className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/60 px-3 py-2 text-sm">
+                                                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: employee?.color || "var(--velofix-primary)" }} />
+                                                        {employee?.name}
+                                                        {!isReadOnly ? <button type="button" className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => handleRemoveMechanic(employee!.id)}><X className="h-3 w-3" /></button> : null}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : <div className="rounded-2xl border border-dashed border-border/60 bg-background/40 px-4 py-4 text-sm text-muted-foreground">Noch kein Mechaniker zugewiesen.</div>}
                                     </div>
-                                    <div className="px-4 py-3 space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Anbieter</p>
-                                                <p className="text-sm font-medium">{order.leasing_provider || '—'}</p>
+
+                                    <div>
+                                        <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Qualitaetskontrolle</p>
+                                        {qcEmployee ? (
+                                            <div className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-background/60 px-3 py-2 text-sm">
+                                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: qcEmployee.color || "var(--velofix-primary)" }} />
+                                                {qcEmployee.name}
+                                                {!isReadOnly ? <button type="button" className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={handleClearQc}><X className="h-3 w-3" /></button> : null}
                                             </div>
+                                        ) : <div className="rounded-2xl border border-dashed border-border/60 bg-background/40 px-4 py-4 text-sm text-muted-foreground">QC noch offen.</div>}
+                                    </div>
+
+                                    <DetailRow label="Erstellt" value={format(new Date(order.created_at), "dd. MMMM yyyy", { locale: de })} />
+                                    <DetailRow label="Faelligkeit" value={formatDateLabel(order.due_date)} />
+                                </div>
+                            </SurfaceCard>
+
+                            <SurfaceCard>
+                                <SectionHeader
+                                    icon={Euro}
+                                    title="Preis und Abrechnung"
+                                    subtitle="Schaetzung, Endpreis und Auftragstyp an einem Ort."
+                                    action={!isReadOnly ? (
+                                        <div className="flex items-center gap-2">
+                                            <Button variant="ghost" size="icon-sm" className="rounded-full" onClick={() => setIsPricingDialogOpen(true)}><Pencil className="h-4 w-4" /></Button>
+                                            {order.is_leasing ? <Button variant="ghost" size="icon-sm" className="rounded-full" onClick={() => setIsLeasingDialogOpen(true)}><CreditCard className="h-4 w-4" /></Button> : null}
+                                        </div>
+                                    ) : null}
+                                />
+                                <div className="space-y-3 px-5 pb-5">
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <DetailRow label="Schaetzung" value={formatCurrency(order.estimated_price)} />
+                                        <DetailRow label="Endpreis" value={formatCurrency(order.final_price)} />
+                                    </div>
+
+                                    <div className="rounded-[24px] border border-border/40 bg-background/50 p-4">
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
                                             <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Vertrags-Nr.</p>
-                                                <p className="text-sm font-medium truncate" title={order.contract_id || ""}>{order.contract_id || '—'}</p>
+                                                <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Auftragstyp</p>
+                                                <p className="mt-1 text-sm font-medium text-foreground">{order.is_leasing ? "Leasing" : "Standard"}</p>
+                                            </div>
+                                            {!isReadOnly ? (
+                                                <div className="inline-flex rounded-full border border-border/50 bg-background/80 p-1">
+                                                    <button type="button" onClick={() => { if (!order.is_leasing) return; setPendingOrderTypeUpdate(false); setShowOrderTypeConfirm(true) }} className={cn("rounded-full px-4 py-2 text-sm transition-colors", !order.is_leasing ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>Standard</button>
+                                                    <button type="button" onClick={() => { if (order.is_leasing) return; handleOrderTypeUpdate(true) }} className={cn("rounded-full px-4 py-2 text-sm transition-colors", order.is_leasing ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>Leasing</button>
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    </div>
+
+                                    {order.is_leasing ? (
+                                        <div className="grid gap-3">
+                                            <DetailRow label="Anbieter" value={order.leasing_provider || "Nicht hinterlegt"} />
+                                            <div className="grid gap-3 sm:grid-cols-2">
+                                                <DetailRow label="Vertragsnummer" value={order.contract_id || "Nicht hinterlegt"} mono />
+                                                <DetailRow label="Leasing-Code" value={order.leasing_code || "Nicht hinterlegt"} mono />
+                                            </div>
+                                            <div className="grid gap-3 sm:grid-cols-2">
+                                                <DetailRow label="Pruefcode" value={order.inspection_code || "Nicht hinterlegt"} mono />
+                                                <DetailRow label="Abholcode" value={order.pickup_code || "Nicht hinterlegt"} mono />
                                             </div>
                                         </div>
-                                        <div>
-                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Portal E-Mail</p>
-                                            <p className="text-sm truncate">{order.leasing_portal_email || '—'}</p>
+                                    ) : null}
+                                </div>
+                            </SurfaceCard>
+
+                            <SurfaceCard>
+                                <SectionHeader icon={PackageCheck} title="Tags und Verlauf" subtitle="Schnelles Filtern im Alltag und ein sauberer Audit-Path." />
+                                <div className="space-y-5 px-5 pb-5">
+                                    <div>
+                                        <div className="mb-3 flex flex-wrap items-center gap-2">
+                                            {selectedTags.length ? selectedTags.map((tag) => (
+                                                <button key={tag.id} type="button" className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium text-white" style={{ backgroundColor: tag.color }} onClick={() => handleToggleTag(tag.id)} disabled={isReadOnly}>
+                                                    {tag.name}
+                                                    {!isReadOnly ? <X className="h-3 w-3" /> : null}
+                                                </button>
+                                            )) : <div className="rounded-2xl border border-dashed border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground">Noch keine Tags gesetzt.</div>}
                                         </div>
-                                        <div>
-                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Service Paket</p>
-                                            <p className="text-sm">{order.service_package || '—'}</p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3 pt-1 border-t border-primary/10">
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Leasing Code</p>
-                                                <p className="font-mono text-sm">{order.leasing_code || '—'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Insp.-Code</p>
-                                                <p className="font-mono text-sm">{order.inspection_code || '—'}</p>
-                                            </div>
-                                        </div>
-                                        {order.pickup_code && (
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Abhol Code</p>
-                                                <div className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1.5">
-                                                    <span className="font-mono text-sm font-medium text-primary">{order.pickup_code}</span>
+
+                                        {!isReadOnly ? (
+                                            <div className="space-y-3">
+                                                <div className="flex gap-2">
+                                                    <Input value={tagInput} onChange={(event) => setTagInput(event.target.value)} placeholder="Neuen Tag anlegen oder suchen" className="h-11 rounded-2xl border-border/50 bg-background/60" />
+                                                    <Button variant="outline" className="h-11 rounded-2xl px-4" onClick={handleCreateAndAddTag} disabled={!tagInput.trim() || saving}>
+                                                        <Plus className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {workshopTags.map((tag) => {
+                                                        const active = order.tags?.includes(tag.id)
+                                                        return (
+                                                            <button key={tag.id} type="button" onClick={() => handleToggleTag(tag.id)} className={cn("rounded-full border px-3 py-1.5 text-xs transition-all", active ? "border-transparent text-white" : "border-border/50 bg-background/60 text-muted-foreground hover:text-foreground")} style={active ? { backgroundColor: tag.color } : undefined}>
+                                                                {tag.name}
+                                                            </button>
+                                                        )
+                                                    })}
                                                 </div>
                                             </div>
-                                        )}
-                                        {order.is_leasing && (
-                                            <div className="flex items-center gap-2 p-2.5 bg-yellow-500/8 border border-yellow-500/15 rounded-lg">
-                                                <AlertCircle className="h-3.5 w-3.5 text-yellow-600 shrink-0" />
-                                                <p className="text-xs text-yellow-700 dark:text-yellow-500">Code wird bei Abholung erfasst</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Assignments Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                                <div className="px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center">
-                                            <User className="h-3.5 w-3.5 text-muted-foreground" />
-                                        </div>
-                                        <span className="text-sm font-semibold">Zuständigkeiten</span>
-                                    </div>
-                                </div>
-                                <div className="px-4 py-3 space-y-4">
-                                    {/* Mechanics */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mechaniker</p>
-                                            {!isReadOnly && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-6 text-xs text-primary hover:text-primary/80 px-2 gap-1"
-                                                    onClick={() => {
-                                                        setAssignmentType('add_mechanic')
-                                                        setIsAssignmentModalOpen(true)
-                                                    }}
-                                                >
-                                                    + Hinzufügen
-                                                </Button>
-                                            )}
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
-                                                order.mechanic_ids.map((mechId) => (
-                                                    <div key={mechId} className="flex items-center justify-between group/mech bg-muted/30 px-3 py-2 rounded-lg">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="h-5 w-5 rounded-full bg-primary/15 flex items-center justify-center">
-                                                                <Wrench className="h-3 w-3 text-primary" />
-                                                            </div>
-                                                            <span className="text-sm font-medium">{getEmployeeName(mechId)}</span>
-                                                        </div>
-                                                        {!isReadOnly && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-5 w-5 text-muted-foreground hover:text-destructive opacity-0 group-hover/mech:opacity-100 transition-opacity"
-                                                                onClick={() => handleRemoveMechanic(mechId)}
-                                                            >
-                                                                <Trash2 className="h-3 w-3" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <p className="text-sm text-muted-foreground italic pl-1">Keine Mechaniker zugewiesen</p>
-                                            )}
-                                        </div>
+                                        ) : null}
                                     </div>
 
-                                    <div className="h-px bg-border/50" />
-
-                                    {/* QC */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Qualitätskontrolle</p>
-                                            {!isReadOnly && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-6 text-xs text-primary hover:text-primary/80 px-2"
-                                                    onClick={() => {
-                                                        setAssignmentType('qc')
-                                                        setIsAssignmentModalOpen(true)
-                                                    }}
-                                                >
-                                                    {order.qc_mechanic_id ? 'Ändern' : 'Zuweisen'}
-                                                </Button>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2 bg-muted/30 px-3 py-2 rounded-lg">
-                                            <div className="h-5 w-5 rounded-full bg-green-500/15 flex items-center justify-center">
-                                                <ShieldCheck className="h-3 w-3 text-green-600" />
-                                            </div>
-                                            <span className="text-sm font-medium">
-                                                {order.qc_mechanic_id
-                                                    ? getEmployeeName(order.qc_mechanic_id)
-                                                    : <span className="text-muted-foreground italic font-normal">Ausstehend</span>
-                                                }
-                                            </span>
-                                        </div>
+                                    <div className="rounded-[24px] border border-border/40 bg-background/45 px-4 py-4">
+                                        <OrderHistory history={order.history || []} />
                                     </div>
                                 </div>
-                            </div>
+                            </SurfaceCard>
                         </div>
                     </div>
-
-                    {/* ── Order History (full-width) ────────────────────────── */}
-                    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                        <div className="px-5 py-3.5 border-b border-border/40">
-                            <span className="text-sm font-semibold">Auftrags-Verlauf</span>
-                        </div>
-                        <div className="px-5 py-3">
-                            <OrderHistory history={order.history || []} />
-                        </div>
-                    </div>
-
-                    {/* ── Danger Zone ───────────────────────────────────────── */}
-                    {(userRole === 'admin' || userRole === 'owner') && (
-                        <div className="mt-4 pt-6 border-t border-dashed border-muted-foreground/15">
-                            <div className="flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <p className="text-xs text-muted-foreground/60 uppercase tracking-wider font-medium">Gefahrenzone</p>
-                                    <p className="text-sm text-muted-foreground">Auftrag in den Papierkorb verschieben</p>
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setShowDeleteConfirm(true)}
-                                    className="text-muted-foreground/60 hover:text-destructive hover:bg-destructive/5 gap-2"
-                                >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    Löschen
-                                </Button>
-                            </div>
-                        </div>
-                    )}
                 </div>
-                <Dialog open={isCustomerEditDialogOpen} onOpenChange={setIsCustomerEditDialogOpen}>
-                    <DialogContent aria-describedby={undefined}>
+
+                <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
+                    <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
                             <DialogTitle>Kundendaten bearbeiten</DialogTitle>
+                            <DialogDescription>Nur die Kontaktinformationen, die im Alltag wirklich gebraucht werden.</DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label>Name</Label>
-                                <Input
-                                    value={editCustomerName}
-                                    onChange={e => setEditCustomerName(e.target.value)}
-                                    placeholder="Name eingeben"
-                                />
+                        <div className="grid gap-4 py-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="customer-name">Name</Label>
+                                <Input id="customer-name" value={editCustomerName} onChange={(event) => setEditCustomerName(event.target.value)} />
                             </div>
-                            <div className="space-y-2">
-                                <Label>E-Mail</Label>
-                                <Input
-                                    value={editCustomerEmail}
-                                    onChange={e => setEditCustomerEmail(e.target.value)}
-                                    placeholder="E-Mail eingeben"
-                                />
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="customer-email">E-Mail</Label>
+                                    <Input id="customer-email" type="email" value={editCustomerEmail} onChange={(event) => setEditCustomerEmail(event.target.value)} />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="customer-phone">Telefon</Label>
+                                    <Input id="customer-phone" value={editCustomerPhone} onChange={(event) => setEditCustomerPhone(event.target.value)} />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label>Telefon</Label>
-                                <Input
-                                    value={editCustomerPhone}
-                                    onChange={e => setEditCustomerPhone(e.target.value)}
-                                    placeholder="Telefon eingeben"
-                                />
-                            </div>
-
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsCustomerEditDialogOpen(false)}>Abbrechen</Button>
-                            <Button
-                                onClick={() => handleSaveCustomerData()}
-                                disabled={!editCustomerName || saving}
-                            >
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
-                            </Button>
+                            <Button variant="outline" onClick={() => setIsCustomerDialogOpen(false)}>Abbrechen</Button>
+                            <Button onClick={() => handleSaveCustomerData()} disabled={saving}>Speichern</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
-                {/* Edit Bike Dialog */}
-                <Dialog open={isBikeEditDialogOpen} onOpenChange={setIsBikeEditDialogOpen}>
-                    <DialogContent aria-describedby={undefined}>
+                <Dialog open={isBikeDialogOpen} onOpenChange={setIsBikeDialogOpen}>
+                    <DialogContent className="sm:max-w-2xl">
                         <DialogHeader>
                             <DialogTitle>Fahrraddaten bearbeiten</DialogTitle>
+                            <DialogDescription>Nur die Infos, die fuer Werkstatt und Rueckfrage relevant sind.</DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Marke</Label>
-                                    <Input
-                                        value={editBikeBrand}
-                                        onChange={e => setEditBikeBrand(e.target.value)}
-                                        placeholder="Marke eingeben"
-                                    />
+                        <div className="grid gap-4 py-2">
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="bike-brand">Marke</Label>
+                                    <Input id="bike-brand" value={editBikeBrand} onChange={(event) => setEditBikeBrand(event.target.value)} />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Modell</Label>
-                                    <Input
-                                        value={editBikeModel}
-                                        onChange={e => setEditBikeModel(e.target.value)}
-                                        placeholder="Modell eingeben"
-                                    />
+                                <div className="grid gap-2">
+                                    <Label htmlFor="bike-model">Modell</Label>
+                                    <Input id="bike-model" value={editBikeModel} onChange={(event) => setEditBikeModel(event.target.value)} />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Farbe</Label>
-                                    <Input
-                                        value={editBikeColor}
-                                        onChange={e => setEditBikeColor(e.target.value)}
-                                        placeholder="Farbe eingeben"
-                                    />
-                                </div>
-                                <div className="space-y-2">
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <div className="grid gap-2">
                                     <Label>Typ</Label>
-                                    <Select value={editBikeType} onValueChange={setEditBikeType}>
+                                    <Select value={editBikeType || "none"} onValueChange={(value) => setEditBikeType(value === "none" ? "" : value)}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Typ wählen" />
+                                            <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {Object.entries(BIKE_TYPE_LABELS).map(([key, label]) => (
-                                                <SelectItem key={key} value={key}>{label}</SelectItem>
+                                            <SelectItem value="none">Nicht hinterlegt</SelectItem>
+                                            {Object.entries(BIKE_TYPE_LABELS).map(([value, label]) => (
+                                                <SelectItem key={value} value={value}>{label}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="bike-color">Farbe</Label>
+                                    <Input id="bike-color" value={editBikeColor} onChange={(event) => setEditBikeColor(event.target.value)} />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="frame-size">Rahmengroesse</Label>
+                                    <Input id="frame-size" value={editFrameSize} onChange={(event) => setEditFrameSize(event.target.value)} />
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="frame-number">Rahmennummer</Label>
+                                <Input id="frame-number" value={editFrameNumber} onChange={(event) => setEditFrameNumber(event.target.value)} />
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsBikeEditDialogOpen(false)}>Abbrechen</Button>
-                            <Button
-                                onClick={() => handleSaveBikeData()}
-                                disabled={!editBikeModel || saving}
-                            >
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
-                            </Button>
+                            <Button variant="outline" onClick={() => setIsBikeDialogOpen(false)}>Abbrechen</Button>
+                            <Button onClick={() => handleSaveBikeData()} disabled={saving}>Speichern</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
-
-
-
-                <Dialog open={isPriceEditDialogOpen} onOpenChange={setIsPriceEditDialogOpen}>
-                    <DialogContent aria-describedby={undefined}>
+                <Dialog open={isPricingDialogOpen} onOpenChange={setIsPricingDialogOpen}>
+                    <DialogContent className="sm:max-w-xl">
                         <DialogHeader>
                             <DialogTitle>Preise bearbeiten</DialogTitle>
+                            <DialogDescription>Schaetzung und Endpreis sind bewusst minimal gehalten.</DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                                <Label>Geschätzter Preis (€)</Label>
-                                <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={editEstimatedPrice}
-                                    onChange={e => setEditEstimatedPrice(e.target.value)}
-                                    placeholder="0.00"
-                                />
+                        <div className="grid gap-4 py-2 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="estimated-price">Schaetzung</Label>
+                                <Input id="estimated-price" type="number" inputMode="decimal" value={editEstimatedPrice} onChange={(event) => setEditEstimatedPrice(event.target.value)} />
                             </div>
-                            <div className="space-y-2">
-                                <Label>Tatsächlicher Preis (€)</Label>
-                                <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={editFinalPrice}
-                                    onChange={e => setEditFinalPrice(e.target.value)}
-                                    placeholder="0.00"
-                                />
+                            <div className="grid gap-2">
+                                <Label htmlFor="final-price">Endpreis</Label>
+                                <Input id="final-price" type="number" inputMode="decimal" value={editFinalPrice} onChange={(event) => setEditFinalPrice(event.target.value)} />
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsPriceEditDialogOpen(false)}>Abbrechen</Button>
-                            <Button
-                                onClick={() => handleSavePriceData()}
-                                disabled={saving}
-                            >
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
-                            </Button>
+                            <Button variant="outline" onClick={() => setIsPricingDialogOpen(false)}>Abbrechen</Button>
+                            <Button onClick={() => handleSavePricing()} disabled={saving}>Speichern</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
-                <Dialog open={isInternalNoteEditDialogOpen} onOpenChange={setIsInternalNoteEditDialogOpen}>
-                    <DialogContent aria-describedby={undefined}>
-                        <DialogHeader>
-                            <DialogTitle>Interne Notiz bearbeiten</DialogTitle>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <Label htmlFor="internal-note" className="mb-2 block">Notiz</Label>
-                            <Textarea
-                                id="internal-note"
-                                value={editInternalNote}
-                                onChange={(e) => setEditInternalNote(e.target.value)}
-                                className="min-h-[150px]"
-                                placeholder="Interne Notizen hier eingeben..."
-                            />
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsInternalNoteEditDialogOpen(false)}>Abbrechen</Button>
-                            <Button
-                                onClick={() => handleSaveInternalNotesData()}
-                                disabled={saving}
-                            >
-                                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Speichern"}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-
-
-                {/* Dialog for Leasing Pickup Code (Abholcode) */}
                 <Dialog open={isLeasingDialogOpen} onOpenChange={setIsLeasingDialogOpen}>
-                    <DialogContent>
+                    <DialogContent className="sm:max-w-2xl">
                         <DialogHeader>
-                            <DialogTitle>Abholcode bestätigen</DialogTitle>
-                            <DialogDescription>
-                                Bitte überprüfen Sie den Abholcode für dieses Leasing-Rad ({order?.leasing_provider}).
-                            </DialogDescription>
+                            <DialogTitle>Leasingdaten bearbeiten</DialogTitle>
+                            <DialogDescription>Alles fuer Anbieter, Portal und Rueckgabe an einem Ort.</DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            {order?.inspection_code && (
-                                <div className="p-3 bg-muted/50 rounded-md border border-border/50">
-                                    <span className="text-xs text-muted-foreground block mb-1">Inspektions-Code (UVV)</span>
-                                    <span className="font-mono font-medium">{order.inspection_code}</span>
+                        <div className="grid gap-4 py-2">
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="leasing-provider">Anbieter</Label>
+                                    <Input id="leasing-provider" value={editLeasingProvider} onChange={(event) => setEditLeasingProvider(event.target.value)} />
                                 </div>
-                            )}
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="leasing-code-dialog-pickup">Abholcode</Label>
-                                    <Input
-                                        id="leasing-code-dialog-pickup"
-                                        value={leasingCodeInput}
-                                        onChange={(e) => setLeasingCodeInput(e.target.value)}
-                                        placeholder="Abholcode eingeben"
-                                        autoFocus
-                                    />
+                                <div className="grid gap-2">
+                                    <Label htmlFor="leasing-portal-email">Portal E-Mail</Label>
+                                    <Input id="leasing-portal-email" value={editLeasingPortalEmail} onChange={(event) => setEditLeasingPortalEmail(event.target.value)} />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="leasing-code-dialog-leasing">Leasing Code</Label>
-                                    <Input
-                                        id="leasing-code-dialog-leasing"
-                                        value={dialogLeasingCode}
-                                        onChange={(e) => setDialogLeasingCode(e.target.value)}
-                                        placeholder="Leasing Code eingeben"
-                                    />
+                            </div>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="contract-id">Vertragsnummer</Label>
+                                    <Input id="contract-id" value={editContractId} onChange={(event) => setEditContractId(event.target.value)} />
                                 </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="service-package">Servicepaket</Label>
+                                    <Input id="service-package" value={editServicePackage} onChange={(event) => setEditServicePackage(event.target.value)} />
+                                </div>
+                            </div>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="inspection-code">Pruefcode</Label>
+                                    <Input id="inspection-code" value={editInspectionCode} onChange={(event) => setEditInspectionCode(event.target.value)} />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="pickup-code">Abholcode</Label>
+                                    <Input id="pickup-code" value={editPickupCode} onChange={(event) => setEditPickupCode(event.target.value)} />
+                                </div>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="leasing-code">Leasing-Code</Label>
+                                <Input id="leasing-code" value={editLeasingCode} onChange={(event) => setEditLeasingCode(event.target.value)} />
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsLeasingDialogOpen(false)}>
-                                Abbrechen
-                            </Button>
-                            <Button
-                                onClick={() => handleSaveLeasingCode()}
-                                disabled={(!leasingCodeInput.trim() && !dialogLeasingCode.trim()) || saving}
-                            >
-                                {saving ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Speichern
-                                    </>
-                                ) : (
-                                    'Bestätigen & Abholen'
-                                )}
-                            </Button>
+                            <Button variant="outline" onClick={() => setIsLeasingDialogOpen(false)}>Abbrechen</Button>
+                            <Button onClick={() => handleSaveLeasingInfo()} disabled={saving}>Speichern</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
-                {/* Dialog for Editing Leasing Data */}
-                <Dialog open={isLeasingEditDialogOpen} onOpenChange={setIsLeasingEditDialogOpen}>
-                    <DialogContent className="sm:max-w-[500px]">
+                <Dialog open={isLeasingPickupDialogOpen} onOpenChange={setIsLeasingPickupDialogOpen}>
+                    <DialogContent className="sm:max-w-lg">
                         <DialogHeader>
-                            <DialogTitle>Leasing-Daten bearbeiten</DialogTitle>
+                            <DialogTitle>Leasing-Abholung abschliessen</DialogTitle>
+                            <DialogDescription>Vor dem Statuswechsel bitte beide Codes bestaetigen.</DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-provider">Anbieter</Label>
-                                {/* Assuming text input for now as provider list might be large or dynamic, 
-                                but ideally should use Select from existing providers if possible. 
-                                Keeping it simple text for edit flexibility as per request. */}
-                                <Input
-                                    id="edit-provider"
-                                    value={editLeasingProvider}
-                                    onChange={e => setEditLeasingProvider(e.target.value)}
-                                />
+                        <div className="grid gap-4 py-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="pickup-code-confirm">Abholcode</Label>
+                                <Input id="pickup-code-confirm" value={editPickupCode} onChange={(event) => setEditPickupCode(event.target.value)} />
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-contract">Vertrags-Nr.</Label>
-                                <Input
-                                    id="edit-contract"
-                                    value={editContractId}
-                                    onChange={e => setEditContractId(e.target.value)}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-portal-email">Portal E-Mail</Label>
-                                <Input
-                                    id="edit-portal-email"
-                                    value={editLeasingPortalEmail}
-                                    onChange={e => setEditLeasingPortalEmail(e.target.value)}
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-service-package">Service Paket</Label>
-                                    <Input
-                                        id="edit-service-package"
-                                        value={editServicePackage}
-                                        onChange={e => setEditServicePackage(e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="edit-inspection-code">Insp.-Code</Label>
-                                    <Input
-                                        id="edit-inspection-code"
-                                        value={editInspectionCode}
-                                        onChange={e => setEditInspectionCode(e.target.value)}
-                                    />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="edit-pickup-code">Abholcode</Label>
-                                <Input
-                                    id="edit-pickup-code"
-                                    value={editPickupCode}
-                                    onChange={e => setEditPickupCode(e.target.value)}
-                                />
+                            <div className="grid gap-2">
+                                <Label htmlFor="leasing-code-confirm">Leasing-Code</Label>
+                                <Input id="leasing-code-confirm" value={editLeasingCode} onChange={(event) => setEditLeasingCode(event.target.value)} />
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsLeasingEditDialogOpen(false)}>
-                                Abbrechen
-                            </Button>
-                            <Button
-                                onClick={() => handleSaveLeasingData()}
-                                disabled={saving}
-                            >
-                                {saving ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Speichern
-                                    </>
-                                ) : (
-                                    'Speichern'
-                                )}
-                            </Button>
+                            <Button variant="outline" onClick={() => setIsLeasingPickupDialogOpen(false)}>Abbrechen</Button>
+                            <Button onClick={() => handleSaveLeasingPickup()} disabled={saving}>Status setzen</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
-                {/* Kiosk Employee Selection */}
-                <EmployeeSelectionModal
-                    open={showEmployeeSelect}
-                    onOpenChange={(open) => {
-                        setShowEmployeeSelect(open)
-                        if (!open) setPendingAction(null) // Clear pending action on cancel
-                    }}
-                    triggerAction={
-                        pendingAction?.type === 'status' ? 'Status ändern' :
-                            pendingAction?.type === 'save_notes_data' ? 'Notizen speichern' :
-                                pendingAction?.type === 'save_price_data' ? 'Preise speichern' :
-                                    pendingAction?.type === 'toggle_checklist' ? 'Checkliste speichern' :
-                                        pendingAction?.type === 'save_customer' ? 'Kundendaten speichern' :
-                                            pendingAction?.type === 'save_bike' ? 'Fahrraddaten speichern' :
-                                                'Speichern'
-                    }
-                    onEmployeeSelected={handleEmployeeSelected}
-                />
+                <EmployeeSelectionModal open={showEmployeeSelect} onOpenChange={setShowEmployeeSelect} triggerAction="Aenderung speichern" onEmployeeSelected={handleEmployeeSelected} />
+                <EmployeeSelectionModal open={isAssignmentModalOpen} onOpenChange={setIsAssignmentModalOpen} triggerAction={assignmentMode === "add_mechanic" ? "Mechaniker zuweisen" : "Qualitaetskontrolle zuweisen"} onEmployeeSelected={handleAssignment} />
 
-                {/* General Assignment Modal */}
-                <EmployeeSelectionModal
-                    open={isAssignmentModalOpen}
-                    onOpenChange={setIsAssignmentModalOpen}
-                    triggerAction={assignmentType === 'add_mechanic' ? "Mechaniker zuweisen" : "QC Mitarbeiter zuweisen"}
-                    onEmployeeSelected={handleAssignment}
-                />
-
-                <AlertDialog open={showExitDialog} onOpenChange={setShowExitDialog}>
+                <AlertDialog open={showTemplateConfirm} onOpenChange={setShowTemplateConfirm}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Ungespeicherte Änderungen</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Sie haben ungespeicherte Änderungen (Notizen oder Preis). Möchten Sie die Seite wirklich verlassen, ohne zu speichern?
-                            </AlertDialogDescription>
+                            <AlertDialogTitle>Checkliste ersetzen?</AlertDialogTitle>
+                            <AlertDialogDescription>Die aktuelle Checkliste wird komplett durch die ausgewaehlte Vorlage ersetzt.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <Button variant="outline" onClick={() => setShowExitDialog(false)}>
-                                Abbrechen
-                            </Button>
-                            <Button variant="destructive" onClick={() => navigate(returnPath)}>
-                                Verlassen
-                            </Button>
+                            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleApplyTemplate}>Ersetzen</AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
@@ -2371,103 +1733,77 @@ export default function OrderDetailPage() {
                 <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Auftrag wirklich löschen?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Der Auftrag wird in den Papierkorb verschoben und nach 30 Tagen automatisch endgültig gelöscht.
-                            </AlertDialogDescription>
+                            <AlertDialogTitle>Auftrag in den Papierkorb verschieben?</AlertDialogTitle>
+                            <AlertDialogDescription>Der Auftrag verschwindet aus der aktiven Uebersicht und liegt danach im Papierkorb.</AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                             <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={handleDeleteOrder}
-                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                            >
-                                Verschieben
+                            <AlertDialogAction onClick={handleDeleteOrder}>Verschieben</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+
+                <AlertDialog open={showAbholbereitConfirm} onOpenChange={setShowAbholbereitConfirm}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Status auf "Abholbereit" setzen?</AlertDialogTitle>
+                            <AlertDialogDescription>Der Kunde wird automatisch benachrichtigt, sobald der Auftrag abholbereit markiert wird.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setPendingStatusUpdate(null)}>Abbrechen</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => {
+                                if (pendingStatusUpdate) {
+                                    handleStatusChange(pendingStatusUpdate.status, pendingStatusUpdate.actor, { skipReadyConfirm: true })
+                                    setPendingStatusUpdate(null)
+                                }
+                                setShowAbholbereitConfirm(false)
+                            }}>
+                                Bestaetigen
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
 
-
-            </DashboardLayout>
-            <AlertDialog open={showAbholbereitConfirm} onOpenChange={setShowAbholbereitConfirm}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Status auf "Abholbereit" setzen?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Wenn Sie den Status auf "Abholbereit" setzen, wird der Kunde automatisch per E-Mail darüber informiert, dass sein Fahrrad abholbereit ist.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setPendingStatusUpdate(null)}>Abbrechen</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => {
+                <AlertDialog open={showRevertConfirm} onOpenChange={setShowRevertConfirm}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Status wirklich zuruecksetzen?</AlertDialogTitle>
+                            <AlertDialogDescription>Der Auftrag verlaesst damit einen finalen Zustand und taucht wieder in der aktiven Werkstattsteuerung auf.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setPendingStatusUpdate(null)}>Abbrechen</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => {
                                 if (pendingStatusUpdate) {
-                                    handleStatusChange(pendingStatusUpdate.status, pendingStatusUpdate.actor)
-                                    setPendingStatusUpdate(null)
-                                }
-                                setShowAbholbereitConfirm(false)
-                            }}
-                            className="bg-primary text-primary-foreground hover:bg-primary/90"
-                        >
-                            Bestätigen & E-Mail senden
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog open={showRevertConfirm} onOpenChange={setShowRevertConfirm}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Status wirklich zurücksetzen?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Der Kunde wurde bereits darüber informiert, dass sein Fahrrad abholbereit ist. Wenn Sie den Status zurücksetzen, wird keine automatische E-Mail versendet, aber der Kunde geht bereits davon aus, sein Rad abholen zu können.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setPendingStatusUpdate(null)}>Abbrechen</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => {
-                                if (pendingStatusUpdate) {
-                                    handleStatusChange(pendingStatusUpdate.status, pendingStatusUpdate.actor)
+                                    handleStatusChange(pendingStatusUpdate.status, pendingStatusUpdate.actor, { skipRevertConfirm: true })
                                     setPendingStatusUpdate(null)
                                 }
                                 setShowRevertConfirm(false)
-                            }}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            Trotzdem zurücksetzen
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                            }}>
+                                Status zuruecksetzen
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
 
-            <AlertDialog open={showOrderTypeConfirm} onOpenChange={setShowOrderTypeConfirm}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Zu Standard wechseln?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Achtung: Alle eingetragenen Leasing-Daten dieses Auftrags (Anbieter, Vertrags-ID, Codes etc.) werden dabei unwiderruflich gelöscht.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => {
-                            setShowOrderTypeConfirm(false)
-                            setPendingOrderTypeUpdate(null)
-                        }}>Abbrechen</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={() => {
+                <AlertDialog open={showOrderTypeConfirm} onOpenChange={setShowOrderTypeConfirm}>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Leasingdaten verwerfen?</AlertDialogTitle>
+                            <AlertDialogDescription>Beim Wechsel auf Standard werden alle Leasingfelder entfernt. Dieser Schritt laesst sich spaeter nur manuell neu pflegen.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setPendingOrderTypeUpdate(null)}>Abbrechen</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => {
                                 if (pendingOrderTypeUpdate !== null) {
                                     handleOrderTypeUpdate(pendingOrderTypeUpdate)
                                 }
-                            }}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            Leasing-Daten löschen & wechseln
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </PageTransition >
+                            }}>
+                                Wechsel bestaetigen
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </DashboardLayout>
+        </PageTransition>
     )
 }
