@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }
 
-    // Subscribe to workshop changes (Real-time)
+    // Subscribe to workshop changes (Real-time) and add robust fallbacks
     useEffect(() => {
         if (!workshopId) return
 
@@ -68,10 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 async (payload) => {
                     const { applyThemeColor } = await import('@/lib/theme')
                     console.log('Realtime DB update received:', payload.new)
+                    let newColor = null
                     if (payload.new && payload.new.design_config?.primaryColor) {
-                        applyThemeColor(payload.new.design_config.primaryColor)
+                        newColor = payload.new.design_config.primaryColor
                     } else if (payload.new && payload.new.accent_color) {
-                        applyThemeColor(payload.new.accent_color)
+                        newColor = payload.new.accent_color
+                    }
+                    if (newColor) {
+                        applyThemeColor(newColor)
                     }
                 }
             )
@@ -92,9 +96,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         channelRef.current = channel
 
+        // Fallback 1: Window Focus - Fetch latest from DB when tab becomes active
+        const handleFocus = () => {
+             console.log('Window focused, syncing theme color...')
+             syncAccentColor(workshopId)
+        }
+        window.addEventListener('focus', handleFocus)
+
+        // Fallback 2: Storage Event - Cross-tab sync within same browser
+        const handleStorage = (e: StorageEvent) => {
+            if (e.key === 'velofix-accent-color' && e.newValue) {
+                import('@/lib/theme').then(({ applyThemeColor }) => {
+                    applyThemeColor(e.newValue!)
+                })
+            }
+        }
+        window.addEventListener('storage', handleStorage)
+
         return () => {
             supabase.removeChannel(channel)
             channelRef.current = null
+            window.removeEventListener('focus', handleFocus)
+            window.removeEventListener('storage', handleStorage)
         }
     }, [workshopId])
 

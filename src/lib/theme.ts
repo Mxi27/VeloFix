@@ -20,26 +20,32 @@ export const PRESET_COLORS = [
 // Helper to inject legacy CSS variables if needed, OR we stick to the OKLCH system.
 // Since Tailwind 4 uses CSS variables natively, we update the variables.
 
-export function applyThemeColor(color: string) {
-    const root = document.documentElement;
-
-    // Find if it's a preset to get the perfect OKLCH values
-    const preset = PRESET_COLORS.find(c => c.hex.toLowerCase() === color.toLowerCase());
-
-    if (preset) {
-        const [l, c, h] = preset.oklch.split(' ').map(parseFloat);
-        root.style.setProperty('--velofix-primary', `oklch(${l} ${c} ${h})`);
-        root.style.setProperty('--velofix-primary-light', `oklch(${Math.min(l + 0.1, 1)} ${c} ${h})`);
-        root.style.setProperty('--velofix-primary-dark', `oklch(${Math.max(l - 0.1, 0)} ${c} ${h})`);
-    } else {
-        // Support for custom Hex colors using modern CSS color-mix for variations
-        root.style.setProperty('--velofix-primary', color);
-        // Derive light/dark versions from the custom color
-        root.style.setProperty('--velofix-primary-light', `color-mix(in srgb, ${color}, white 20%)`);
-        root.style.setProperty('--velofix-primary-dark', `color-mix(in srgb, ${color}, black 20%)`);
+export function applyThemeColor(color: string | null | undefined) {
+    if (!color) {
+        // Explicit fallback to VeloFix primary blue to prevent jumping to other defaults
+        color = '#3b82f6';
     }
 
-    localStorage.setItem('velofix-accent-color', color);
+    const normalizedColor = color.toLowerCase().trim();
+    const root = document.documentElement;
+
+    // Anti-Flicker Guard: Check actual DOM instead of JS variables to prevent desyncs
+    if (root.style.getPropertyValue('--velofix-primary') === normalizedColor) {
+        return;
+    }
+
+    // We strictly use the hex value directly to guarantee the active theme
+    // perfectly matches the circle color you click, bypassing flawed OKLCH approximations.
+    root.style.setProperty('--velofix-primary', normalizedColor);
+    root.style.setProperty('--velofix-primary-light', `color-mix(in srgb, ${normalizedColor}, white 20%)`);
+    root.style.setProperty('--velofix-primary-dark', `color-mix(in srgb, ${normalizedColor}, black 20%)`);
+    
+    // Dispatch event so all UI components always match the true DOM state
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('velofix-theme-update', { detail: normalizedColor }));
+    }
+
+    localStorage.setItem('velofix-accent-color', normalizedColor);
 }
 
 // Load on startup

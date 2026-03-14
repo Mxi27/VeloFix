@@ -35,6 +35,19 @@ export function DisplaySettings() {
         if (savedColor) {
             setAccentColor(savedColor)
         }
+
+        // Listen for internal theme updates (from broadcast, storage, or focus events)
+        const handleThemeUpdateEvent = (e: Event) => {
+            const customEvent = e as CustomEvent<string>;
+            if (customEvent.detail) {
+                setAccentColor(customEvent.detail);
+            }
+        };
+        window.addEventListener('velofix-theme-update', handleThemeUpdateEvent);
+
+        return () => {
+            window.removeEventListener('velofix-theme-update', handleThemeUpdateEvent);
+        };
     }, [])
 
     const handleThemeChange = (newTheme: Theme) => {
@@ -50,7 +63,9 @@ export function DisplaySettings() {
     }
 
     const handleColorChange = async (color: string) => {
-        setAccentColor(color)
+        // We do NOT setAccentColor(color) here anymore.
+        // applyThemeColor will update the CSS, which then dispatches 'velofix-theme-update',
+        // which then updates accentColor state. This guarantees the UI checkmark always follows reality.
         applyThemeColor(color)
 
         if (workshopId) {
