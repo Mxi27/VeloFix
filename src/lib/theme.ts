@@ -20,41 +20,32 @@ export const PRESET_COLORS = [
 // Helper to inject legacy CSS variables if needed, OR we stick to the OKLCH system.
 // Since Tailwind 4 uses CSS variables natively, we update the variables.
 
-export function applyThemeColor(color: string) {
-    const root = document.documentElement;
-
-    // Find if it's a preset to get the perfect OKLCH values
-    const preset = PRESET_COLORS.find(c => c.hex.toLowerCase() === color.toLowerCase());
-
-    if (preset) {
-        root.style.setProperty('--velofix-primary', `oklch(${preset.oklch})`);
-        // We can approximate light/dark variations or use hardcoded ones from presets if we expanded them
-        // For now, let's just set the main one and let the others derive or stay default if not critical
-        // But actually, index.css uses --velofix-primary-light etc.
-        // It's better to calculate them or have them in presets.
-        // Let's stick to presets for now to ensure quality.
-        const [l, c, h] = preset.oklch.split(' ').map(parseFloat);
-
-        root.style.setProperty('--velofix-primary', `oklch(${l} ${c} ${h})`);
-        root.style.setProperty('--velofix-primary-light', `oklch(${Math.min(l + 0.1, 1)} ${c} ${h})`);
-        root.style.setProperty('--velofix-primary-dark', `oklch(${Math.max(l - 0.1, 0)} ${c} ${h})`);
-    } else {
-        // Fallback or Custom Hex handling (basic)
-        // If we want to support ANY hex, we need a converter.
-        // For this MVP, let's assume we allow any hex but we might not get perfect OKLCH without a lib.
-        // We can use the hex directly if we change index.css to allowed mixing types, 
-        // OR we just use a library like 'culori' or similar. 
-        // Given the constraints and no new packages allowed easily without user prompt, 
-        // let's stick to presets + simple hex support via `color-mix` if browser supports, or just strictly presets for now.
-        // User asked for "custom color". 
-        // Let's try to trust the browser to handle hex in some variable contexts, 
-        // BUT tailwind 4 with oklch expects oklch values often for the alpha channel magic.
-        // SAFEST BET: Only presets for "VeloFix Premium" look. 
-        // BUT User said "accent color customization".
-        // Let's add a note that custom colors might require page reload or are experimental.
+export function applyThemeColor(color: string | null | undefined) {
+    if (!color) {
+        // Explicit fallback to VeloFix primary blue to prevent jumping to other defaults
+        color = '#3b82f6';
     }
 
-    localStorage.setItem('velofix-accent-color', color);
+    const normalizedColor = color.toLowerCase().trim();
+    const root = document.documentElement;
+
+    // Anti-Flicker Guard: Check actual DOM instead of JS variables to prevent desyncs
+    if (root.style.getPropertyValue('--velofix-primary') === normalizedColor) {
+        return;
+    }
+
+    // We strictly use the hex value directly to guarantee the active theme
+    // perfectly matches the circle color you click, bypassing flawed OKLCH approximations.
+    root.style.setProperty('--velofix-primary', normalizedColor);
+    root.style.setProperty('--velofix-primary-light', `color-mix(in srgb, ${normalizedColor}, white 20%)`);
+    root.style.setProperty('--velofix-primary-dark', `color-mix(in srgb, ${normalizedColor}, black 20%)`);
+    
+    // Dispatch event so all UI components always match the true DOM state
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('velofix-theme-update', { detail: normalizedColor }));
+    }
+
+    localStorage.setItem('velofix-accent-color', normalizedColor);
 }
 
 // Load on startup
@@ -78,8 +69,18 @@ export function applyTheme(theme: Theme) {
 
 export function applyCompactMode(enabled: boolean) {
     const root = document.documentElement
+    
+    // Anti-Flicker Guard: Only apply and dispatch if the state actually changes
+    const isAlreadyCompact = root.classList.contains('compact-mode')
+    if (isAlreadyCompact === enabled) return
+
     root.classList.toggle('compact-mode', enabled)
     localStorage.setItem('compact-mode', enabled.toString())
+
+    // Dispatch event so UI components and other tabs can sync
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('velofix-compact-update', { detail: enabled }))
+    }
 }
 
 export function loadTheme(): Theme {

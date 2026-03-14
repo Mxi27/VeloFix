@@ -1148,27 +1148,6 @@ export default function OrderDetailPage() {
                                         <Copy className="h-3.5 w-3.5" />
                                         <span className="hidden sm:inline">Status-Link</span>
                                     </Button>
-
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
-                                        className="h-8 gap-1.5 text-xs bg-green-500/10 text-green-600 border-green-200/60 hover:bg-green-500/20 hover:border-green-300"
-                                    >
-                                        <ShieldCheck className="h-3.5 w-3.5" />
-                                        <span className="hidden sm:inline">Kontrolle</span>
-                                    </Button>
-
-                                    <Button
-                                        size="sm"
-                                        onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
-                                        className="h-8 gap-1.5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/20"
-                                    >
-                                        <Wrench className="h-3.5 w-3.5" />
-                                        {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
-                                            ? "Weiterarbeiten"
-                                            : "Arbeitsmodus"}
-                                    </Button>
                                 </div>
                             </div>
 
@@ -1477,243 +1456,54 @@ export default function OrderDetailPage() {
                                     </button>
                                 </div>
                             </div>
+
+                            {/* ── Quick Action Bar ── */}
+                            {!isReadOnly && (
+                                <div className="mt-5 pt-4 border-t border-border/40 flex flex-col sm:flex-row gap-2.5">
+                                    <Button
+                                        size="lg"
+                                        onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
+                                        className="flex-1 h-11 gap-2 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20 rounded-xl transition-all active:scale-[0.98]"
+                                    >
+                                        <Wrench className="h-4 w-4" />
+                                        {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
+                                            ? "Weiterarbeiten"
+                                            : "Arbeitsmodus starten"}
+                                    </Button>
+                                    <Button
+                                        size="lg"
+                                        variant="outline"
+                                        onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
+                                        className="flex-1 h-11 gap-2 text-sm font-semibold bg-green-500/8 text-green-600 border-green-200/60 hover:bg-green-500/15 hover:border-green-300 dark:bg-green-500/10 dark:hover:bg-green-500/20 dark:border-green-500/30 rounded-xl transition-all active:scale-[0.98]"
+                                    >
+                                        <ShieldCheck className="h-4 w-4" />
+                                        Kontrolle starten
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* ── 3 Column Grid ──────────────────────────────────────── */}
-                    <div className="grid gap-5 grid-cols-1 lg:grid-cols-3">
-
-                        {/* ━━ LEFT COLUMN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-                        <div className="space-y-5">
-
-                            {/* Customer Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-blue-500/12 flex items-center justify-center">
-                                            <User className="h-3.5 w-3.5 text-blue-500" />
-                                        </div>
-                                        <span className="text-sm font-semibold">Kundendaten</span>
-                                    </div>
-                                    {!isReadOnly && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                            onClick={() => {
-                                                setEditCustomerName(order.customer_name)
-                                                setEditCustomerEmail(order.customer_email || "")
-                                                setEditCustomerPhone(order.customer_phone || "")
-                                                setIsCustomerEditDialogOpen(true)
-                                            }}
-                                        >
-                                            <Pencil className="h-3 w-3" />
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="px-4 py-3 space-y-3">
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Name</p>
-                                        <p className="text-sm font-medium">{order.customer_name}</p>
-                                    </div>
-                                    {order.customer_email && (
-                                        <div className="flex items-start gap-2.5">
-                                            <div className="h-6 w-6 rounded-md bg-muted/60 flex items-center justify-center shrink-0 mt-0.5">
-                                                <Mail className="h-3 w-3 text-muted-foreground" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">E-Mail</p>
-                                                <p className="text-sm truncate">{order.customer_email}</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {order.customer_phone && (
-                                        <div className="flex items-start gap-2.5">
-                                            <div className="h-6 w-6 rounded-md bg-muted/60 flex items-center justify-center shrink-0 mt-0.5">
-                                                <Phone className="h-3 w-3 text-muted-foreground" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Telefon</p>
-                                                <p className="text-sm">{order.customer_phone}</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                    {/* ── Kundenwunsch (full-width) ──────────────────────────── */}
+                    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                        <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border/40">
+                            <div className="h-7 w-7 rounded-lg bg-violet-500/12 flex items-center justify-center">
+                                <AlertCircle className="h-3.5 w-3.5 text-violet-500" />
                             </div>
-
-                            {/* Bike Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-orange-500/12 flex items-center justify-center">
-                                            <Bike className="h-3.5 w-3.5 text-orange-500" />
-                                        </div>
-                                        <span className="text-sm font-semibold">Fahrrad</span>
-                                    </div>
-                                    {!isReadOnly && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                            onClick={() => {
-                                                setEditBikeBrand(order.bike_brand || "")
-                                                setEditBikeModel(order.bike_model || "")
-                                                setEditBikeType(order.bike_type || "")
-                                                setEditBikeColor(order.bike_color || "")
-                                                setIsBikeEditDialogOpen(true)
-                                            }}
-                                        >
-                                            <Pencil className="h-3 w-3" />
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="px-4 py-3 grid grid-cols-2 gap-y-4 gap-x-3">
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Marke</p>
-                                        <p className="text-sm font-medium">{order.bike_brand || '—'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Modell</p>
-                                        <p className="text-sm font-medium">{order.bike_model || '—'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Farbe</p>
-                                        <p className="text-sm font-medium">{order.bike_color || '—'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Typ</p>
-                                        <p className="text-sm font-medium">
-                                            {order.bike_type ? BIKE_TYPE_LABELS[order.bike_type] || order.bike_type : '—'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Leasing Card (conditional) */}
-                            {order.is_leasing && (
-                                <div className="rounded-xl border border-primary/20 bg-primary/3 overflow-hidden">
-                                    <div className="flex items-center justify-between px-4 py-3.5 border-b border-primary/15">
-                                        <div className="flex items-center gap-2.5">
-                                            <div className="h-7 w-7 rounded-lg bg-primary/15 flex items-center justify-center">
-                                                <CreditCard className="h-3.5 w-3.5 text-primary" />
-                                            </div>
-                                            <span className="text-sm font-semibold">Leasing</span>
-                                        </div>
-                                        {!isReadOnly && (
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-primary/10"
-                                                onClick={() => {
-                                                    setEditLeasingProvider(order.leasing_provider || "")
-                                                    setEditLeasingPortalEmail(order.leasing_portal_email || "")
-                                                    setEditContractId(order.contract_id || "")
-                                                    setEditServicePackage(order.service_package || "")
-                                                    setEditInspectionCode(order.inspection_code || "")
-                                                    setEditPickupCode(order.pickup_code || "")
-                                                    setIsLeasingEditDialogOpen(true)
-                                                }}
-                                            >
-                                                <Pencil className="h-3 w-3" />
-                                            </Button>
-                                        )}
-                                    </div>
-                                    <div className="px-4 py-3 space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Anbieter</p>
-                                                <p className="text-sm font-medium">{order.leasing_provider || '—'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Vertrags-Nr.</p>
-                                                <p className="text-sm font-medium truncate" title={order.contract_id || ""}>{order.contract_id || '—'}</p>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Portal E-Mail</p>
-                                            <p className="text-sm truncate">{order.leasing_portal_email || '—'}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Service Paket</p>
-                                            <p className="text-sm">{order.service_package || '—'}</p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3 pt-1 border-t border-primary/10">
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Leasing Code</p>
-                                                <p className="font-mono text-sm">{order.leasing_code || '—'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Insp.-Code</p>
-                                                <p className="font-mono text-sm">{order.inspection_code || '—'}</p>
-                                            </div>
-                                        </div>
-                                        {order.pickup_code && (
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Abhol Code</p>
-                                                <div className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1.5">
-                                                    <span className="font-mono text-sm font-medium text-primary">{order.pickup_code}</span>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {order.is_leasing && (
-                                            <div className="flex items-center gap-2 p-2.5 bg-yellow-500/8 border border-yellow-500/15 rounded-lg">
-                                                <AlertCircle className="h-3.5 w-3.5 text-yellow-600 shrink-0" />
-                                                <p className="text-xs text-yellow-700 dark:text-yellow-500">Code wird bei Abholung erfasst</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Price Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-green-500/12 flex items-center justify-center">
-                                            <Euro className="h-3.5 w-3.5 text-green-600" />
-                                        </div>
-                                        <span className="text-sm font-semibold">Preisübersicht</span>
-                                    </div>
-                                    {!isReadOnly && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                            onClick={() => {
-                                                setEditEstimatedPrice(order.estimated_price?.toString() || "")
-                                                setEditFinalPrice(order.final_price?.toString() || "")
-                                                setIsPriceEditDialogOpen(true)
-                                            }}
-                                        >
-                                            <Pencil className="h-3 w-3" />
-                                        </Button>
-                                    )}
-                                </div>
-                                <div className="px-4 py-3 space-y-3">
-                                    <div className="rounded-lg bg-primary/5 border border-primary/10 px-3.5 py-3">
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Geschätzt</p>
-                                        <p className="text-2xl font-bold tracking-tight text-primary">
-                                            {order.estimated_price !== null
-                                                ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.estimated_price)
-                                                : '—'
-                                            }
-                                        </p>
-                                    </div>
-                                    <div className="px-1">
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Tatsächlich</p>
-                                        <p className="text-lg font-semibold">
-                                            {order.final_price !== null
-                                                ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.final_price)
-                                                : <span className="text-muted-foreground italic text-sm font-normal">Nicht festgelegt</span>
-                                            }
-                                        </p>
-                                    </div>
-                                </div>
+                            <span className="text-sm font-semibold">Kundenwunsch</span>
+                        </div>
+                        <div className="px-5 py-3.5">
+                            <div className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
+                                {customerNote || <span className="text-muted-foreground italic">Keine Beschreibung vorhanden.</span>}
                             </div>
                         </div>
+                    </div>
 
-                        {/* ━━ MIDDLE COLUMN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-                        <div className="space-y-5">
+                    {/* ── 2 Column Grid ──────────────────────────────────────── */}
+                    <div className="grid gap-5 grid-cols-1 lg:grid-cols-5">
+
+                        {/* ━━ LEFT COLUMN (Main Work) ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                        <div className="lg:col-span-3 space-y-5">
 
                             {/* Checklist Card */}
                             <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
@@ -1836,44 +1626,155 @@ export default function OrderDetailPage() {
                                 </div>
                             </div>
 
-                            {/* Order History */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                                <div className="px-4 py-3.5 border-b border-border/40">
-                                    <span className="text-sm font-semibold">Auftrags-Verlauf</span>
+                            {/* Internal Notes */}
+                            <div className="rounded-xl border border-amber-200/60 dark:border-amber-900/30 bg-card overflow-hidden flex flex-col">
+                                <div className="flex items-center justify-between px-4 py-3 border-b border-amber-200/40 dark:border-amber-900/20 bg-amber-50/30 dark:bg-amber-950/10">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-semibold text-amber-900 dark:text-amber-500">Interne Notizen</span>
+                                        {saving && <Loader2 className="h-3 w-3 animate-spin text-amber-500" />}
+                                    </div>
+                                    {!isReadOnly && editInternalNote !== (order?.internal_note || "") && (
+                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded-full">
+                                            Ungespeicherte Änderungen...
+                                        </span>
+                                    )}
                                 </div>
-                                <div className="px-4 py-3">
-                                    <OrderHistory history={order.history || []} />
+                                <div className="p-0 flex-1 flex flex-col">
+                                    {isReadOnly ? (
+                                        <div className="px-4 py-3.5 bg-amber-50/70 dark:bg-amber-950/20 text-sm whitespace-pre-wrap leading-relaxed min-h-[120px]">
+                                            {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
+                                        </div>
+                                    ) : (
+                                        <Textarea
+                                            value={editInternalNote}
+                                            onChange={(e) => setEditInternalNote(e.target.value)}
+                                            onBlur={() => {
+                                                if (editInternalNote !== (order?.internal_note || "")) {
+                                                    handleSaveInternalNotesData()
+                                                }
+                                            }}
+                                            placeholder="Notizen hier tippen. Speichert automatisch beim Verlassen des Feldes..."
+                                            className="min-h-[120px] resize-y rounded-none border-0 bg-amber-50/70 dark:bg-amber-950/20 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm whitespace-pre-wrap leading-relaxed px-4 py-3.5"
+                                        />
+                                    )}
                                 </div>
                             </div>
                         </div>
 
-                        {/* ━━ RIGHT COLUMN ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-                        <div className="space-y-5">
+                        {/* ━━ RIGHT COLUMN (Details) ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                        <div className="lg:col-span-2 space-y-5">
 
-                            {/* Kundenwunsch */}
+                            {/* Customer Card */}
                             <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                                <div className="px-4 py-3.5 border-b border-border/40">
-                                    <span className="text-sm font-semibold">Kundenwunsch</span>
-                                </div>
-                                <div className="px-4 py-3">
-                                    <div className="rounded-lg bg-muted/30 border border-border/30 px-3 py-2.5 min-h-[72px] text-sm whitespace-pre-wrap leading-relaxed">
-                                        {customerNote || <span className="text-muted-foreground italic">Keine Beschreibung vorhanden.</span>}
+                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="h-7 w-7 rounded-lg bg-blue-500/12 flex items-center justify-center">
+                                            <User className="h-3.5 w-3.5 text-blue-500" />
+                                        </div>
+                                        <span className="text-sm font-semibold">Kundendaten</span>
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* Internal Notes */}
-                            <div className="rounded-xl border border-amber-200/60 dark:border-amber-900/30 bg-card overflow-hidden">
-                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-amber-200/40 dark:border-amber-900/20">
-                                    <span className="text-sm font-semibold">Interne Notizen</span>
                                     {!isReadOnly && (
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
                                             onClick={() => {
-                                                setEditInternalNote(internalNote)
-                                                setIsInternalNoteEditDialogOpen(true)
+                                                setEditCustomerName(order.customer_name)
+                                                setEditCustomerEmail(order.customer_email || "")
+                                                setEditCustomerPhone(order.customer_phone || "")
+                                                setIsCustomerEditDialogOpen(true)
+                                            }}
+                                        >
+                                            <Pencil className="h-3 w-3" />
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="px-4 py-3 space-y-2.5">
+                                    <div>
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Name</p>
+                                        <p className="text-sm font-medium">{order.customer_name}</p>
+                                    </div>
+                                    {order.customer_email && (
+                                        <div className="flex items-center gap-2">
+                                            <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
+                                            <p className="text-sm truncate">{order.customer_email}</p>
+                                        </div>
+                                    )}
+                                    {order.customer_phone && (
+                                        <div className="flex items-center gap-2">
+                                            <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                                            <p className="text-sm">{order.customer_phone}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Bike Card */}
+                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="h-7 w-7 rounded-lg bg-orange-500/12 flex items-center justify-center">
+                                            <Bike className="h-3.5 w-3.5 text-orange-500" />
+                                        </div>
+                                        <span className="text-sm font-semibold">Fahrrad</span>
+                                    </div>
+                                    {!isReadOnly && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                            onClick={() => {
+                                                setEditBikeBrand(order.bike_brand || "")
+                                                setEditBikeModel(order.bike_model || "")
+                                                setEditBikeType(order.bike_type || "")
+                                                setEditBikeColor(order.bike_color || "")
+                                                setIsBikeEditDialogOpen(true)
+                                            }}
+                                        >
+                                            <Pencil className="h-3 w-3" />
+                                        </Button>
+                                    )}
+                                </div>
+                                <div className="px-4 py-3 grid grid-cols-2 gap-y-3 gap-x-3">
+                                    <div>
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Marke</p>
+                                        <p className="text-sm font-medium">{order.bike_brand || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Modell</p>
+                                        <p className="text-sm font-medium">{order.bike_model || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Farbe</p>
+                                        <p className="text-sm font-medium">{order.bike_color || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Typ</p>
+                                        <p className="text-sm font-medium">
+                                            {order.bike_type ? BIKE_TYPE_LABELS[order.bike_type] || order.bike_type : '—'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Price Card */}
+                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
+                                    <div className="flex items-center gap-2.5">
+                                        <div className="h-7 w-7 rounded-lg bg-green-500/12 flex items-center justify-center">
+                                            <Euro className="h-3.5 w-3.5 text-green-600" />
+                                        </div>
+                                        <span className="text-sm font-semibold">Preisübersicht</span>
+                                    </div>
+                                    {!isReadOnly && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                            onClick={() => {
+                                                setEditEstimatedPrice(order.estimated_price?.toString() || "")
+                                                setEditFinalPrice(order.final_price?.toString() || "")
+                                                setIsPriceEditDialogOpen(true)
                                             }}
                                         >
                                             <Pencil className="h-3 w-3" />
@@ -1881,11 +1782,104 @@ export default function OrderDetailPage() {
                                     )}
                                 </div>
                                 <div className="px-4 py-3">
-                                    <div className="rounded-lg bg-amber-50/70 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 px-3 py-2.5 min-h-[88px] text-sm whitespace-pre-wrap leading-relaxed">
-                                        {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
+                                    <div className="flex items-baseline justify-between gap-4">
+                                        <div className="flex-1">
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Geschätzt</p>
+                                            <p className="text-xl font-bold tracking-tight text-primary">
+                                                {order.estimated_price !== null
+                                                    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.estimated_price)
+                                                    : '—'
+                                                }
+                                            </p>
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Tatsächlich</p>
+                                            <p className="text-xl font-semibold">
+                                                {order.final_price !== null
+                                                    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.final_price)
+                                                    : <span className="text-muted-foreground italic text-sm font-normal">Offen</span>
+                                                }
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Leasing Card (conditional) */}
+                            {order.is_leasing && (
+                                <div className="rounded-xl border border-primary/20 bg-primary/3 overflow-hidden">
+                                    <div className="flex items-center justify-between px-4 py-3.5 border-b border-primary/15">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="h-7 w-7 rounded-lg bg-primary/15 flex items-center justify-center">
+                                                <CreditCard className="h-3.5 w-3.5 text-primary" />
+                                            </div>
+                                            <span className="text-sm font-semibold">Leasing</span>
+                                        </div>
+                                        {!isReadOnly && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-primary/10"
+                                                onClick={() => {
+                                                    setEditLeasingProvider(order.leasing_provider || "")
+                                                    setEditLeasingPortalEmail(order.leasing_portal_email || "")
+                                                    setEditContractId(order.contract_id || "")
+                                                    setEditServicePackage(order.service_package || "")
+                                                    setEditInspectionCode(order.inspection_code || "")
+                                                    setEditPickupCode(order.pickup_code || "")
+                                                    setIsLeasingEditDialogOpen(true)
+                                                }}
+                                            >
+                                                <Pencil className="h-3 w-3" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="px-4 py-3 space-y-3">
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Anbieter</p>
+                                                <p className="text-sm font-medium">{order.leasing_provider || '—'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Vertrags-Nr.</p>
+                                                <p className="text-sm font-medium truncate" title={order.contract_id || ""}>{order.contract_id || '—'}</p>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Portal E-Mail</p>
+                                            <p className="text-sm truncate">{order.leasing_portal_email || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Service Paket</p>
+                                            <p className="text-sm">{order.service_package || '—'}</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 pt-1 border-t border-primary/10">
+                                            <div>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Leasing Code</p>
+                                                <p className="font-mono text-sm">{order.leasing_code || '—'}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Insp.-Code</p>
+                                                <p className="font-mono text-sm">{order.inspection_code || '—'}</p>
+                                            </div>
+                                        </div>
+                                        {order.pickup_code && (
+                                            <div>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Abhol Code</p>
+                                                <div className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1.5">
+                                                    <span className="font-mono text-sm font-medium text-primary">{order.pickup_code}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                        {order.is_leasing && (
+                                            <div className="flex items-center gap-2 p-2.5 bg-yellow-500/8 border border-yellow-500/15 rounded-lg">
+                                                <AlertCircle className="h-3.5 w-3.5 text-yellow-600 shrink-0" />
+                                                <p className="text-xs text-yellow-700 dark:text-yellow-500">Code wird bei Abholung erfasst</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Assignments Card */}
                             <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
@@ -1978,6 +1972,16 @@ export default function OrderDetailPage() {
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    {/* ── Order History (full-width) ────────────────────────── */}
+                    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                        <div className="px-5 py-3.5 border-b border-border/40">
+                            <span className="text-sm font-semibold">Auftrags-Verlauf</span>
+                        </div>
+                        <div className="px-5 py-3">
+                            <OrderHistory history={order.history || []} />
                         </div>
                     </div>
 

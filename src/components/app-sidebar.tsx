@@ -36,6 +36,42 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
     onOrderCreated?: () => void
 }
 
+interface SidebarItemProps {
+    item: {
+        title: string
+        icon: any
+        href: string
+    }
+    location: any
+    navigate: any
+}
+
+function SidebarItem({ item, location, navigate }: SidebarItemProps) {
+    const isActive = location.pathname === item.href || (item.href === "/dashboard/notebook" && location.pathname.startsWith("/dashboard/notebook"))
+    
+    return (
+        <SidebarMenuItem>
+            <SidebarMenuButton
+                isActive={isActive}
+                asChild
+                onClick={() => navigate(item.href)}
+                className={cn(
+                    "cursor-pointer rounded-lg h-9",
+                    isActive && "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                )}
+            >
+                <div className="flex items-center gap-2.5 w-full">
+                    <item.icon className={cn(
+                        "h-4 w-4 shrink-0",
+                        isActive ? "text-primary" : "text-muted-foreground"
+                    )} />
+                    <span className="truncate">{item.title}</span>
+                </div>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
+    )
+}
+
 export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
     const { user, signOut, userRole } = useAuth()
     const navigate = useNavigate()
@@ -49,57 +85,6 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
         } catch (error) {
             console.error("Logout error:", error)
         }
-    }
-
-    const navItems = [
-        {
-            title: "Dashboard",
-            icon: LayoutDashboard,
-            href: "/dashboard",
-        },
-        {
-            title: "Aufgaben",
-            icon: CheckSquare,
-            href: "/dashboard/tasks",
-        },
-        {
-            title: "Notizbuch",
-            icon: BookOpen,
-            href: "/dashboard/notebook",
-        },
-        {
-            title: "Neuradaufbau",
-            icon: Bike,
-            href: "/dashboard/bike-builds",
-        },
-        {
-            title: "Feedback",
-            icon: Star,
-            href: "/dashboard/feedback",
-        },
-        {
-            title: "Leasing Abrechnung",
-            icon: CreditCard,
-            href: "/dashboard/leasing-billing",
-        },
-        {
-            title: "Archiv",
-            icon: Archive,
-            href: "/dashboard/archive",
-        },
-        {
-            title: "Einstellungen",
-            icon: Settings,
-            href: "/settings",
-        },
-    ]
-
-    if (userRole === 'admin' || userRole === 'owner') {
-        navItems.splice(4, 0, {
-            title: "Papierkorb",
-            icon: Trash2,
-            href: "/dashboard/trash",
-        })
     }
 
     const initials = user?.user_metadata?.full_name
@@ -127,7 +112,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
             <SidebarContent className="px-2">
                 <SidebarGroup>
                     <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
-                        Navigation
+                        Werkstatt
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu className="space-y-0.5">
@@ -155,33 +140,64 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
 
                             <div className="h-1" />
 
-                            {navItems.map((item) => {
-                                const isActive = location.pathname === item.href || (item.href === "/dashboard/notebook" && location.pathname.startsWith("/dashboard/notebook"))
-                                return (
-                                    <SidebarMenuItem key={item.title}>
-                                        <SidebarMenuButton
-                                            isActive={isActive}
-                                            asChild
-                                            onClick={() => {
-                                                // For notebook, ensure clean navigation to root
-                                                navigate(item.href)
-                                            }}
-                                            className={cn(
-                                                "cursor-pointer rounded-lg h-9",
-                                                isActive && "bg-sidebar-accent font-medium"
-                                            )}
-                                        >
-                                            <span className="flex items-center gap-2.5">
-                                                <item.icon className={cn(
-                                                    "h-4 w-4",
-                                                    isActive ? "text-primary" : "text-muted-foreground"
-                                                )} />
-                                                <span>{item.title}</span>
-                                            </span>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                )
-                            })}
+                            {[
+                                { title: "Reparaturen", icon: LayoutDashboard, href: "/dashboard" },
+                                { title: "Aufgaben", icon: CheckSquare, href: "/dashboard/tasks" },
+                                { title: "Neuradaufbau", icon: Bike, href: "/dashboard/bike-builds" },
+                            ].map((item) => (
+                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
+                <SidebarGroup>
+                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
+                        Verwaltung
+                    </SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu className="space-y-0.5">
+                            {[
+                                { title: "Reparatur Archiv", icon: Archive, href: "/dashboard/archive" },
+                                { title: "Leasing Abrechnung", icon: CreditCard, href: "/dashboard/leasing-billing" },
+                            ].map((item) => (
+                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
+                            ))}
+                            {(userRole === 'admin' || userRole === 'owner') && (
+                                <SidebarItem 
+                                    item={{ title: "Papierkorb", icon: Trash2, href: "/dashboard/trash" }} 
+                                    location={location} 
+                                    navigate={navigate} 
+                                />
+                            )}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
+                <SidebarGroup>
+                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
+                        Kommunikation
+                    </SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu className="space-y-0.5">
+                            {[
+                                { title: "Notizbuch", icon: BookOpen, href: "/dashboard/notebook" },
+                                { title: "Feedback", icon: Star, href: "/dashboard/feedback" },
+                            ].map((item) => (
+                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
+                <SidebarGroup className="mt-auto">
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarItem 
+                                item={{ title: "Einstellungen", icon: Settings, href: "/settings" }} 
+                                location={location} 
+                                navigate={navigate} 
+                            />
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
