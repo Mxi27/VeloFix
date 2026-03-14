@@ -43,11 +43,12 @@ export function StatsCards() {
 
             if (error) throw error
 
-            const openStatuses = ['eingegangen', 'in_bearbeitung', 'wartet_auf_teile', 'bereit_zur_abholung']
+            const openStatuses = ['eingegangen', 'in_bearbeitung', 'warten_auf_teile', 'kontrolle_offen', 'abholbereit']
             const openOrders = orders?.filter(o => openStatuses.includes(o.status)).length || 0
 
             const completedToday = orders?.filter(o => {
-                if (o.status !== 'abgeholt') return false
+                const finishedStatuses = ['abholbereit', 'abgeholt', 'abgeschlossen']
+                if (!finishedStatuses.includes(o.status)) return false
                 const updatedAt = new Date(o.updated_at)
                 return updatedAt >= today
             }).length || 0
