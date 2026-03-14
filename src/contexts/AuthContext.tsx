@@ -55,8 +55,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (!workshopId) return
 
+        // Enhanced channel config for better cross-device reliability
         const channel = supabase
-            .channel(`workshop-updates-${workshopId}`)
+            .channel(`workshop-updates-${workshopId}`, {
+                config: {
+                    broadcast: { ack: true }, // Request acknowledgement
+                    presence: { key: workshopId }
+                }
+            })
             .on(
                 'postgres_changes',
                 {
@@ -90,8 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     }
                 }
             )
-            .subscribe((status) => {
-                console.log(`Realtime subscription status for workshop ${workshopId}:`, status)
+            .subscribe((status, err) => {
+                console.log(`Realtime status for workshop ${workshopId}:`, status)
+                if (err) console.error('Realtime subscription error:', err)
             })
 
         channelRef.current = channel
@@ -113,11 +120,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         window.addEventListener('storage', handleStorage)
 
+        // Fallback 3: Background Pulse - Periodic check every 30s for cross-device sync
+        // only runs when the page is actually visible to save resources
+        const pulseInterval = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                console.log('Background pulse: checking for theme updates...')
+                syncAccentColor(workshopId)
+            }
+        }, 30000)
+
         return () => {
             supabase.removeChannel(channel)
             channelRef.current = null
             window.removeEventListener('focus', handleFocus)
             window.removeEventListener('storage', handleStorage)
+            clearInterval(pulseInterval)
         }
     }, [workshopId])
 
