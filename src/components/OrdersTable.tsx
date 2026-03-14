@@ -27,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, Eye, UserPlus, Users, X, Check, SlidersHorizontal, RotateCcw as Restore } from "lucide-react"
+import { Search, Filter, Eye, UserPlus, Users, X, Check, SlidersHorizontal, RotateCcw as Restore, Settings2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -35,6 +35,7 @@ import { useEmployee } from "@/contexts/EmployeeContext"
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuCheckboxItem,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
@@ -71,6 +72,21 @@ interface Order {
     tags: string[] | null
 }
 
+const COLUMN_STORAGE_KEY = 'velofix-orders-table-columns-v1'
+
+const AVAILABLE_COLUMNS = [
+    { id: 'order_number', label: 'Nr.', defaultVisible: true },
+    { id: 'customer', label: 'Kunde', defaultVisible: true },
+    { id: 'bike', label: 'Fahrrad', defaultVisible: true },
+    { id: 'mechanic', label: 'Mitarbeiter', defaultVisible: true },
+    { id: 'due_date', label: 'Fällig', defaultVisible: true },
+    { id: 'status', label: 'Status', defaultVisible: true },
+    { id: 'created_at', label: 'Erstellt', defaultVisible: true },
+    { id: 'actions', label: 'Aktionen', defaultVisible: true },
+] as const
+
+type ColumnId = typeof AVAILABLE_COLUMNS[number]['id']
+
 
 type TableMode = 'active' | 'archived' | 'leasing_billing' | 'trash'
 
@@ -93,6 +109,29 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     const [showFilters, setShowFilters] = useState(false)
     const [sortField, setSortField] = useState<"created_at" | "due_date" | "none">("none")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
+
+    const [visibleColumns, setVisibleColumns] = useState<Record<ColumnId, boolean>>(() => {
+        const saved = localStorage.getItem(COLUMN_STORAGE_KEY)
+        if (saved) {
+            try {
+                return JSON.parse(saved)
+            } catch (e) {
+                console.error('Error parsing visible columns', e)
+            }
+        }
+        return AVAILABLE_COLUMNS.reduce((acc, col) => ({
+            ...acc,
+            [col.id]: col.defaultVisible
+        }), {} as Record<ColumnId, boolean>)
+    })
+
+    const toggleColumn = (id: ColumnId) => {
+        setVisibleColumns(prev => {
+            const next = { ...prev, [id]: !prev[id] }
+            localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(next))
+            return next
+        })
+    }
 
     const fetchTags = async () => {
         if (!workshopId) return []
@@ -325,14 +364,30 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
             <Table className="w-full">
                 <TableHeader>
                     <TableRow className="hover:bg-transparent bg-muted/40">
-                        <TableHead className="w-[80px] pl-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
-                        <TableHead className="hidden sm:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground lg:max-w-[150px]">Kunde</TableHead>
-                        <TableHead className="hidden lg:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Fahrrad</TableHead>
-                        <TableHead className="hidden xl:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Mitarbeiter</TableHead>
-                        <TableHead className="hidden md:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Fällig</TableHead>
-                        <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[100px]">Status</TableHead>
-                        <TableHead className="hidden xl:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Erstellt</TableHead>
-                        <TableHead className="text-right pr-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[80px]">Aktion</TableHead>
+                        {visibleColumns.order_number && (
+                            <TableHead className="w-[80px] pl-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
+                        )}
+                        {visibleColumns.customer && (
+                            <TableHead className="hidden sm:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground lg:max-w-[150px]">Kunde</TableHead>
+                        )}
+                        {visibleColumns.bike && (
+                            <TableHead className="hidden lg:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Fahrrad</TableHead>
+                        )}
+                        {visibleColumns.mechanic && (
+                            <TableHead className="hidden xl:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Mitarbeiter</TableHead>
+                        )}
+                        {visibleColumns.due_date && (
+                            <TableHead className="hidden md:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Fällig</TableHead>
+                        )}
+                        {visibleColumns.status && (
+                            <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[100px]">Status</TableHead>
+                        )}
+                        {visibleColumns.created_at && (
+                            <TableHead className="hidden xl:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Erstellt</TableHead>
+                        )}
+                        {visibleColumns.actions && (
+                            <TableHead className="text-right pr-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[80px]">Aktion</TableHead>
+                        )}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -352,149 +407,165 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 className="hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
                                 onClick={() => handleViewOrder(order.id)}
                             >
-                                <TableCell className="w-[80px] pl-4 py-4 font-mono text-[11px] font-bold text-primary truncate">
-                                    {order.order_number}
-                                </TableCell>
-                                <TableCell className="hidden sm:table-cell py-4">
-                                    <div className="flex flex-col min-w-0 max-w-[140px] md:max-w-[200px]">
-                                        <span className="font-medium text-sm text-foreground truncate">{order.customer_name}</span>
-                                        <span className="text-xs text-muted-foreground/80 truncate customer-email">
-                                            {order.customer_email || '—'}
-                                        </span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="hidden lg:table-cell py-4 text-sm text-foreground">
-                                    <div className="max-w-[180px] flex flex-col gap-1">
-                                        <div className="flex flex-col">
-                                            <span className="font-semibold text-foreground truncate">
-                                                {order.bike_brand && <span className="mr-1">{order.bike_brand}</span>}
-                                                {order.bike_model || '—'}
+                                {visibleColumns.order_number && (
+                                    <TableCell className="w-[80px] pl-4 py-4 font-mono text-[11px] font-bold text-primary truncate">
+                                        {order.order_number}
+                                    </TableCell>
+                                )}
+                                {visibleColumns.customer && (
+                                    <TableCell className="hidden sm:table-cell py-4">
+                                        <div className="flex flex-col min-w-0 max-w-[140px] md:max-w-[200px]">
+                                            <span className="font-medium text-sm text-foreground truncate">{order.customer_name}</span>
+                                            <span className="text-xs text-muted-foreground/80 truncate customer-email">
+                                                {order.customer_email || '—'}
                                             </span>
-                                            {order.bike_color && (
-                                                <span className="text-[11px] text-muted-foreground truncate">
-                                                    {order.bike_color}
+                                        </div>
+                                    </TableCell>
+                                )}
+                                {visibleColumns.bike && (
+                                    <TableCell className="hidden lg:table-cell py-4 text-sm text-foreground">
+                                        <div className="max-w-[180px] flex flex-col gap-1">
+                                            <div className="flex flex-col">
+                                                <span className="font-semibold text-foreground truncate">
+                                                    {order.bike_brand && <span className="mr-1">{order.bike_brand}</span>}
+                                                    {order.bike_model || '—'}
                                                 </span>
+                                                {order.bike_color && (
+                                                    <span className="text-[11px] text-muted-foreground truncate">
+                                                        {order.bike_color}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {order.tags && order.tags.length > 0 && (
+                                                <div className="flex flex-wrap gap-1">
+                                                    {order.tags.map(tagId => {
+                                                        const tagInfo = workshopTags.find((t: any) => t.id === tagId)
+                                                        if (!tagInfo) return null
+                                                        return (
+                                                            <Badge
+                                                                key={tagId}
+                                                                className="px-1.5 py-0 text-[10px] font-medium text-white shadow-sm border-0 leading-tight h-4 flex items-center"
+                                                                style={{ backgroundColor: tagInfo.color }}
+                                                            >
+                                                                {tagInfo.name}
+                                                            </Badge>
+                                                        )
+                                                    })}
+                                                </div>
                                             )}
                                         </div>
-                                        {order.tags && order.tags.length > 0 && (
+                                    </TableCell>
+                                )}
+                                {visibleColumns.mechanic && (
+                                    <TableCell className="hidden xl:table-cell py-4" onClick={(e) => e.stopPropagation()}>
+                                        {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
                                             <div className="flex flex-wrap gap-1">
-                                                {order.tags.map(tagId => {
-                                                    const tagInfo = workshopTags.find((t: any) => t.id === tagId)
-                                                    if (!tagInfo) return null
-                                                    return (
-                                                        <Badge
-                                                            key={tagId}
-                                                            className="px-1.5 py-0 text-[10px] font-medium text-white shadow-sm border-0 leading-tight h-4 flex items-center"
-                                                            style={{ backgroundColor: tagInfo.color }}
-                                                        >
-                                                            {tagInfo.name}
-                                                        </Badge>
-                                                    )
-                                                })}
+                                                {order.mechanic_ids.map(mid => (
+                                                    <Badge key={mid} variant="outline" className="bg-background">
+                                                        {getEmployeeName(mid)}
+                                                    </Badge>
+                                                ))}
                                             </div>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground italic">—</span>
                                         )}
-                                    </div>
-                                </TableCell>
-                                <TableCell className="hidden xl:table-cell py-4" onClick={(e) => e.stopPropagation()}>
-                                    {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                            {order.mechanic_ids.map(mid => (
-                                                <Badge key={mid} variant="outline" className="bg-background">
-                                                    {getEmployeeName(mid)}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <span className="text-xs text-muted-foreground italic">—</span>
-                                    )}
-                                </TableCell>
-                                <TableCell className="hidden md:table-cell py-4 text-xs font-medium">
-                                    {order.due_date ? (
-                                        <span className={new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' ? "text-red-500 font-bold" : "text-foreground"}>
-                                            {new Date(order.due_date).toLocaleDateString('de-DE')}
-                                        </span>
-                                    ) : (
-                                        <span className="text-muted-foreground/50">—</span>
-                                    )}
-                                </TableCell>
-                                <TableCell className="py-4 w-[100px]">
-                                    <Badge
-                                        variant="secondary"
-                                        className={`capitalize font-normal border text-[10px] px-1.5 h-5 flex items-center justify-center ${STATUS_COLORS[order.status] || "bg-muted text-foreground border-border/60"}`}
-                                    >
-                                        <span className="truncate">{order.status.replace(/_/g, ' ')}</span>
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="hidden xl:table-cell py-4 text-xs text-muted-foreground font-mono">
-                                    {new Date(order.created_at).toLocaleDateString('de-DE')}
-                                </TableCell>
-                                <TableCell className="text-right pr-4 py-4 w-[80px]">
-                                    <div className="flex justify-end gap-1">
-                                        {effectiveMode === 'trash' ? (
+                                    </TableCell>
+                                )}
+                                {visibleColumns.due_date && (
+                                    <TableCell className="hidden md:table-cell py-4 text-xs font-medium">
+                                        {order.due_date ? (
+                                            <span className={new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' ? "text-red-500 font-bold" : "text-foreground"}>
+                                                {new Date(order.due_date).toLocaleDateString('de-DE')}
+                                            </span>
+                                        ) : (
+                                            <span className="text-muted-foreground/50">—</span>
+                                        )}
+                                    </TableCell>
+                                )}
+                                {visibleColumns.status && (
+                                    <TableCell className="py-4 w-[100px]">
+                                        <Badge
+                                            variant="secondary"
+                                            className={`capitalize font-normal border text-[10px] px-1.5 h-5 flex items-center justify-center ${STATUS_COLORS[order.status] || "bg-muted text-foreground border-border/60"}`}
+                                        >
+                                            <span className="truncate">{order.status.replace(/_/g, ' ')}</span>
+                                        </Badge>
+                                    </TableCell>
+                                )}
+                                {visibleColumns.created_at && (
+                                    <TableCell className="hidden xl:table-cell py-4 text-xs text-muted-foreground font-mono">
+                                        {new Date(order.created_at).toLocaleDateString('de-DE')}
+                                    </TableCell>
+                                )}
+                                {visibleColumns.actions && (
+                                    <TableCell className="text-right pr-4 py-4 w-[80px]">
+                                        <div className="flex justify-end gap-1">
+                                            {effectiveMode === 'trash' ? (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0 text-primary hover:bg-primary/10 rounded-full"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleRestoreOrder(order.id)
+                                                    }}
+                                                    title="Wiederherstellen"
+                                                >
+                                                    <Restore className="h-4 w-4" />
+                                                </Button>
+                                            ) : (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <UserPlus className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-56">
+                                                        <DropdownMenuLabel>Mitarbeiter zuweisen</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleAssignEmployee(order.id, null)
+                                                        }}>
+                                                            <X className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                            <span>Keine Zuweisung</span>
+                                                        </DropdownMenuItem>
+                                                        {employees.map(emp => (
+                                                            <DropdownMenuItem
+                                                                key={emp.id}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleAssignEmployee(order.id, emp.id)
+                                                                }}
+                                                            >
+                                                                <Users className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                                                                <span className="truncate flex-1">{emp.name}</span>
+                                                                {order.mechanic_ids && order.mechanic_ids.includes(emp.id) && <Check className="ml-auto h-4 w-4 shrink-0" />}
+                                                            </DropdownMenuItem>
+                                                        ))}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            )}
+
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-8 w-8 p-0 text-primary hover:bg-primary/10 rounded-full"
+                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
                                                 onClick={(e) => {
                                                     e.stopPropagation()
-                                                    handleRestoreOrder(order.id)
+                                                    handleViewOrder(order.id)
                                                 }}
-                                                title="Wiederherstellen"
                                             >
-                                                <Restore className="h-4 w-4" />
+                                                <Eye className="h-4 w-4" />
                                             </Button>
-                                        ) : (
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        <UserPlus className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-56">
-                                                    <DropdownMenuLabel>Mitarbeiter zuweisen</DropdownMenuLabel>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        handleAssignEmployee(order.id, null)
-                                                    }}>
-                                                        <X className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                        <span>Keine Zuweisung</span>
-                                                    </DropdownMenuItem>
-                                                    {employees.map(emp => (
-                                                        <DropdownMenuItem
-                                                            key={emp.id}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                handleAssignEmployee(order.id, emp.id)
-                                                            }}
-                                                        >
-                                                            <Users className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
-                                                            <span className="truncate flex-1">{emp.name}</span>
-                                                            {order.mechanic_ids && order.mechanic_ids.includes(emp.id) && <Check className="ml-auto h-4 w-4 shrink-0" />}
-                                                        </DropdownMenuItem>
-                                                    ))}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        )}
-
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                handleViewOrder(order.id)
-                                            }}
-                                        >
-                                            <Eye className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </TableCell>
+                                        </div>
+                                    </TableCell>
+                                )}
                             </TableRow>
                         ))
                     )}
@@ -521,6 +592,8 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                             <CardTitle className="text-xl font-bold tracking-tight">
                                 {getTitle()}
                             </CardTitle>
+
+                            <div className="flex items-center gap-2">
 
                             {/* Filter Toggle Button */}
                             <Popover open={showFilters} onOpenChange={setShowFilters}>
@@ -666,7 +739,36 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     </div>
                                 </PopoverContent>
                             </Popover>
+
+                            {/* View Options Dropdown */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="gap-2 bg-background"
+                                    >
+                                        <Settings2 className="h-4 w-4" />
+                                        Ansicht
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    <DropdownMenuLabel>Sichtbare Spalten</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {AVAILABLE_COLUMNS.map(col => (
+                                        <DropdownMenuCheckboxItem
+                                            key={col.id}
+                                            checked={visibleColumns[col.id]}
+                                            onCheckedChange={() => toggleColumn(col.id)}
+                                            onSelect={(e) => e.preventDefault()}
+                                        >
+                                            {col.label}
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                         </div>
+                    </div>
 
                         {/* Search Bar */}
                         <div className="relative">
