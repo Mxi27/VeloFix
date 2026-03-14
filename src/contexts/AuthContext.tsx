@@ -64,8 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     filter: `id=eq.${workshopId}`,
                 },
                 async (payload) => {
-                    if (payload.new && payload.new.accent_color) {
-                        const { applyThemeColor } = await import('@/lib/theme')
+                    const { applyThemeColor } = await import('@/lib/theme')
+                    if (payload.new && payload.new.design_config?.primaryColor) {
+                        applyThemeColor(payload.new.design_config.primaryColor)
+                    } else if (payload.new && payload.new.accent_color) {
                         applyThemeColor(payload.new.accent_color)
                     }
                 }

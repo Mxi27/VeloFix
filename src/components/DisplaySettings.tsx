@@ -54,9 +54,21 @@ export function DisplaySettings() {
         applyThemeColor(color)
 
         if (workshopId) {
+            // Update both the accent_color column and the design_config JSON
+            const { data: workshop } = await supabase
+                .from('workshops')
+                .select('design_config')
+                .eq('id', workshopId)
+                .single()
+
+            const currentConfig = workshop?.design_config as any || {}
+            
             const { error } = await supabase
                 .from('workshops')
-                .update({ accent_color: color })
+                .update({ 
+                    accent_color: color,
+                    design_config: { ...currentConfig, primaryColor: color }
+                })
                 .eq('id', workshopId)
 
             if (error) {

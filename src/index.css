@@ -22,9 +22,9 @@
   --velofix-primary-light: oklch(0.60 0.12 250);
   --velofix-primary-dark: oklch(0.40 0.16 250);
 
-  /* Subtle Gradient Colors */
-  --gradient-start: oklch(0.50 0.14 250);
-  --gradient-end: oklch(0.55 0.12 280);
+  /* Subtle Gradient Colors - Derived from primary */
+  --gradient-start: var(--velofix-primary);
+  --gradient-end: var(--velofix-primary-light);
 
   /* Base Colors - Clean and warm */
   --background: oklch(0.99 0.002 90);
