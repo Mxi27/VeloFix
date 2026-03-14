@@ -444,7 +444,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                         <UserPlus className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
+                                                <DropdownMenuContent align="end" className="w-56">
                                                     <DropdownMenuLabel>Mitarbeiter zuweisen</DropdownMenuLabel>
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuItem onClick={(e) => {
@@ -462,9 +462,9 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                                 handleAssignEmployee(order.id, emp.id)
                                                             }}
                                                         >
-                                                            <Users className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                            <span>{emp.name}</span>
-                                                            {order.mechanic_ids && order.mechanic_ids.includes(emp.id) && <Check className="ml-auto h-4 w-4" />}
+                                                            <Users className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                                                            <span className="truncate flex-1">{emp.name}</span>
+                                                            {order.mechanic_ids && order.mechanic_ids.includes(emp.id) && <Check className="ml-auto h-4 w-4 shrink-0" />}
                                                         </DropdownMenuItem>
                                                     ))}
                                                 </DropdownMenuContent>
