@@ -69,8 +69,18 @@ export function applyTheme(theme: Theme) {
 
 export function applyCompactMode(enabled: boolean) {
     const root = document.documentElement
+    
+    // Anti-Flicker Guard: Only apply and dispatch if the state actually changes
+    const isAlreadyCompact = root.classList.contains('compact-mode')
+    if (isAlreadyCompact === enabled) return
+
     root.classList.toggle('compact-mode', enabled)
     localStorage.setItem('compact-mode', enabled.toString())
+
+    // Dispatch event so UI components and other tabs can sync
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('velofix-compact-update', { detail: enabled }))
+    }
 }
 
 export function loadTheme(): Theme {

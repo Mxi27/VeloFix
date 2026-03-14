@@ -117,6 +117,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     applyThemeColor(e.newValue!)
                 })
             }
+            if (e.key === 'compact-mode' && e.newValue) {
+                import('@/lib/theme').then(({ applyCompactMode }) => {
+                    applyCompactMode(e.newValue === 'true')
+                })
+            }
         }
         window.addEventListener('storage', handleStorage)
 

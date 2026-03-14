@@ -43,10 +43,17 @@ export function DisplaySettings() {
                 setAccentColor(customEvent.detail);
             }
         };
-        window.addEventListener('velofix-theme-update', handleThemeUpdateEvent);
+        const handleCompactUpdateEvent = (e: Event) => {
+            const customEvent = e as CustomEvent<boolean>;
+            if (customEvent.detail !== undefined) {
+                setCompactMode(customEvent.detail);
+            }
+        };
+        window.addEventListener('velofix-compact-update', handleCompactUpdateEvent);
 
         return () => {
             window.removeEventListener('velofix-theme-update', handleThemeUpdateEvent);
+            window.removeEventListener('velofix-compact-update', handleCompactUpdateEvent);
         };
     }, [])
 
@@ -56,7 +63,8 @@ export function DisplaySettings() {
     }
 
     const handleCompactChange = (enabled: boolean) => {
-        setCompactMode(enabled)
+        // We do not setCompactMode(enabled) here.
+        // applyCompactMode will trigger the event that updates the local state.
         import('@/lib/theme').then(({ applyCompactMode }) => {
             applyCompactMode(enabled)
         })
