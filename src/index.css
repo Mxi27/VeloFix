@@ -184,6 +184,14 @@
   html {
     @apply font-sans scroll-smooth;
   }
+
+  button,
+  [role="button"],
+  select,
+  summary,
+  label {
+    cursor: pointer;
+  }
 }
 
 /* Utility Classes */
@@ -227,6 +235,7 @@
   /* Interactive Scale */
   .interactive {
     transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+    cursor: pointer;
   }
 
   .interactive:hover {
