@@ -2,12 +2,13 @@ import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { StatsCards } from "@/components/StatsCards"
 import { OrdersTable } from "@/components/OrdersTable"
 import { PageTransition } from "@/components/PageTransition"
+import { CreateOrderModal } from "@/components/CreateOrderModal"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { useState, useEffect, useMemo, useRef } from "react"
 import {
     Bike, ShieldCheck, ListTodo, Clock, CheckCircle2,
-    ChevronRight, ChevronDown, Zap
+    ChevronRight, ChevronDown, Zap, PlusCircle
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -16,6 +17,7 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { isPast, isToday, format, differenceInDays, addDays } from "date-fns"
 import { de } from "date-fns/locale"
 import { getUrgencyInfo } from "@/lib/urgency"
+import { Button } from "@/components/ui/button"
 
 import {
     DropdownMenu,
@@ -64,12 +66,13 @@ interface ShopTask {
 const DASHBOARD_VIEW_KEY = 'velofix-dashboard-view'
 
 export default function DashboardPage() {
-    const { user, workshopId } = useAuth()
+    const { user, workshopId, userRole } = useAuth()
     const { activeEmployee, employees, selectEmployee, isAdmin, isSharedMode } = useEmployee()
     const navigate = useNavigate()
     const location = useLocation()
     const [refreshKey, setRefreshKey] = useState(0)
     const [showEmployeePicker, setShowEmployeePicker] = useState(false)
+    const [isNewOrderOpen, setIsNewOrderOpen] = useState(false)
     const pickerRef = useRef<HTMLDivElement>(null)
 
     const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -263,22 +266,41 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
-                        {/* View Toggle */}
-                        <div className="flex bg-muted/40 border border-border/40 rounded-lg p-1 gap-1">
-                            {(['general', 'cockpit'] as ViewMode[]).map(mode => (
-                                <button
-                                    key={mode}
-                                    onClick={() => setViewMode(mode)}
-                                    className={cn(
-                                        "px-4 py-1.5 rounded-md text-sm transition-all duration-200 font-medium",
-                                        viewMode === mode
-                                            ? "bg-background shadow-sm text-foreground border border-border/30"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    )}
+                        {/* Right side: New Order button + View Toggle */}
+                        <div className="flex items-center gap-2">
+                            {userRole !== 'read' && (
+                                <CreateOrderModal
+                                    open={isNewOrderOpen}
+                                    onOpenChange={setIsNewOrderOpen}
+                                    onOrderCreated={handleOrderCreated}
                                 >
-                                    {mode === 'general' ? 'Allgemein' : 'Cockpit'}
-                                </button>
-                            ))}
+                                    <Button
+                                        size="sm"
+                                        className="gap-1.5 h-9 font-medium"
+                                        onClick={() => setIsNewOrderOpen(true)}
+                                    >
+                                        <PlusCircle className="h-4 w-4" />
+                                        Neuer Auftrag
+                                    </Button>
+                                </CreateOrderModal>
+                            )}
+                            {/* View Toggle */}
+                            <div className="flex bg-muted/40 border border-border/40 rounded-lg p-1 gap-1">
+                                {(['general', 'cockpit'] as ViewMode[]).map(mode => (
+                                    <button
+                                        key={mode}
+                                        onClick={() => setViewMode(mode)}
+                                        className={cn(
+                                            "px-4 py-1.5 rounded-md text-sm transition-all duration-200 font-medium",
+                                            viewMode === mode
+                                                ? "bg-background shadow-sm text-foreground border border-border/30"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        {mode === 'general' ? 'Allgemein' : 'Cockpit'}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -381,10 +403,10 @@ export default function DashboardPage() {
                     </div>
                 ) : (
                     <>
-                        <StatsCards key={`stats-${refreshKey}`} />
-                        <div className="mt-6">
-                            <OrdersTable key={refreshKey} />
+                        <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+                            <StatsCards key={`stats-${refreshKey}`} />
                         </div>
+                        <OrdersTable key={refreshKey} />
                     </>
                 )}
             </DashboardLayout>
