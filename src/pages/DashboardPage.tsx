@@ -111,13 +111,8 @@ export default function DashboardPage() {
 
     useEffect(() => {
         if (!workshopId) return
-        const { syncAccentColor } = useAuth() // Get sync function from context
-
         const fetchData = async () => {
             try {
-                // Proactively sync theme color whenever data is refreshed
-                syncAccentColor(workshopId)
-
                 const [ordersRes, buildsRes, tasksRes] = await Promise.all([
                     supabase.from('orders').select('id,order_number,customer_name,bike_brand,bike_model,bike_color,status,due_date,created_at,mechanic_ids,qc_mechanic_id')
                         .eq('workshop_id', workshopId)

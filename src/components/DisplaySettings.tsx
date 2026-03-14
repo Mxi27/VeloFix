@@ -75,6 +75,12 @@ export function DisplaySettings() {
                 console.error('Error saving accent color:', error)
             } else {
                 toast.success('Akzentfarbe aktualisiert')
+                // Send broadcast for instant sync across other clients
+                supabase.channel(`workshop-updates-${workshopId}`).send({
+                    type: 'broadcast',
+                    event: 'THEME_UPDATE',
+                    payload: { accent_color: color },
+                })
             }
         } else {
             // Local only if no workshop
