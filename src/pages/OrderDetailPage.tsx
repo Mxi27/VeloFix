@@ -59,6 +59,7 @@ import {
     X,
     ChevronDown,
     History,
+    StickyNote,
 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { LoadingScreen } from "@/components/LoadingScreen"
@@ -1567,8 +1568,8 @@ export default function OrderDetailPage() {
                                 <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
                                     <CollapsibleTrigger asChild>
                                         <div className="flex items-center gap-2 cursor-pointer flex-1">
-                                            <div className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center">
-                                                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                            <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                <StickyNote className="h-3.5 w-3.5 text-primary" />
                                             </div>
                                             <span className="text-sm font-semibold">Interne Notizen</span>
                                             {saving && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
@@ -1578,6 +1579,20 @@ export default function OrderDetailPage() {
                                             )} />
                                         </div>
                                     </CollapsibleTrigger>
+                                    {!isReadOnly && (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center hover:bg-muted transition-colors"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setEditInternalNote(order?.internal_note || "")
+                                                setIsInternalNoteEditDialogOpen(true)
+                                            }}
+                                        >
+                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                        </Button>
+                                    )}
                                 </div>
                                 <CollapsibleContent className="flex-1 flex flex-col">
                                     <div className="p-0 flex-1 flex flex-col">
@@ -1761,7 +1776,7 @@ export default function OrderDetailPage() {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                            className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center hover:bg-muted transition-colors"
                                             onClick={(e) => {
                                                 e.stopPropagation()
                                                 setEditCustomerName(order.customer_name)
@@ -1770,12 +1785,25 @@ export default function OrderDetailPage() {
                                                 setIsCustomerEditDialogOpen(true)
                                             }}
                                         >
-                                            <Pencil className="h-3 w-3" />
+                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                                         </Button>
                                     )}
                                 </div>
                                 <CollapsibleContent>
-                                    <div className="px-4 py-3 space-y-2.5">
+                                    <div 
+                                        className={cn(
+                                            "px-4 py-3 space-y-2.5",
+                                            !isReadOnly && "cursor-pointer hover:bg-muted/20 transition-colors"
+                                        )}
+                                        onClick={() => {
+                                            if (!isReadOnly) {
+                                                setEditCustomerName(order.customer_name)
+                                                setEditCustomerEmail(order.customer_email || "")
+                                                setEditCustomerPhone(order.customer_phone || "")
+                                                setIsCustomerEditDialogOpen(true)
+                                            }
+                                        }}
+                                    >
                                         <div>
                                             <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Name</p>
                                             <p className="text-sm font-medium">{order.customer_name}</p>
@@ -1819,7 +1847,7 @@ export default function OrderDetailPage() {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                            className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center hover:bg-muted transition-colors"
                                             onClick={(e) => {
                                                 e.stopPropagation()
                                                 setEditBikeBrand(order.bike_brand || "")
@@ -1829,12 +1857,26 @@ export default function OrderDetailPage() {
                                                 setIsBikeEditDialogOpen(true)
                                             }}
                                         >
-                                            <Pencil className="h-3 w-3" />
+                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                                         </Button>
                                     )}
                                 </div>
                                 <CollapsibleContent>
-                                    <div className="px-4 py-3 grid grid-cols-2 gap-y-3 gap-x-3">
+                                    <div 
+                                        className={cn(
+                                            "px-4 py-3 grid grid-cols-2 gap-y-3 gap-x-3",
+                                            !isReadOnly && "cursor-pointer hover:bg-muted/20 transition-colors"
+                                        )}
+                                        onClick={() => {
+                                            if (!isReadOnly) {
+                                                setEditBikeBrand(order.bike_brand || "")
+                                                setEditBikeModel(order.bike_model || "")
+                                                setEditBikeType(order.bike_type || "")
+                                                setEditBikeColor(order.bike_color || "")
+                                                setIsBikeEditDialogOpen(true)
+                                            }
+                                        }}
+                                    >
                                         <div>
                                             <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Marke</p>
                                             <p className="text-sm font-medium">{order.bike_brand || '—'}</p>
@@ -1866,8 +1908,8 @@ export default function OrderDetailPage() {
                                 <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
                                     <CollapsibleTrigger asChild>
                                         <div className="flex items-center gap-2.5 cursor-pointer flex-1">
-                                            <div className="h-7 w-7 rounded-lg bg-green-500/12 flex items-center justify-center">
-                                                <Euro className="h-3.5 w-3.5 text-green-600" />
+                                            <div className="h-7 w-7 rounded-lg bg-emerald-500/12 flex items-center justify-center">
+                                                <Euro className="h-3.5 w-3.5 text-emerald-500" />
                                             </div>
                                             <span className="text-sm font-semibold">Preisübersicht</span>
                                             <ChevronDown className={cn(
@@ -1880,7 +1922,7 @@ export default function OrderDetailPage() {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                                            className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center hover:bg-muted transition-colors"
                                             onClick={(e) => {
                                                 e.stopPropagation()
                                                 setEditEstimatedPrice(order.estimated_price?.toString() || "")
@@ -1888,12 +1930,24 @@ export default function OrderDetailPage() {
                                                 setIsPriceEditDialogOpen(true)
                                             }}
                                         >
-                                            <Pencil className="h-3 w-3" />
+                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                                         </Button>
                                     )}
                                 </div>
                                 <CollapsibleContent>
-                                    <div className="px-4 py-3">
+                                    <div 
+                                        className={cn(
+                                            "px-4 py-3",
+                                            !isReadOnly && "cursor-pointer hover:bg-muted/20 transition-colors"
+                                        )}
+                                        onClick={() => {
+                                            if (!isReadOnly) {
+                                                setEditEstimatedPrice(order.estimated_price?.toString() || "")
+                                                setEditFinalPrice(order.final_price?.toString() || "")
+                                                setIsPriceEditDialogOpen(true)
+                                            }
+                                        }}
+                                    >
                                         <div className="flex items-baseline justify-between gap-4">
                                             <div className="flex-1">
                                                 <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Geschätzt</p>
