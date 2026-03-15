@@ -1,5 +1,5 @@
 import { toastSuccess, toastError } from '@/lib/toast-utils'
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -338,6 +338,25 @@ export default function OrderDetailPage() {
 
     // Standardized Edit States
     const [isInternalNoteEditDialogOpen, setIsInternalNoteEditDialogOpen] = useState(false)
+    const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+    useEffect(() => {
+        if (isInternalNoteEditDialogOpen) {
+            // Small timeout to ensure the modal animation hasn't blocked focus
+            const timer = setTimeout(() => {
+                const el = textareaRef.current
+                if (el) {
+                    el.focus()
+                    // Force cursor to end
+                    const val = el.value
+                    el.value = ''
+                    el.value = val
+                    el.setSelectionRange(val.length, val.length)
+                }
+            }, 150)
+            return () => clearTimeout(timer)
+        }
+    }, [isInternalNoteEditDialogOpen])
     const [editInternalNote, setEditInternalNote] = useState("")
 
     const [isPriceEditDialogOpen, setIsPriceEditDialogOpen] = useState(false)
@@ -1529,7 +1548,10 @@ export default function OrderDetailPage() {
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
                                     <div className="px-5 py-3.5">
-                                        <div className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
+                                        <div
+                                            className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90 cursor-default"
+                                            onClick={() => toastError("Nicht bearbeitbar", "Der Kundenwunsch kann im Nachhinein nicht mehr bearbeitet werden.")}
+                                        >
                                             {customerNote || <span className="text-muted-foreground italic">Keine Beschreibung vorhanden.</span>}
                                         </div>
                                     </div>
@@ -1545,6 +1567,9 @@ export default function OrderDetailPage() {
                                 <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
                                     <CollapsibleTrigger asChild>
                                         <div className="flex items-center gap-2 cursor-pointer flex-1">
+                                            <div className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center">
+                                                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                            </div>
                                             <span className="text-sm font-semibold">Interne Notizen</span>
                                             {saving && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
                                             <ChevronDown className={cn(
@@ -1553,31 +1578,23 @@ export default function OrderDetailPage() {
                                             )} />
                                         </div>
                                     </CollapsibleTrigger>
-                                    {!isReadOnly && editInternalNote !== (order?.internal_note || "") && (
-                                        <span className="text-[10px] text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full">
-                                            Ungespeicherte Änderungen...
-                                        </span>
-                                    )}
                                 </div>
                                 <CollapsibleContent className="flex-1 flex flex-col">
                                     <div className="p-0 flex-1 flex flex-col">
-                                        {isReadOnly ? (
-                                            <div className="px-4 py-3.5 text-sm whitespace-pre-wrap leading-relaxed min-h-[120px]">
-                                                {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
-                                            </div>
-                                        ) : (
-                                            <Textarea
-                                                value={editInternalNote}
-                                                onChange={(e) => setEditInternalNote(e.target.value)}
-                                                onBlur={() => {
-                                                    if (editInternalNote !== (order?.internal_note || "")) {
-                                                        handleSaveInternalNotesData()
-                                                    }
-                                                }}
-                                                placeholder="Notizen hier tippen. Speichert automatisch beim Verlassen des Feldes..."
-                                                className="min-h-[120px] resize-y rounded-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm whitespace-pre-wrap leading-relaxed px-4 py-3.5"
-                                            />
-                                        )}
+                                        <div 
+                                            className={cn(
+                                                "px-4 py-3.5 text-sm whitespace-pre-wrap leading-relaxed min-h-[80px]",
+                                                !isReadOnly && "cursor-pointer hover:bg-muted/20 transition-colors"
+                                            )}
+                                            onClick={() => {
+                                                if (!isReadOnly) {
+                                                    setEditInternalNote(order?.internal_note || "")
+                                                    setIsInternalNoteEditDialogOpen(true)
+                                                }
+                                            }}
+                                        >
+                                            {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
+                                        </div>
                                     </div>
                                 </CollapsibleContent>
                             </Collapsible>
@@ -2096,7 +2113,7 @@ export default function OrderDetailPage() {
 
                             {/* History Tile (Matching Design) */}
                             <div className="mt-4">
-                                <div 
+                                <div
                                     onClick={() => setIsHistoryModalOpen(true)}
                                     className="rounded-xl border border-border/60 bg-card overflow-hidden cursor-pointer hover:bg-muted/30 transition-colors"
                                 >
@@ -2284,15 +2301,26 @@ export default function OrderDetailPage() {
                     </DialogContent>
                 </Dialog>
 
-                <Dialog open={isInternalNoteEditDialogOpen} onOpenChange={setIsInternalNoteEditDialogOpen}>
-                    <DialogContent aria-describedby={undefined}>
+                <Dialog open={isInternalNoteEditDialogOpen} onOpenChange={(open) => {
+                    if (!open) setEditInternalNote(order?.internal_note || "")
+                    setIsInternalNoteEditDialogOpen(open)
+                }}>
+                    <DialogContent aria-describedby={undefined} onOpenAutoFocus={(e) => e.preventDefault()}>
                         <DialogHeader>
-                            <DialogTitle>Interne Notiz bearbeiten</DialogTitle>
+                            <div className="flex items-center justify-between">
+                                <DialogTitle>Interne Notiz bearbeiten</DialogTitle>
+                                {editInternalNote !== (order?.internal_note || "") && (
+                                    <span className="text-[10px] text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full mr-6">
+                                        Ungespeicherte Änderungen
+                                    </span>
+                                )}
+                            </div>
                         </DialogHeader>
                         <div className="py-4">
                             <Label htmlFor="internal-note" className="mb-2 block">Notiz</Label>
                             <Textarea
                                 id="internal-note"
+                                ref={textareaRef}
                                 value={editInternalNote}
                                 onChange={(e) => setEditInternalNote(e.target.value)}
                                 className="min-h-[150px]"
@@ -2300,7 +2328,10 @@ export default function OrderDetailPage() {
                             />
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsInternalNoteEditDialogOpen(false)}>Abbrechen</Button>
+                            <Button variant="outline" onClick={() => {
+                                setEditInternalNote(order?.internal_note || "")
+                                setIsInternalNoteEditDialogOpen(false)
+                            }}>Abbrechen</Button>
                             <Button
                                 onClick={() => handleSaveInternalNotesData()}
                                 disabled={saving}
