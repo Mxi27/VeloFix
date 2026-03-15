@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from "react"
 import {
     ShieldCheck, ListTodo, CheckCircle2,
     ChevronRight, ChevronDown, Zap, UserCheck, FastForward,
-    Calendar, Bike, Clock, Pause, Play, PackageCheck, Check, Archive
+    Calendar, Bike, Clock, Pause, Play, PackageCheck, Check, Archive, Filter
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -66,6 +66,8 @@ export default function CockpitPage() {
     const [orders, setOrders] = useState<Order[]>([])
     const [bikeBuilds, setBikeBuilds] = useState<BikeBuild[]>([])
     const [shopTasks, setShopTasks] = useState<ShopTask[]>([])
+    const [orderFilter, setOrderFilter] = useState<'all' | 'repairs' | 'builds'>('all')
+    const [qcFilter, setQcFilter] = useState<'all' | 'repairs' | 'builds'>('all')
     
     // Achievement stats for today
     const [achievements, setAchievements] = useState({
@@ -160,7 +162,7 @@ export default function CockpitPage() {
     const cockpitReturnState = { state: { from: '/dashboard/cockpit' } }
 
     const cockpitData = useMemo(() => {
-        // 1. YOUR REPAIRS (Assigned to you as mechanic)
+        // 1. YOUR ASSIGNMENTS (Repairs + Builds + QCs)
         const myRepairs = orders.filter(o => {
             const isAssignedMechanic = myMatchIds.length > 0 && o.mechanic_ids?.some(id => myMatchIds.includes(id))
             const inRepairPhase = o.status !== 'kontrolle_offen' && o.status !== 'fertig'
@@ -171,8 +173,6 @@ export default function CockpitPage() {
              const inBuildPhase = b.status !== 'fertig' && b.status !== 'abgeschlossen'
              return isAssignedBuilder && inBuildPhase
         })
-
-        // 2. YOUR CONTROLS (Assigned to you as controller)
         const myQCRepairs = orders.filter(o => {
             const isAssignedController = activeEmployee?.id && o.qc_mechanic_id === activeEmployee.id
             return isAssignedController && o.status === 'kontrolle_offen'
@@ -182,7 +182,50 @@ export default function CockpitPage() {
              return isAssignedController && b.status === 'fertig'
         })
 
-        // 3. TASKS (Personal + Urgent)
+        const myAssignments = [
+            ...myRepairs.map(o => ({ type: 'order' as const, data: o })),
+            ...myBuildsInProgress.map(b => ({ type: 'build' as const, data: b })),
+            ...myQCRepairs.map(o => ({ type: 'qc_order' as const, data: o })),
+            ...myQCBuilds.map(b => ({ type: 'qc_build' as const, data: b }))
+        ].sort((a, b) => {
+            const dateA = a.type.includes('order') ? (a.data as Order).due_date : (a.data as BikeBuild).created_at
+            const dateB = b.type.includes('order') ? (b.data as Order).due_date : (b.data as BikeBuild).created_at
+            if (!dateA) return 1
+            if (!dateB) return -1
+            return new Date(dateA).getTime() - new Date(dateB).getTime()
+        })
+
+        // 2. OPEN QC (Unassigned team controls)
+        const openQCRepairs = orders.filter(o => o.status === 'kontrolle_offen' && !o.qc_mechanic_id)
+        const openQCBuilds = bikeBuilds.filter(b => b.status === 'fertig' && !b.qc_mechanic_id)
+        
+        let openQCAssignments = [
+            ...openQCRepairs.map(o => ({ type: 'order' as const, data: o })),
+            ...openQCBuilds.map(b => ({ type: 'build' as const, data: b }))
+        ]
+
+        if (qcFilter === 'repairs') {
+            openQCAssignments = openQCAssignments.filter(item => item.type === 'order')
+        } else if (qcFilter === 'builds') {
+            openQCAssignments = openQCAssignments.filter(item => item.type === 'build')
+        }
+
+        // 3. OPEN WORK (Unassigned team repairs/builds)
+        const unassignedOrders = orders.filter(o => (!o.mechanic_ids || o.mechanic_ids.length === 0) && (o.status !== 'kontrolle_offen' && o.status !== 'fertig'))
+        const unassignedBuilds = bikeBuilds.filter(b => !b.assigned_employee_id && (b.status !== 'fertig' && b.status !== 'abgeschlossen'))
+
+        let openWorkAssignments = [
+            ...unassignedOrders.map(o => ({ type: 'order' as const, data: o })),
+            ...unassignedBuilds.map(b => ({ type: 'build' as const, data: b }))
+        ]
+
+        if (orderFilter === 'repairs') {
+            openWorkAssignments = openWorkAssignments.filter(item => item.type === 'order')
+        } else if (orderFilter === 'builds') {
+            openWorkAssignments = openWorkAssignments.filter(item => item.type === 'build')
+        }
+
+        // 4. TASKS (Personal + Urgent)
         const threeDaysFromNow = addDays(new Date(), 3)
         const myTasks = shopTasks.filter(t => {
             const isAssigned = myMatchIds.length > 0 && myMatchIds.includes(t.assigned_to || '')
@@ -190,28 +233,13 @@ export default function CockpitPage() {
             return isAssigned || isDueSoon
         })
 
-        // 4. OPEN ASSIGNMENTS (Team Backlog)
-        const openOrders = orders.filter(o => {
-            const isUnassignedRepair = (!o.mechanic_ids || o.mechanic_ids.length === 0) && (o.status !== 'kontrolle_offen' && o.status !== 'fertig')
-            const isUnassignedQC = o.status === 'kontrolle_offen' && !o.qc_mechanic_id
-            return isUnassignedRepair || isUnassignedQC
-        })
-        const openBuilds = bikeBuilds.filter(b => {
-            const isUnassignedBuild = !b.assigned_employee_id && (b.status !== 'fertig' && b.status !== 'abgeschlossen')
-            const isUnassignedQC = b.status === 'fertig' && !b.qc_mechanic_id
-            return isUnassignedBuild || isUnassignedQC
-        })
-
         return { 
-            myRepairs, 
-            myBuildsInProgress,
-            myQCRepairs,
-            myQCBuilds,
-            myTasks, 
-            openOrders,
-            openBuilds
+            myAssignments,
+            openQCAssignments,
+            openWorkAssignments,
+            myTasks
         }
-    }, [orders, bikeBuilds, shopTasks, myMatchIds])
+    }, [orders, bikeBuilds, shopTasks, myMatchIds, activeEmployee, orderFilter, qcFilter])
 
     const toggleTaskComplete = async (taskId: string, currentStatus: string) => {
         const newStatus = currentStatus === 'done' ? 'open' : 'done'
@@ -234,25 +262,25 @@ export default function CockpitPage() {
             <DashboardLayout fullWidth>
                 <div className="flex flex-col h-full overflow-hidden">
                     {/* Header */}
-                    <div className="flex-shrink-0 px-6 py-8 border-b bg-card/30 backdrop-blur-sm relative overflow-hidden">
+                    <div className="flex-shrink-0 px-6 py-2 md:py-3 border-b bg-card/30 backdrop-blur-sm relative overflow-hidden">
                          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
                         
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 max-w-7xl mx-auto">
-                            <div className="flex items-center gap-5">
-                                <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner border border-primary/10">
-                                    <Bike className="h-7 w-7" />
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-6 max-w-7xl mx-auto">
+                            <div className="flex items-center gap-2 md:gap-4">
+                                <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner border border-primary/10">
+                                    <Bike className="h-4 w-4 md:h-5 md:w-5" />
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2">
-                                        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                                    <div className="flex items-center gap-1.5 md:gap-2">
+                                        <h1 className="text-lg md:text-xl font-bold tracking-tight text-foreground">
                                             {getGreeting()},
                                         </h1>
                                         {(isSharedMode || isAdmin) ? (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <button className="flex items-center gap-1 text-3xl font-bold text-primary hover:text-primary/80 transition-all outline-none group">
+                                                    <button className="flex items-center gap-1 text-lg md:text-xl font-bold text-primary hover:text-primary/80 transition-all outline-none group">
                                                         {displayName}
-                                                        <ChevronDown className="h-6 w-6 ml-1 group-hover:translate-y-0.5 transition-transform" />
+                                                        <ChevronDown className="h-3.5 w-3.5 md:h-5 md:w-5 ml-0.5 group-hover:translate-y-0.5 transition-transform" />
                                                     </button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent
@@ -281,56 +309,56 @@ export default function CockpitPage() {
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         ) : (
-                                            <span className="text-3xl font-bold tracking-tight text-foreground">{displayName}</span>
+                                            <span className="text-lg md:text-xl font-bold tracking-tight text-foreground">{displayName}</span>
                                         )}
                                     </div>
                                 </div>
                             </div>
 
                             {/* Today's Results / Achievements */}
-                            <div className="flex flex-col items-end gap-2">
-                                <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest px-1">Heutige Erfolge</span>
-                                <div className="flex items-center gap-3 bg-background/40 p-1 rounded-2xl border border-border/50 backdrop-blur-sm shadow-sm">
-                                    <div className="flex items-center gap-4 px-3 py-1.5 overflow-x-auto">
+                            <div className="flex flex-col items-center md:items-end gap-1">
+                                <span className="hidden md:block text-[10px] text-muted-foreground font-bold uppercase tracking-widest px-1">Heutige Erfolge</span>
+                                <div className="flex items-center gap-2 bg-background/40 p-0.5 rounded-xl border border-border/50 backdrop-blur-sm shadow-sm w-full md:w-auto overflow-hidden">
+                                    <div className="flex items-center gap-2 sm:gap-3 px-2 py-0.5 sm:px-2.5 sm:py-1 overflow-x-auto no-scrollbar">
                                         <div className="flex items-center gap-2 group whitespace-nowrap" title="Fertige Reparaturen">
-                                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20">
-                                                <ListTodo className="h-4 w-4" />
+                                            <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20 shrink-0">
+                                                <ListTodo className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[9px] text-muted-foreground font-bold leading-none">Reparaturen</span>
-                                                <span className="text-base font-bold tabular-nums">{achievements.bikesFinished}</span>
+                                                <span className="text-[8px] text-muted-foreground font-bold leading-none">Reparaturen</span>
+                                                <span className="text-xs sm:text-sm font-bold tabular-nums">{achievements.bikesFinished}</span>
                                             </div>
                                         </div>
-                                        <div className="h-6 w-[1px] bg-border/40" />
+                                        <div className="h-4 w-[1px] bg-border/40" />
                                         <div className="flex items-center gap-2 group whitespace-nowrap" title="Fertige Neuräder">
-                                            <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
-                                                <Zap className="h-4 w-4" />
+                                            <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 shrink-0">
+                                                <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[9px] text-muted-foreground font-bold leading-none">Neuräder</span>
-                                                <span className="text-base font-bold tabular-nums">{achievements.buildsFinished}</span>
+                                                <span className="text-[8px] text-muted-foreground font-bold leading-none">Neuräder</span>
+                                                <span className="text-xs sm:text-sm font-bold tabular-nums">{achievements.buildsFinished}</span>
                                             </div>
                                         </div>
-                                        <div className="h-6 w-[1px] bg-border/40" />
+                                        <div className="h-4 w-[1px] bg-border/40" />
                                         <div className="flex items-center gap-2 group whitespace-nowrap" title="Bestandene Kontrollen">
-                                            <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 border border-purple-500/20">
-                                                <ShieldCheck className="h-4 w-4" />
+                                            <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 border border-purple-500/20 shrink-0">
+                                                <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[9px] text-muted-foreground font-bold leading-none">Kontrollen</span>
+                                                <span className="text-[8px] text-muted-foreground font-bold leading-none">Kontrollen</span>
                                                 <div className="flex items-baseline gap-1">
-                                                    <span className="text-base font-bold tabular-nums">{achievements.qcFinished}</span>
+                                                    <span className="text-xs sm:text-sm font-bold tabular-nums">{achievements.qcFinished}</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="h-6 w-[1px] bg-border/40" />
+                                        <div className="h-4 w-[1px] bg-border/40" />
                                         <div className="flex items-center gap-2 group whitespace-nowrap" title="Erledigte Aufgaben">
-                                            <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20">
-                                                <CheckCircle2 className="h-4 w-4" />
+                                            <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20 shrink-0">
+                                                <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[9px] text-muted-foreground font-bold leading-none">Aufgaben</span>
-                                                <span className="text-base font-bold tabular-nums">{achievements.tasksFinished}</span>
+                                                <span className="text-[8px] text-muted-foreground font-bold leading-none">Aufgaben</span>
+                                                <span className="text-xs sm:text-sm font-bold tabular-nums">{achievements.tasksFinished}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -340,106 +368,176 @@ export default function CockpitPage() {
                     </div>
 
                     {/* Panels */}
-                    <div className="flex-1 overflow-auto p-6 md:p-8">
-                        <div className="max-w-7xl mx-auto grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                            {/* Column 1: Deine Aufträge */}
+                    <div className="flex-1 overflow-hidden p-6 md:p-8">
+                        <div className="max-w-7xl mx-auto grid gap-6 md:grid-cols-2 xl:grid-cols-4 h-full content-start">
                             <CockpitPanel
-                                title="Deine Aufträge"
+                                title="Deine Zuweisungen"
                                 icon={UserCheck}
                                 accent="blue"
-                                count={cockpitData.myRepairs.length + cockpitData.myBuildsInProgress.length}
-                                empty={myMatchIds.length === 0 ? "Klicke deinen Namen an um dich auszuwählen" : "Keine Aufträge zugewiesen"}
+                                count={cockpitData.myAssignments.length}
+                                empty={myMatchIds.length === 0 ? "Klicke deinen Namen an um dich auszuwählen" : "Keine Zuweisungen gefunden"}
+                                className="xl:order-1"
                             >
                                 <div className="space-y-1 p-2">
-                                    {cockpitData.myRepairs.map(order => (
-                                        <OrderRow 
-                                            key={order.id} 
-                                            order={order} 
-                                            onClick={() => navigate(`/dashboard/orders/${order.order_number}`, cockpitReturnState)} 
-                                        />
-                                    ))}
-                                    {cockpitData.myBuildsInProgress.map(build => (
-                                        <BuildRow 
-                                            key={build.id} 
-                                            build={build} 
-                                            onClick={() => navigate(`/dashboard/bike-builds/${build.internal_number}`, cockpitReturnState)} 
+                                    {cockpitData.myAssignments.map((item, idx) => {
+                                        if (item.type === 'order') return (
+                                            <OrderRow 
+                                                key={`my-${item.data.id}-${idx}`} 
+                                                order={item.data} 
+                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}`, cockpitReturnState)} 
+                                            />
+                                        )
+                                        if (item.type === 'build') return (
+                                            <BuildRow 
+                                                key={`my-${item.data.id}-${idx}`} 
+                                                build={item.data} 
+                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)} 
+                                            />
+                                        )
+                                        if (item.type === 'qc_order') return (
+                                            <OrderRow
+                                                key={`qc-${item.data.id}-${idx}`}
+                                                order={item.data}
+                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}/control`, cockpitReturnState)}
+                                            />
+                                        )
+                                        if (item.type === 'qc_build') return (
+                                            <BuildRow
+                                                key={`qc-${item.data.id}-${idx}`}
+                                                build={item.data}
+                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)}
+                                            />
+                                        )
+                                        return null
+                                    })}
+                                </div>
+                            </CockpitPanel>
+
+                            <CockpitPanel
+                                title="Offene Kontrollen"
+                                icon={ShieldCheck}
+                                accent="purple"
+                                count={cockpitData.openQCAssignments.length}
+                                empty="Alles geprüft!"
+                                className="xl:order-3"
+                                action={
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button className={cn(
+                                                "p-1.5 rounded-md transition-all outline-none",
+                                                qcFilter !== 'all' 
+                                                    ? "bg-purple-500/20 text-purple-500 shadow-sm" 
+                                                    : "text-purple-500/40 hover:text-purple-500 hover:bg-purple-500/10"
+                                            )}>
+                                                <Filter className={cn("h-3.5 w-3.5", qcFilter !== 'all' && "fill-current")} />
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-48">
+                                            <DropdownMenuItem onClick={() => setQcFilter('all')} className={cn(qcFilter === 'all' && "bg-primary/10 text-primary")}>
+                                                Alle anzeigen
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setQcFilter('repairs')} className={cn(qcFilter === 'repairs' && "bg-primary/10 text-primary")}>
+                                                Nur Reparaturen
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setQcFilter('builds')} className={cn(qcFilter === 'builds' && "bg-primary/10 text-primary")}>
+                                                Nur Neuräder
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                }
+                            >
+                                <div className="space-y-1 p-2">
+                                    {cockpitData.openQCAssignments.map((item, idx) => {
+                                        if (item.type === 'order') return (
+                                            <OrderRow
+                                                key={`open-qc-${item.data.id}-${idx}`}
+                                                order={item.data}
+                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}/control`, cockpitReturnState)}
+                                            />
+                                        )
+                                        if (item.type === 'build') return (
+                                            <BuildRow
+                                                key={`open-qc-${item.data.id}-${idx}`}
+                                                build={item.data}
+                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)}
+                                            />
+                                        )
+                                        return null
+                                    })}
+                                </div>
+                            </CockpitPanel>
+
+                            <CockpitPanel
+                                title="Deine Aufgaben"
+                                icon={ListTodo}
+                                accent="orange"
+                                count={cockpitData.myTasks.length}
+                                empty="Keine Aufgaben fällig"
+                                className="xl:order-2"
+                            >
+                                <div className="space-y-1 p-2">
+                                    {cockpitData.myTasks.map(task => (
+                                        <TaskRow
+                                            key={task.id}
+                                            task={task}
+                                            onToggle={() => toggleTaskComplete(task.id, task.status)}
+                                            onClick={() => navigate('/dashboard/tasks', cockpitReturnState)}
                                         />
                                     ))}
                                 </div>
                             </CockpitPanel>
 
-                            {/* Column 2: QC + Tasks */}
-                            <div className="flex flex-col gap-6">
-                                <CockpitPanel
-                                    title="Deine Kontrollen"
-                                    icon={ShieldCheck}
-                                    accent="purple"
-                                    count={cockpitData.myQCRepairs.length + cockpitData.myQCBuilds.length}
-                                    empty="Keine zugewiesenen Kontrollen"
-                                    className="flex-1"
-                                >
-                                    <div className="space-y-1 p-2">
-                                        {cockpitData.myQCRepairs.map(order => (
-                                            <OrderRow
-                                                key={order.id}
-                                                order={order}
-                                                onClick={() => navigate(`/dashboard/orders/${order.order_number}/control`, cockpitReturnState)}
-                                            />
-                                        ))}
-                                        {cockpitData.myQCBuilds.map(build => (
-                                            <BuildRow
-                                                key={build.id}
-                                                build={build}
-                                                onClick={() => navigate(`/dashboard/bike-builds/${build.internal_number}`, cockpitReturnState)}
-                                            />
-                                        ))}
-                                    </div>
-                                </CockpitPanel>
-
-                                <CockpitPanel
-                                    title="Aufgaben"
-                                    icon={ListTodo}
-                                    accent="orange"
-                                    count={cockpitData.myTasks.length}
-                                    empty="Keine Aufgaben fällig"
-                                    className="flex-1"
-                                >
-                                    <div className="space-y-1 p-2">
-                                        {cockpitData.myTasks.map(task => (
-                                            <TaskRow
-                                                key={task.id}
-                                                task={task}
-                                                onToggle={() => toggleTaskComplete(task.id, task.status)}
-                                                onClick={() => navigate('/dashboard/tasks', cockpitReturnState)}
-                                            />
-                                        ))}
-                                    </div>
-                                </CockpitPanel>
-                            </div>
-
-                            {/* Column 3: Offene Aufträge */}
                             <CockpitPanel
                                 title="Offene Aufträge"
                                 icon={FastForward}
                                 accent="emerald"
-                                count={cockpitData.openOrders.length + cockpitData.openBuilds.length}
+                                count={cockpitData.openWorkAssignments.length}
                                 empty="Alles erledigt!"
+                                className="xl:order-4"
+                                action={
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button className={cn(
+                                                "p-1.5 rounded-md transition-all outline-none",
+                                                orderFilter !== 'all' 
+                                                    ? "bg-emerald-500/20 text-emerald-500 shadow-sm" 
+                                                    : "text-emerald-500/40 hover:text-emerald-500 hover:bg-emerald-500/10"
+                                            )}>
+                                                <Filter className={cn("h-3.5 w-3.5", orderFilter !== 'all' && "fill-current")} />
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-48">
+                                            <DropdownMenuItem onClick={() => setOrderFilter('all')} className={cn(orderFilter === 'all' && "bg-primary/10 text-primary")}>
+                                                Alle anzeigen
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setOrderFilter('repairs')} className={cn(orderFilter === 'repairs' && "bg-primary/10 text-primary")}>
+                                                Nur Reparaturen
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => setOrderFilter('builds')} className={cn(orderFilter === 'builds' && "bg-primary/10 text-primary")}>
+                                                Nur Neuräder
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                }
                             >
                                 <div className="space-y-1 p-2">
-                                    {cockpitData.openOrders.map(order => (
-                                        <OrderRow 
-                                            key={order.id} 
-                                            order={order} 
-                                            onClick={() => navigate(`/dashboard/orders/${order.order_number}`, cockpitReturnState)} 
-                                        />
-                                    ))}
-                                    {cockpitData.openBuilds.map(build => (
-                                        <BuildRow 
-                                            key={build.id} 
-                                            build={build} 
-                                            onClick={() => navigate(`/dashboard/bike-builds/${build.internal_number}`, cockpitReturnState)} 
-                                        />
-                                    ))}
+                                    {cockpitData.openWorkAssignments.map((item, idx) => {
+                                        if (item.type === 'order') return (
+                                            <OrderRow 
+                                                key={`open-work-${item.data.id}-${idx}`} 
+                                                order={item.data} 
+                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}`, cockpitReturnState)} 
+                                            />
+                                        )
+                                        if (item.type === 'build') return (
+                                            <BuildRow 
+                                                key={`open-work-${item.data.id}-${idx}`} 
+                                                build={item.data} 
+                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)} 
+                                            />
+                                        )
+                                        return null
+                                    })}
                                 </div>
                             </CockpitPanel>
                         </div>
@@ -470,12 +568,12 @@ const ACCENT_MAP = {
     emerald: { icon: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'hover:border-emerald-500/30' },
 } as const
 
-function CockpitPanel({ title, icon: Icon, accent, count, empty, children, className }: any) {
+function CockpitPanel({ title, icon: Icon, accent, count, empty, children, className, action }: any) {
     const { icon: iconColor, bg } = ACCENT_MAP[accent as keyof typeof ACCENT_MAP]
     const isEmpty = count === 0 && (!children || (Array.isArray(children) && children.length === 0))
 
     return (
-        <div className={cn("flex flex-col rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden min-w-0 transition-all hover:shadow-md", className)}>
+        <div className={cn("flex flex-col rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden min-w-0 transition-all hover:shadow-md h-full", className)}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-border/30 bg-muted/20">
                 <div className="flex items-center gap-3">
                     <div className={cn("p-2 rounded-xl", bg)}>
@@ -483,9 +581,12 @@ function CockpitPanel({ title, icon: Icon, accent, count, empty, children, class
                     </div>
                     <span className="font-bold tracking-tight">{title}</span>
                 </div>
-                {count > 0 && <span className="text-xs font-bold tabular-nums text-muted-foreground bg-background/80 border border-border/20 rounded-lg px-2 py-1 shadow-sm">{count}</span>}
+                <div className="flex items-center gap-2">
+                    {action}
+                    {count > 0 && <span className="text-xs font-bold tabular-nums text-muted-foreground bg-background/80 border border-border/20 rounded-lg px-2 py-1 shadow-sm">{count}</span>}
+                </div>
             </div>
-            <div className="flex-1 overflow-y-auto max-h-[600px]">
+            <div className="flex-1 overflow-y-auto min-h-0">
                 {isEmpty ? (
                     <div className="flex flex-col items-center justify-center gap-3 h-full opacity-40 py-20">
                         <div className={cn("p-4 rounded-full", bg)}>
