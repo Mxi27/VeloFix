@@ -7,16 +7,16 @@ import {
     CheckCircle2,
     Zap,
     ThumbsUp,
+    ThumbsDown,
     Clock,
     ShieldCheck,
-    Wallet,
     Loader2,
     ExternalLink,
     AlertCircle,
-    TrendingDown,
     MessageSquarePlus,
-    Heart,
+    MessageCircle,
     Sparkles,
+    Heart,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -25,42 +25,45 @@ import { Textarea } from "@/components/ui/textarea"
 interface OrderFeedbackProps {
     orderId: string
     workshopId: string
-    customerPostalCode?: string
     googleReviewUrl?: string
 }
 
 // ── Options ──────────────────────────────────────────────────────────────────
 
+const PRICE_STAR_VALUES = ["", "zu_teuer", "etwas_teuer", "fair", "sehr_fair", "schnäppchen"]
+const PRICE_STAR_LABELS = ["", "Viel zu teuer", "Eher teuer", "Fair & Angemessen", "Sehr günstig", "Absolutes Schnäppchen! 🎉"]
+
 const POSITIVE_ASPECTS = [
-    { label: "Qualität der Reparatur", value: "qualitaet", icon: ShieldCheck },
-    { label: "Freundlicher Service", value: "service", icon: Heart },
+    { label: "Qualität der Arbeit", value: "qualitaet", icon: ShieldCheck },
     { label: "Schnelligkeit", value: "schnelligkeit", icon: Zap },
-    { label: "Fairer Preis", value: "preis", icon: Wallet },
-    { label: "Gute Beratung", value: "beratung", icon: ThumbsUp },
+    { label: "Beratung & Transparenz", value: "beratung", icon: MessageCircle },
+    { label: "Freundlicher Service", value: "service", icon: ThumbsUp },
 ]
 
 const NEGATIVE_ASPECTS = [
-    { label: "Preisgestaltung (Zu teuer)", value: "zu_teuer", icon: TrendingDown },
-    { label: "Wartezeit / Dauer", value: "dauer", icon: Clock },
     { label: "Qualität der Arbeit", value: "qualitaet_neg", icon: AlertCircle },
-    { label: "Kommunikation / Service", value: "service_neg", icon: MessageSquarePlus },
+    { label: "Wartezeit / Dauer", value: "dauer", icon: Clock },
+    { label: "Mangelhafte Beratung", value: "beratung_neg", icon: MessageSquarePlus },
+    { label: "Unfreundlicher Service", value: "service_neg", icon: ThumbsDown },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Returns steps depending on rating bucket */
-function getTotalSteps(rating: number) {
-    return rating >= 4 ? 3 : 3 // both paths have 3 steps (Rating → Q2 → Comment/Confirm)
+function getTotalSteps() {
+    return 4 // 1: Rating, 2: Price, 3: Aspects, 4: Comment
 }
 
 const STAR_LABELS = ["", "Nicht so toll", "Ausbaufähig", "In Ordnung", "War gut!", "Perfekt! 🎉"]
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleReviewUrl }: OrderFeedbackProps) {
+export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFeedbackProps) {
     const [step, setStep] = useState(1)
     const [rating, setRating] = useState(0)
     const [hoverRating, setHoverRating] = useState(0)
+    const [priceRating, setPriceRating] = useState(0)
+    const [hoverPriceRating, setHoverPriceRating] = useState(0)
     const [selectedAspects, setSelectedAspects] = useState<string[]>([])
     const [comment, setComment] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -109,10 +112,9 @@ export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleR
                     order_id: orderId,
                     workshop_id: workshopId,
                     rating,
-                    price_perception: isHappy ? null : selectedAspects.join(','),
-                    main_value: isHappy ? selectedAspects.join(',') : null,
+                    price_perception: priceRating > 0 ? PRICE_STAR_VALUES[priceRating] : null,
+                    main_value: selectedAspects.length > 0 ? selectedAspects.join(',') : null,
                     comment,
-                    customer_postal_code: customerPostalCode,
                 })
 
             if (error) {
@@ -213,14 +215,13 @@ export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleR
 
     // ── Main Form ────────────────────────────────────────────────────────────
 
-    const totalSteps = getTotalSteps(rating)
+    const totalSteps = getTotalSteps()
     const displayRating = hoverRating || rating
 
-    // For the comment step: it's optional
+    // Form verification
+    const step2Valid = priceRating > 0
+    const step3Valid = selectedAspects.length > 0
     const commentValid = true
-
-    // Step 2 answer chosen?
-    const step2Valid = selectedAspects.length > 0
 
     return (
         <motion.div
@@ -318,56 +319,67 @@ export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleR
                         </motion.div>
                     )}
 
-                    {/* ── Step 2: Happy → "Was war top?" / Unhappy → "Preis?" ── */}
+                    {/* ── Step 2: Price Perception ── */}
                     {step === 2 && rating > 0 && (
                         <motion.div
                             key="step2"
                             initial={{ opacity: 0, x: 16 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -16 }}
-                            className="space-y-4"
+                            className="space-y-6"
                         >
-                            <h3 className="text-xl font-bold text-center mb-4">
-                                {isHappy
-                                    ? "Was lief besonders gut? (Mehrfachauswahl)"
-                                    : "Was hat nicht so gut gepasst? (Mehrfachauswahl)"
-                                }
-                            </h3>
+                            <div className="text-center space-y-5">
+                                <div>
+                                    <h3 className="text-xl font-bold mb-1">War unser Preis fair?</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Wie bewertest du das Preis-Leistungs-Verhältnis?
+                                    </p>
+                                </div>
 
-                            <div className="grid grid-cols-1 gap-2">
-                                {(isHappy ? POSITIVE_ASPECTS : NEGATIVE_ASPECTS).map((opt) => {
-                                    const selected = selectedAspects.includes(opt.value)
-                                    return (
+                                {/* Stars */}
+                                <div className="flex justify-center gap-3">
+                                    {[1, 2, 3, 4, 5].map((s) => (
                                         <button
-                                            key={opt.value}
+                                            key={s}
+                                            onMouseEnter={() => setHoverPriceRating(s)}
+                                            onMouseLeave={() => setHoverPriceRating(0)}
                                             onClick={() => {
-                                                setSelectedAspects(prev => 
-                                                    prev.includes(opt.value) ? prev.filter(v => v !== opt.value) : [...prev, opt.value]
-                                                )
+                                                setPriceRating(s)
+                                                setTimeout(() => setStep(3), 380)
                                             }}
-                                            className={cn(
-                                                "flex items-center gap-3 p-4 rounded-xl border transition-all text-left group",
-                                                selected
-                                                    ? "bg-primary/10 border-primary/40 text-foreground ring-1 ring-primary/20"
-                                                    : "bg-muted/40 border-border/50 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                                            )}
+                                            className="focus:outline-none transition-transform active:scale-90 hover:scale-115"
                                         >
-                                            <div className={cn(
-                                                "w-5 h-5 rounded flex items-center justify-center shrink-0 transition-all border",
-                                                selected 
-                                                    ? "bg-primary border-primary text-primary-foreground" 
-                                                    : "border-muted-foreground/30 bg-transparent group-hover:border-muted-foreground/50"
-                                            )}>
-                                                {selected && <CheckCircle2 className="h-3.5 w-3.5" />}
-                                            </div>
-                                            <opt.icon className={cn(
-                                                "h-5 w-5 shrink-0 ml-1/2",
-                                                selected ? "text-primary hidden" : "text-muted-foreground/50"
-                                            )} />
-                                            <span className="font-medium text-sm pl-1">{opt.label}</span>
+                                            <Star
+                                                className={cn(
+                                                    "h-11 w-11 transition-all duration-200",
+                                                    (hoverPriceRating || priceRating) >= s
+                                                        ? "fill-emerald-400 text-emerald-400 drop-shadow-sm"
+                                                        : "text-muted-foreground/20 hover:text-emerald-300/60"
+                                                )}
+                                            />
                                         </button>
-                                    )
-                                })}
+                                    ))}
+                                </div>
+
+                                {/* Dynamic label */}
+                                <div className="h-5 flex items-center justify-center">
+                                    <AnimatePresence mode="wait">
+                                        {(hoverPriceRating || priceRating) > 0 && (
+                                            <motion.p
+                                                key={hoverPriceRating || priceRating}
+                                                initial={{ opacity: 0, y: 6 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -4 }}
+                                                className={cn(
+                                                    "text-sm font-semibold",
+                                                    (hoverPriceRating || priceRating) >= 4 ? "text-emerald-500" : (hoverPriceRating || priceRating) === 3 ? "text-amber-500" : "text-destructive"
+                                                )}
+                                            >
+                                                {PRICE_STAR_LABELS[hoverPriceRating || priceRating]}
+                                            </motion.p>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
                             </div>
 
                             <div className="flex gap-2 pt-2">
@@ -389,8 +401,84 @@ export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleR
                         </motion.div>
                     )}
 
-                    {/* ── Step 3: Comment ── */}
-                    {step === 3 && (
+                    {/* ── Step 3: Main Value ── */}
+                    {step === 3 && rating > 0 && (
+                        <motion.div
+                            key="step3"
+                            initial={{ opacity: 0, x: 16 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -16 }}
+                            className="space-y-4"
+                        >
+                            <div className="text-center mb-6">
+                                <h3 className="text-xl font-bold mb-1">
+                                    {isHappy
+                                        ? "Was hat besonders überzeugt?"
+                                        : "Was hat nicht so gut gepasst?"
+                                    }
+                                </h3>
+                                <p className="text-sm text-muted-foreground">
+                                    (Mehrere Antworten möglich)
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-2.5">
+                                {(isHappy ? POSITIVE_ASPECTS : NEGATIVE_ASPECTS).map((opt) => {
+                                    const selected = selectedAspects.includes(opt.value)
+                                    return (
+                                        <button
+                                            key={opt.value}
+                                            onClick={() => {
+                                                setSelectedAspects(prev => 
+                                                    prev.includes(opt.value) ? prev.filter(v => v !== opt.value) : [...prev, opt.value]
+                                                )
+                                            }}
+                                            className={cn(
+                                                "flex items-center gap-3 p-4 rounded-xl border transition-all text-left group",
+                                                selected
+                                                    ? "bg-primary/10 border-primary/40 text-foreground ring-1 ring-primary/20 shadow-sm"
+                                                    : "bg-muted/30 border-border/40 text-muted-foreground hover:bg-muted/60 hover:border-border/60 hover:text-foreground"
+                                            )}
+                                        >
+                                            <div className={cn(
+                                                "w-5 h-5 rounded flex items-center justify-center shrink-0 transition-all border",
+                                                selected 
+                                                    ? "bg-primary border-primary text-primary-foreground" 
+                                                    : "border-muted-foreground/30 bg-transparent group-hover:border-muted-foreground/50"
+                                            )}>
+                                                {selected && <CheckCircle2 className="h-3.5 w-3.5" />}
+                                            </div>
+                                            <opt.icon className={cn(
+                                                "h-5 w-5 shrink-0 ml-1/2",
+                                                selected ? "text-primary hidden" : "text-muted-foreground/50 group-hover:text-muted-foreground/80"
+                                            )} />
+                                            <span className="font-medium text-sm pl-1">{opt.label}</span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setStep(2)}
+                                    className="flex-1 rounded-xl"
+                                >
+                                    Zurück
+                                </Button>
+                                <Button
+                                    disabled={!step3Valid}
+                                    onClick={() => setStep(4)}
+                                    className="flex-[2] font-bold rounded-xl h-11"
+                                >
+                                    Weiter
+                                </Button>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    {/* ── Step 4: Comment ── */}
+                    {step === 4 && (
                         <motion.div
                             key="step3"
                             initial={{ opacity: 0, x: 16 }}
@@ -441,7 +529,7 @@ export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleR
                             <div className="flex gap-2 pt-1">
                                 <Button
                                     variant="ghost"
-                                    onClick={() => setStep(2)}
+                                    onClick={() => setStep(3)}
                                     className="flex-1 rounded-xl"
                                 >
                                     Zurück

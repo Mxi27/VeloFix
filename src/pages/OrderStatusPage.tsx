@@ -244,7 +244,6 @@ export default function OrderStatusPage() {
                         <OrderFeedback
                             orderId={order.id}
                             workshopId={order.workshop_id || order.workshop?.id}
-                            customerPostalCode={order.workshop?.postal_code || undefined}
                             googleReviewUrl={order.workshop?.google_review_url}
                         />
                     </div>
