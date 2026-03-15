@@ -176,9 +176,9 @@ export default function OrderDetailPage() {
     // Editable fields
     const [internalNote, setInternalNote] = useState("")
     const [customerNote, setCustomerNote] = useState("")
-    
+
     // Removal confirmation state
-    const [templatesToRemove, setTemplatesToRemove] = useState<{id: string, name: string}[]>([])
+    const [templatesToRemove, setTemplatesToRemove] = useState<{ id: string, name: string }[]>([])
     const [showRemovalWarning, setShowRemovalWarning] = useState(false)
 
     // Custom Item state
@@ -931,11 +931,11 @@ export default function OrderDetailPage() {
 
         // Templates to add (selected in modal but not in current checklist)
         const templateIdsToAdd = selectedDetailTemplateIds.filter(id => !currentTemplateIds.includes(id))
-        
+
         // Templates to remove (in current checklist but not selected in modal)
         // Unless it's a confirmed removal from the warning dialog
-        const templateIdsToRemove = confirmedRemovalIds.length > 0 
-            ? confirmedRemovalIds 
+        const templateIdsToRemove = confirmedRemovalIds.length > 0
+            ? confirmedRemovalIds
             : currentTemplateIds.filter(id => !selectedDetailTemplateIds.includes(id))
 
         // Check if any templates to remove have completed items (and not already confirmed)
@@ -957,7 +957,7 @@ export default function OrderDetailPage() {
 
         // Perform the update
         let newChecklist = (order.checklist || []).filter(item => !templateIdsToRemove.includes(item.template_id || ''))
-        
+
         templateIdsToAdd.forEach(templateId => {
             const template = templates.find(t => t.id === templateId)
             if (template?.items && Array.isArray(template.items)) {
@@ -983,7 +983,7 @@ export default function OrderDetailPage() {
             setOrder({ ...order, checklist: newChecklist })
             setIsTemplateModalOpen(false)
             setSelectedDetailTemplateIds([])
-        toastSuccess('Aktualisiert', 'Die Checkliste wurde aktualisiert.')
+            toastSuccess('Aktualisiert', 'Die Checkliste wurde aktualisiert.')
         }
         setSaving(false)
     }
@@ -1249,8 +1249,8 @@ export default function OrderDetailPage() {
                         <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/6 blur-3xl pointer-events-none" />
 
                         <div className="relative px-6 py-5">
-                            {/* Top row: back + actions */}
-                            <div className="flex items-center justify-between gap-4 mb-5">
+                            {/* ── Row 1: Navigation ── */}
+                            <div className="mb-4">
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -1260,28 +1260,14 @@ export default function OrderDetailPage() {
                                     <ArrowLeft className="h-3.5 w-3.5" />
                                     Zurück
                                 </Button>
-
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-8 gap-1.5 text-xs"
-                                        onClick={() => {
-                                            const url = `${window.location.origin}/status/${order.id}`
-                                            navigator.clipboard.writeText(url)
-                                            toastSuccess('Link kopiert', 'Der Status-Link wurde in die Zwischenablage kopiert.')
-                                        }}
-                                    >
-                                        <Copy className="h-3.5 w-3.5" />
-                                        <span className="hidden sm:inline">Status-Link</span>
-                                    </Button>
-                                </div>
                             </div>
 
-                            {/* Order identity */}
-                            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-                                <div className="flex-1">
-                                    <div className="flex items-center gap-3 mb-1">
+                            {/* ── Row 2: Identity + Due Date ── */}
+                            <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-3">
+                                {/* Left: order number, type badge, tags */}
+                                <div className="flex-1 min-w-0">
+                                    {/* Order number + copy + type badge */}
+                                    <div className="flex flex-wrap items-center gap-2 mb-2">
                                         <h1 className="text-3xl font-bold tracking-tight text-foreground">
                                             {order.order_number}
                                         </h1>
@@ -1368,8 +1354,8 @@ export default function OrderDetailPage() {
                                         </Popover>
                                     </div>
 
-                                    {/* TAGS */}
-                                    <div className="flex flex-wrap items-center gap-2 mb-3 mt-2">
+                                    {/* Tags */}
+                                    <div className="flex flex-wrap items-center gap-2">
                                         {order.tags && order.tags.map(tagId => {
                                             const tagInfo = workshopTags.find(t => t.id === tagId)
                                             if (!tagInfo) return null
@@ -1393,13 +1379,13 @@ export default function OrderDetailPage() {
                                             <Popover>
                                                 <PopoverTrigger asChild>
                                                     <Button variant="outline" size="sm" className="h-6 gap-1 px-2 text-[10px] sm:text-xs border-dashed text-muted-foreground hover:text-foreground">
-                                                        <Plus className="w-3 h-3" /> Tag hinzufügen
+                                                        <Plus className="w-3 h-3" /> Tag
                                                     </Button>
                                                 </PopoverTrigger>
                                                 <PopoverContent className="w-56 p-2" align="start">
                                                     <form onSubmit={handleCreateAndAddTag} className="flex gap-2 mb-2 p-1">
                                                         <Input
-                                                            placeholder="Tag tippen (z.B. Leasing)"
+                                                            placeholder="Neuer Tag..."
                                                             className="h-7 text-xs"
                                                             value={tagInput}
                                                             onChange={(e) => setTagInput(e.target.value)}
@@ -1438,27 +1424,9 @@ export default function OrderDetailPage() {
                                             </Popover>
                                         )}
                                     </div>
-
-                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                                        <span className="flex items-center gap-1.5">
-                                            <Clock className="h-3.5 w-3.5" />
-                                            Erstellt {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
-                                        </span>
-                                        <span className="text-border">·</span>
-                                        <span className="flex items-center gap-1.5">
-                                            <Bike className="h-3.5 w-3.5" />
-                                            {order.bike_model || 'Fahrrad'}
-                                            {order.bike_type && <span className="text-xs">({BIKE_TYPE_LABELS[order.bike_type] || order.bike_type})</span>}
-                                        </span>
-                                        <span className="text-border">·</span>
-                                        <span className="flex items-center gap-1.5">
-                                            <User className="h-3.5 w-3.5" />
-                                            {order.customer_name}
-                                        </span>
-                                    </div>
                                 </div>
 
-                                {/* Due Date Picker */}
+                                {/* Right: Due Date */}
                                 <div className="shrink-0">
                                     <Popover>
                                         <PopoverTrigger asChild>
@@ -1488,8 +1456,69 @@ export default function OrderDetailPage() {
                                 </div>
                             </div>
 
-                            {/* ── Status Progress Timeline ── */}
-                            <div className="mt-6 pt-5 border-t border-border/40">
+                            {/* ── Row 3: Metadata ── */}
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-5">
+                                <span className="flex items-center gap-1.5">
+                                    <Clock className="h-3.5 w-3.5" />
+                                    Erstellt {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                </span>
+                                <span className="text-border">·</span>
+                                <span className="flex items-center gap-1.5">
+                                    <Bike className="h-3.5 w-3.5" />
+                                    {order.bike_model || 'Fahrrad'}
+                                    {order.bike_type && <span className="text-xs">({BIKE_TYPE_LABELS[order.bike_type] || order.bike_type})</span>}
+                                </span>
+                                <span className="text-border">·</span>
+                                <span className="flex items-center gap-1.5">
+                                    <User className="h-3.5 w-3.5" />
+                                    {order.customer_name}
+                                </span>
+                            </div>
+
+                            {/* ── Row 4: Action Bar ── */}
+                            {!isReadOnly && (
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-5">
+                                    {/* Primary Actions */}
+                                    <div className="flex flex-1 gap-2">
+                                        <Button
+                                            size="lg"
+                                            onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
+                                            className="flex-1 h-10 gap-2 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20 rounded-xl transition-all active:scale-[0.98]"
+                                        >
+                                            <Wrench className="h-4 w-4" />
+                                            {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
+                                                ? "Weiterarbeiten"
+                                                : "Arbeitsmodus"}
+                                        </Button>
+                                        <Button
+                                            size="lg"
+                                            variant="outline"
+                                            onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
+                                            className="flex-1 h-10 gap-2 text-sm font-semibold bg-green-500/8 text-green-600 border-green-200/60 hover:bg-green-500/15 hover:border-green-300 dark:bg-green-500/10 dark:hover:bg-green-500/20 dark:border-green-500/30 rounded-xl transition-all active:scale-[0.98]"
+                                        >
+                                            <ShieldCheck className="h-4 w-4" />
+                                            Kontrolle
+                                        </Button>
+                                    </div>
+                                    {/* Secondary Actions */}
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-10 gap-1.5 text-xs rounded-xl sm:shrink-0"
+                                        onClick={() => {
+                                            const url = `${window.location.origin}/status/${order.id}`
+                                            navigator.clipboard.writeText(url)
+                                            toastSuccess('Link kopiert', 'Der Status-Link wurde in die Zwischenablage kopiert.')
+                                        }}
+                                    >
+                                        <Copy className="h-3.5 w-3.5" />
+                                        <span>Status-Link</span>
+                                    </Button>
+                                </div>
+                            )}
+
+                            {/* ── Row 5: Status Progress Timeline ── */}
+                            <div className="pt-5 border-t border-border/40">
                                 <div className="flex items-center gap-0">
                                     {STATUS_FLOW.map((step, idx) => {
                                         const stepIdx = STATUS_FLOW.findIndex(s => s.value === order.status)
@@ -1584,30 +1613,6 @@ export default function OrderDetailPage() {
                                 </div>
                             </div>
 
-                            {/* ── Quick Action Bar ── */}
-                            {!isReadOnly && (
-                                <div className="mt-5 pt-4 border-t border-border/40 flex flex-col sm:flex-row gap-2.5">
-                                    <Button
-                                        size="lg"
-                                        onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
-                                        className="flex-1 h-11 gap-2 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20 rounded-xl transition-all active:scale-[0.98]"
-                                    >
-                                        <Wrench className="h-4 w-4" />
-                                        {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
-                                            ? "Weiterarbeiten"
-                                            : "Arbeitsmodus starten"}
-                                    </Button>
-                                    <Button
-                                        size="lg"
-                                        variant="outline"
-                                        onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
-                                        className="flex-1 h-11 gap-2 text-sm font-semibold bg-green-500/8 text-green-600 border-green-200/60 hover:bg-green-500/15 hover:border-green-300 dark:bg-green-500/10 dark:hover:bg-green-500/20 dark:border-green-500/30 rounded-xl transition-all active:scale-[0.98]"
-                                    >
-                                        <ShieldCheck className="h-4 w-4" />
-                                        Kontrolle starten
-                                    </Button>
-                                </div>
-                            )}
                         </div>
                     </div>
 
@@ -1685,7 +1690,7 @@ export default function OrderDetailPage() {
                                 </div>
                                 <CollapsibleContent className="flex-1 flex flex-col">
                                     <div className="p-0 flex-1 flex flex-col">
-                                        <div 
+                                        <div
                                             className={cn(
                                                 "px-4 py-3.5 text-sm whitespace-pre-wrap leading-relaxed min-h-[80px]",
                                                 !isReadOnly && "cursor-pointer hover:bg-muted/20 transition-colors"
@@ -1790,8 +1795,8 @@ export default function OrderDetailPage() {
                                                     <Button variant="outline" onClick={() => setIsTemplateModalOpen(false)}>
                                                         Abbrechen
                                                     </Button>
-                                                    <Button 
-                                                        onClick={() => handleUpdateTemplates()} 
+                                                    <Button
+                                                        onClick={() => handleUpdateTemplates()}
                                                         disabled={saving}
                                                     >
                                                         {saving ? "Wird aktualisiert..." : "Speichern"}
@@ -1822,7 +1827,7 @@ export default function OrderDetailPage() {
                                                 </DialogHeader>
                                                 <div className="py-2">
                                                     <Label htmlFor="custom-item-text" className="text-xs text-muted-foreground mb-1.5 block">Beschreibung</Label>
-                                                    <Input 
+                                                    <Input
                                                         id="custom-item-text"
                                                         value={customItemText}
                                                         onChange={(e) => setCustomItemText(e.target.value)}
@@ -1837,8 +1842,8 @@ export default function OrderDetailPage() {
                                                     <Button variant="outline" onClick={() => setIsCustomItemModalOpen(false)}>
                                                         Abbrechen
                                                     </Button>
-                                                    <Button 
-                                                        onClick={handleAddCustomItem} 
+                                                    <Button
+                                                        onClick={handleAddCustomItem}
                                                         disabled={!customItemText.trim() || saving}
                                                     >
                                                         {saving ? "Wird hinzugefügt..." : "Hinzufügen"}
@@ -1853,7 +1858,7 @@ export default function OrderDetailPage() {
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Fortschritt löschen?</AlertDialogTitle>
                                                     <AlertDialogDescription>
-                                                        Sie entfernen die folgenden Checklisten, bei denen bereits Punkte abgehakt wurden: 
+                                                        Sie entfernen die folgenden Checklisten, bei denen bereits Punkte abgehakt wurden:
                                                         <span className="font-semibold block mt-1">
                                                             {templatesToRemove.map(t => t.name).join(', ')}
                                                         </span>
@@ -1862,7 +1867,7 @@ export default function OrderDetailPage() {
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                                                    <AlertDialogAction 
+                                                    <AlertDialogAction
                                                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                                         onClick={() => {
                                                             const toRemove = Array.from(new Set((order?.checklist || [])
@@ -2011,7 +2016,7 @@ export default function OrderDetailPage() {
                                     )}
                                 </div>
                                 <CollapsibleContent>
-                                    <div 
+                                    <div
                                         className={cn(
                                             "px-4 py-3 space-y-2.5",
                                             !isReadOnly && "cursor-pointer hover:bg-muted/20 transition-colors"
@@ -2083,7 +2088,7 @@ export default function OrderDetailPage() {
                                     )}
                                 </div>
                                 <CollapsibleContent>
-                                    <div 
+                                    <div
                                         className={cn(
                                             "px-4 py-3 grid grid-cols-2 gap-y-3 gap-x-3",
                                             !isReadOnly && "cursor-pointer hover:bg-muted/20 transition-colors"
@@ -2156,7 +2161,7 @@ export default function OrderDetailPage() {
                                     )}
                                 </div>
                                 <CollapsibleContent>
-                                    <div 
+                                    <div
                                         className={cn(
                                             "px-4 py-3",
                                             !isReadOnly && "cursor-pointer hover:bg-muted/20 transition-colors"
