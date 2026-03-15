@@ -262,25 +262,25 @@ export default function CockpitPage() {
             <DashboardLayout fullWidth>
                 <div className="flex flex-col h-full overflow-hidden">
                     {/* Header */}
-                    <div className="flex-shrink-0 px-6 py-2 md:py-3 border-b bg-card/30 backdrop-blur-sm relative overflow-hidden">
+                    <div className="flex-shrink-0 px-6 py-2 md:py-3 lg:py-4 compact:py-1 border-b bg-card/30 backdrop-blur-sm relative overflow-hidden transition-all duration-300">
                          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
                         
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-6 max-w-7xl mx-auto">
-                            <div className="flex items-center gap-2 md:gap-4">
-                                <div className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner border border-primary/10">
-                                    <Bike className="h-4 w-4 md:h-5 md:w-5" />
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-6 lg:gap-8 max-w-[1600px] mx-auto w-full">
+                            <div className="flex items-center gap-2 md:gap-4 lg:gap-5">
+                                <div className="h-8 w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 xl:h-14 xl:w-14 rounded-lg md:rounded-xl lg:rounded-2xl bg-primary/10 flex items-center justify-center text-primary shadow-inner border border-primary/10 transition-all">
+                                    <Bike className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7" />
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-1.5 md:gap-2">
-                                        <h1 className="text-lg md:text-xl font-bold tracking-tight text-foreground">
+                                    <div className="flex items-center gap-1.5 md:gap-2 lg:gap-3">
+                                        <h1 className="text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold tracking-tight text-foreground transition-all">
                                             {getGreeting()},
                                         </h1>
                                         {(isSharedMode || isAdmin) ? (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <button className="flex items-center gap-1 text-lg md:text-xl font-bold text-primary hover:text-primary/80 transition-all outline-none group">
+                                                    <button className="flex items-center gap-1 text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold text-primary hover:text-primary/80 transition-all outline-none group">
                                                         {displayName}
-                                                        <ChevronDown className="h-3.5 w-3.5 md:h-5 md:w-5 ml-0.5 group-hover:translate-y-0.5 transition-transform" />
+                                                        <ChevronDown className="h-3.5 w-3.5 md:h-5 md:w-5 lg:h-6 lg:w-6 xl:h-7 xl:w-7 ml-0.5 group-hover:translate-y-0.5 transition-transform" />
                                                     </button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent
@@ -309,7 +309,7 @@ export default function CockpitPage() {
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         ) : (
-                                            <span className="text-lg md:text-xl font-bold tracking-tight text-foreground">{displayName}</span>
+                                            <span className="text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold tracking-tight text-foreground transition-all">{displayName}</span>
                                         )}
                                     </div>
                                 </div>
@@ -317,48 +317,48 @@ export default function CockpitPage() {
 
                             {/* Today's Results / Achievements */}
                             <div className="flex flex-col items-center md:items-end gap-1">
-                                <span className="hidden md:block text-[10px] text-muted-foreground font-bold uppercase tracking-widest px-1">Heutige Erfolge</span>
-                                <div className="flex items-center gap-2 bg-background/40 p-0.5 rounded-xl border border-border/50 backdrop-blur-sm shadow-sm w-full md:w-auto overflow-hidden">
-                                    <div className="flex items-center gap-2 sm:gap-3 px-2 py-0.5 sm:px-2.5 sm:py-1 overflow-x-auto no-scrollbar">
-                                        <div className="flex items-center gap-2 group whitespace-nowrap" title="Fertige Reparaturen">
-                                            <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20 shrink-0">
-                                                <ListTodo className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                <span className="hidden md:block text-[10px] lg:text-[11px] text-muted-foreground font-bold uppercase tracking-widest px-1 opacity-70">Heutige Erfolge</span>
+                                <div className="flex items-center gap-2 bg-background/40 p-0.5 rounded-xl border border-border/50 backdrop-blur-sm shadow-sm w-full md:w-auto overflow-hidden transition-all">
+                                    <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 xl:gap-6 px-2 py-0.5 sm:px-2.5 sm:py-1 lg:px-3 lg:py-1.5 overflow-x-auto no-scrollbar">
+                                        <div className="flex items-center gap-2 lg:gap-2.5 group whitespace-nowrap" title="Fertige Reparaturen">
+                                            <div className="h-6 w-6 sm:h-7 sm:w-7 lg:h-9 lg:w-9 rounded-lg lg:rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500 border border-blue-500/20 shrink-0 transition-all">
+                                                <ListTodo className="h-3 w-3 sm:h-3.5 sm:w-3.5 lg:h-4.5 lg:w-4.5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[8px] text-muted-foreground font-bold leading-none">Reparaturen</span>
-                                                <span className="text-xs sm:text-sm font-bold tabular-nums">{achievements.bikesFinished}</span>
+                                                <span className="text-[8px] lg:text-[9px] text-muted-foreground font-bold leading-none">Reparaturen</span>
+                                                <span className="text-xs sm:text-sm lg:text-base xl:text-lg font-bold tabular-nums">{achievements.bikesFinished}</span>
                                             </div>
                                         </div>
-                                        <div className="h-4 w-[1px] bg-border/40" />
-                                        <div className="flex items-center gap-2 group whitespace-nowrap" title="Fertige Neuräder">
-                                            <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 shrink-0">
-                                                <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                        <div className="h-4 lg:h-6 w-[1px] bg-border/40" />
+                                        <div className="flex items-center gap-2 lg:gap-2.5 group whitespace-nowrap" title="Fertige Neuräder">
+                                            <div className="h-6 w-6 sm:h-7 sm:w-7 lg:h-9 lg:w-9 rounded-lg lg:rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20 shrink-0 transition-all">
+                                                <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 lg:h-4.5 lg:w-4.5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[8px] text-muted-foreground font-bold leading-none">Neuräder</span>
-                                                <span className="text-xs sm:text-sm font-bold tabular-nums">{achievements.buildsFinished}</span>
+                                                <span className="text-[8px] lg:text-[9px] text-muted-foreground font-bold leading-none">Neuräder</span>
+                                                <span className="text-xs sm:text-sm lg:text-base xl:text-lg font-bold tabular-nums">{achievements.buildsFinished}</span>
                                             </div>
                                         </div>
-                                        <div className="h-4 w-[1px] bg-border/40" />
-                                        <div className="flex items-center gap-2 group whitespace-nowrap" title="Bestandene Kontrollen">
-                                            <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 border border-purple-500/20 shrink-0">
-                                                <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                        <div className="h-4 lg:h-6 w-[1px] bg-border/40" />
+                                        <div className="flex items-center gap-2 lg:gap-2.5 group whitespace-nowrap" title="Bestandene Kontrollen">
+                                            <div className="h-6 w-6 sm:h-7 sm:w-7 lg:h-9 lg:w-9 rounded-lg lg:rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500 border border-purple-500/20 shrink-0 transition-all">
+                                                <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5 lg:h-4.5 lg:w-4.5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[8px] text-muted-foreground font-bold leading-none">Kontrollen</span>
+                                                <span className="text-[8px] lg:text-[9px] text-muted-foreground font-bold leading-none">Kontrollen</span>
                                                 <div className="flex items-baseline gap-1">
-                                                    <span className="text-xs sm:text-sm font-bold tabular-nums">{achievements.qcFinished}</span>
+                                                    <span className="text-xs sm:text-sm lg:text-base xl:text-lg font-bold tabular-nums">{achievements.qcFinished}</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="h-4 w-[1px] bg-border/40" />
-                                        <div className="flex items-center gap-2 group whitespace-nowrap" title="Erledigte Aufgaben">
-                                            <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20 shrink-0">
-                                                <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                                        <div className="h-4 lg:h-6 w-[1px] bg-border/40" />
+                                        <div className="flex items-center gap-2 lg:gap-2.5 group whitespace-nowrap" title="Erledigte Aufgaben">
+                                            <div className="h-6 w-6 sm:h-7 sm:w-7 lg:h-9 lg:w-9 rounded-lg lg:rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 border border-orange-500/20 shrink-0 transition-all">
+                                                <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 lg:h-4.5 lg:w-4.5" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-[8px] text-muted-foreground font-bold leading-none">Aufgaben</span>
-                                                <span className="text-xs sm:text-sm font-bold tabular-nums">{achievements.tasksFinished}</span>
+                                                <span className="text-[8px] lg:text-[9px] text-muted-foreground font-bold leading-none">Aufgaben</span>
+                                                <span className="text-xs sm:text-sm lg:text-base xl:text-lg font-bold tabular-nums">{achievements.tasksFinished}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -368,8 +368,8 @@ export default function CockpitPage() {
                     </div>
 
                     {/* Panels */}
-                    <div className="flex-1 overflow-hidden p-6 md:p-8">
-                        <div className="max-w-7xl mx-auto grid gap-6 md:grid-cols-2 xl:grid-cols-4 h-full content-start">
+                    <div className="flex-1 overflow-y-auto xl:overflow-hidden custom-scrollbar p-6 md:p-8 xl:p-10 lg:p-8 compact:p-1 xl:compact:p-2">
+                        <div className="max-w-[1600px] mx-auto grid gap-6 md:grid-cols-2 xl:grid-cols-4 compact:gap-2 min-h-full xl:h-full transition-all">
                             <CockpitPanel
                                 title="Deine Zuweisungen"
                                 icon={UserCheck}
@@ -573,28 +573,35 @@ function CockpitPanel({ title, icon: Icon, accent, count, empty, children, class
     const isEmpty = count === 0 && (!children || (Array.isArray(children) && children.length === 0))
 
     return (
-        <div className={cn("flex flex-col rounded-2xl border border-border/40 bg-card shadow-sm overflow-hidden min-w-0 transition-all hover:shadow-md h-full", className)}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border/30 bg-muted/20">
+        <div className={cn("flex flex-col rounded-2xl compact:rounded-xl border border-border/40 bg-card shadow-sm overflow-hidden min-w-0 transition-all hover:shadow-md h-full min-h-[300px] lg:min-h-[360px] max-h-[40vh] xl:max-h-none", className)}>
+            <div className="flex-shrink-0 flex items-center justify-between px-5 py-4 compact:px-2 compact:py-1.5 border-b border-border/30 bg-muted/20">
                 <div className="flex items-center gap-3">
                     <div className={cn("p-2 rounded-xl", bg)}>
-                        <Icon className={cn("h-4 w-4", iconColor)} />
+                        <Icon className={cn("h-5 w-5", iconColor)} />
                     </div>
-                    <span className="font-bold tracking-tight">{title}</span>
+                    <div>
+                        <h3 className="font-bold text-foreground text-sm lg:text-base leading-tight">{title}</h3>
+                        {count > 0 && <p className="text-[10px] lg:text-xs text-muted-foreground font-medium uppercase tracking-wider">{count} Einträge</p>}
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    {action}
-                    {count > 0 && <span className="text-xs font-bold tabular-nums text-muted-foreground bg-background/80 border border-border/20 rounded-lg px-2 py-1 shadow-sm">{count}</span>}
-                </div>
+                {action}
             </div>
-            <div className="flex-1 overflow-y-auto min-h-0">
+
+            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
                 {isEmpty ? (
-                    <div className="flex flex-col items-center justify-center gap-3 h-full opacity-40 py-20">
+                    <div className="flex flex-col items-center justify-center gap-3 h-full opacity-40 py-10 lg:py-20">
                         <div className={cn("p-4 rounded-full", bg)}>
                             <Icon className={cn("h-8 w-8", iconColor)} />
                         </div>
                         <p className="text-sm font-medium text-center px-8">{empty}</p>
                     </div>
-                ) : children}
+                ) : (
+                    <div className="p-1 lg:p-2 compact:p-0.5">
+                        <div className="p-2 lg:p-3 compact:p-1">
+                            {children}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     )
@@ -607,7 +614,7 @@ function OrderRow({ order, onClick, selfCheckWarning }: any) {
     return (
         <button
             onClick={onClick}
-            className="group w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-muted/50 transition-all border border-transparent hover:border-border/50"
+            className="group w-full flex items-center gap-2 px-3 py-2 compact:px-2 compact:py-1 rounded-xl compact:rounded-lg hover:bg-muted/50 transition-all border border-transparent hover:border-border/50"
         >
             <div className={cn("shrink-0 transition-colors", 
                 order.status === 'warten_auf_teile' ? "text-rose-500" :
@@ -643,7 +650,7 @@ function OrderRow({ order, onClick, selfCheckWarning }: any) {
 
 function BuildRow({ build, onClick }: any) {
     return (
-        <button onClick={onClick} className="group w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-muted/50 transition-all border border-transparent hover:border-border/50">
+        <button onClick={onClick} className="group w-full flex items-center gap-2 px-3 py-2 compact:px-2 compact:py-1 rounded-xl compact:rounded-lg hover:bg-muted/50 transition-all border border-transparent hover:border-border/50">
             <div className="shrink-0 text-amber-500 group-hover:text-amber-600 transition-all">
                 <Zap className="h-4.5 w-4.5" />
             </div>
@@ -659,7 +666,7 @@ function BuildRow({ build, onClick }: any) {
 function TaskRow({ task, onToggle, onClick }: any) {
     const isOverdue = task.due_date && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date))
     return (
-        <div className="group flex items-start gap-4 px-3 py-3 rounded-xl hover:bg-muted/50 transition-all cursor-pointer" onClick={onClick}>
+        <div className="group flex items-start gap-4 compact:gap-2 px-3 py-3 compact:py-1.5 rounded-xl compact:rounded-lg hover:bg-muted/50 transition-all cursor-pointer" onClick={onClick}>
             <div className="pt-0.5 shrink-0" onClick={e => { e.stopPropagation(); onToggle() }}>
                 <Checkbox checked={task.status === 'done'} className="h-5 w-5 rounded-md" />
             </div>
