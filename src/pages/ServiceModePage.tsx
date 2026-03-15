@@ -21,7 +21,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Textarea } from '@/components/ui/textarea'
-import { cn } from "@/lib/utils"
+import { cn, isUuid } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { toast } from "@/lib/toast"
 import { useAuth } from "@/contexts/AuthContext"
@@ -116,10 +116,11 @@ export default function ServiceModePage() {
 
         const fetchOrder = async () => {
             try {
+                const isIdUuid = isUuid(orderId)
                 const { data, error } = await supabase
                     .from('orders')
                     .select('*')
-                    .eq('id', orderId)
+                    .or(isIdUuid ? `id.eq.${orderId},order_number.eq.${orderId}` : `order_number.eq.${orderId}`)
                     .single()
 
                 if (error) throw error

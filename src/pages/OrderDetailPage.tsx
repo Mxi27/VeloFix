@@ -34,7 +34,7 @@ import {
     CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { Checkbox } from "@/components/ui/checkbox"
-import { cn } from "@/lib/utils"
+import { cn, isUuid } from "@/lib/utils"
 import {
     ArrowLeft,
     User,
@@ -375,11 +375,12 @@ export default function OrderDetailPage() {
             setLoading(true)
 
             // Fetch order and templates in parallel
+            const isIdUuid = isUuid(orderId)
             const [orderResult, templatesResult, tagsResult] = await Promise.all([
                 supabase
                     .from('orders')
                     .select('*')
-                    .eq('id', orderId)
+                    .or(isIdUuid ? `id.eq.${orderId},order_number.eq.${orderId}` : `order_number.eq.${orderId}`)
                     .eq('workshop_id', workshopId)
                     .single(),
                 supabase

@@ -26,6 +26,7 @@ import { loadThemeColor, loadTheme, loadCompactMode } from "@/lib/theme";
 
 import OnboardingPage from "@/pages/OnboardingPage";
 import TasksPage from "@/pages/TasksPage";
+import CockpitPage from "@/pages/CockpitPage";
 import NotebookPage from "@/pages/NotebookPage";
 
 
@@ -78,6 +79,14 @@ function AppRoutes() {
                 element={
                     <ProtectedRoute>
                         {workshopId ? <DashboardPage /> : <Navigate to="/onboarding" replace />}
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/dashboard/cockpit"
+                element={
+                    <ProtectedRoute>
+                        {workshopId ? <CockpitPage /> : <Navigate to="/onboarding" replace />}
                     </ProtectedRoute>
                 }
             />

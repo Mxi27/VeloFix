@@ -11,6 +11,7 @@ import {
     CheckSquare,
     BookOpen,
     BarChart3,
+    ListTodo,
 } from "lucide-react"
 import {
     Sidebar,
@@ -143,7 +144,8 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                             <div className="h-1" />
 
                             {[
-                                { title: "Reparaturen", icon: LayoutDashboard, href: "/dashboard" },
+                                { title: "Reparaturen", icon: ListTodo, href: "/dashboard" },
+                                { title: "Mein Cockpit", icon: LayoutDashboard, href: "/dashboard/cockpit" },
                                 { title: "Aufgaben", icon: CheckSquare, href: "/dashboard/tasks" },
                                 { title: "Neuradaufbau", icon: Bike, href: "/dashboard/bike-builds" },
                             ].map((item) => (
