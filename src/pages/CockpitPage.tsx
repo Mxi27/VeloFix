@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from "react"
 import {
     ShieldCheck, ListTodo, CheckCircle2,
     ChevronRight, ChevronDown, Zap, UserCheck, FastForward,
-    Calendar, Bike, Clock, Pause, Play, PackageCheck, Check, Archive, Filter
+    Calendar, Bike, Clock, Pause, Play, PackageCheck, Check, Archive, Filter, AlertTriangle
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -35,6 +35,7 @@ interface Order {
     created_at: string
     mechanic_ids: string[] | null
     qc_mechanic_id: string | null
+    checklist?: any[] | null
 }
 
 interface BikeBuild {
@@ -46,6 +47,7 @@ interface BikeBuild {
     assigned_employee_id: string | null
     qc_mechanic_id: string | null
     created_at: string
+    assembly_progress?: any
 }
 
 interface ShopTask {
@@ -84,11 +86,11 @@ export default function CockpitPage() {
             try {
                 // Fetch active cockpit items
                 const [ordersRes, buildsRes, tasksRes] = await Promise.all([
-                    supabase.from('orders').select('id,order_number,customer_name,bike_brand,bike_model,bike_color,status,due_date,created_at,mechanic_ids,qc_mechanic_id')
+                    supabase.from('orders').select('id,order_number,customer_name,bike_brand,bike_model,bike_color,status,due_date,created_at,mechanic_ids,qc_mechanic_id,checklist')
                         .eq('workshop_id', workshopId)
                         .neq('status', 'abgeschlossen').neq('status', 'abgeholt').neq('status', 'trash')
                         .order('due_date', { ascending: true, nullsFirst: false }),
-                    supabase.from('bike_builds').select('id,internal_number,brand,model,status,assigned_employee_id,qc_mechanic_id,created_at')
+                    supabase.from('bike_builds').select('id,internal_number,brand,model,status,assigned_employee_id,qc_mechanic_id,created_at,assembly_progress')
                         .eq('workshop_id', workshopId).neq('status', 'abgeschlossen'),
                     supabase.from('shop_tasks').select('*').eq('workshop_id', workshopId)
                         .in('status', ['open', 'in_progress'])
@@ -398,6 +400,7 @@ export default function CockpitPage() {
                                             <OrderRow
                                                 key={`qc-${item.data.id}-${idx}`}
                                                 order={item.data}
+                                                selfCheckWarning={activeEmployee?.id && (item.data as Order).checklist?.some(step => step.completed_by === activeEmployee.id)}
                                                 onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}/control`, cockpitReturnState)}
                                             />
                                         )
@@ -405,6 +408,7 @@ export default function CockpitPage() {
                                             <BuildRow
                                                 key={`qc-${item.data.id}-${idx}`}
                                                 build={item.data}
+                                                selfCheckWarning={activeEmployee?.id && (item.data as BikeBuild).assembly_progress?.last_actor?.id === activeEmployee.id}
                                                 onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)}
                                             />
                                         )
@@ -452,6 +456,7 @@ export default function CockpitPage() {
                                             <OrderRow
                                                 key={`open-qc-${item.data.id}-${idx}`}
                                                 order={item.data}
+                                                selfCheckWarning={activeEmployee?.id && (item.data as Order).checklist?.some(step => step.completed_by === activeEmployee.id)}
                                                 onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}/control`, cockpitReturnState)}
                                             />
                                         )
@@ -459,6 +464,7 @@ export default function CockpitPage() {
                                             <BuildRow
                                                 key={`open-qc-${item.data.id}-${idx}`}
                                                 build={item.data}
+                                                selfCheckWarning={activeEmployee?.id && (item.data as BikeBuild).assembly_progress?.last_actor?.id === activeEmployee.id}
                                                 onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)}
                                             />
                                         )
@@ -626,7 +632,12 @@ function OrderRow({ order, onClick, selfCheckWarning }: any) {
             <div className="flex-1 min-w-0 flex flex-col items-start">
                 <div className="flex items-center gap-2 w-full">
                     <span className="font-bold text-[13px] tracking-tight truncate">{order.bike_brand} {order.bike_model}</span>
-                    {selfCheckWarning && <ShieldCheck className="h-3 w-3 text-amber-500 shrink-0" />}
+                    {selfCheckWarning && (
+                        <div className="flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 rounded text-[9px] font-bold text-amber-600 animate-pulse border border-amber-500/20 shrink-0">
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            <span>ACHTUNG SELBSTKONTROLLE</span>
+                        </div>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] text-muted-foreground font-bold tracking-wider opacity-60">REPARATUR · {order.order_number}</span>
@@ -648,14 +659,22 @@ function OrderRow({ order, onClick, selfCheckWarning }: any) {
     )
 }
 
-function BuildRow({ build, onClick }: any) {
+function BuildRow({ build, onClick, selfCheckWarning }: any) {
     return (
         <button onClick={onClick} className="group w-full flex items-center gap-2 px-3 py-2 compact:px-2 compact:py-1 rounded-xl compact:rounded-lg hover:bg-muted/50 transition-all border border-transparent hover:border-border/50">
             <div className="shrink-0 text-amber-500 group-hover:text-amber-600 transition-all">
                 <Zap className="h-4.5 w-4.5" />
             </div>
             <div className="flex-1 min-w-0 flex flex-col items-start">
-                <span className="font-bold text-[13px] tracking-tight truncate">{build.brand} {build.model}</span>
+                <div className="flex items-center gap-2 w-full">
+                    <span className="font-bold text-[13px] tracking-tight truncate">{build.brand} {build.model}</span>
+                    {selfCheckWarning && (
+                        <div className="flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 rounded text-[9px] font-bold text-amber-600 animate-pulse border border-amber-500/20 shrink-0">
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            <span>ACHTUNG SELBSTKONTROLLE</span>
+                        </div>
+                    )}
+                </div>
                 <span className="text-[10px] text-muted-foreground font-bold tracking-wider uppercase opacity-60">NEURAD · {build.internal_number}</span>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground/10 group-hover:text-primary transition-colors" />
