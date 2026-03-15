@@ -494,7 +494,7 @@ export default function CockpitPage() {
                                             key={task.id}
                                             task={task}
                                             onToggle={() => toggleTaskComplete(task.id, task.status)}
-                                            onClick={() => navigate('/dashboard/tasks', cockpitReturnState)}
+                                            onClick={() => navigate('/dashboard/tasks', { state: { ...cockpitReturnState.state, openTaskId: task.id } })}
                                         />
                                     ))}
                                 </div>

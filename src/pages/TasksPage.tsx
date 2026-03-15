@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react"
+import { useLocation } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
@@ -119,6 +120,7 @@ type ViewMode = 'kanban' | 'list'
 
 export default function TasksPage() {
     const { workshopId } = useAuth()
+    const location = useLocation()
     const [tasks, setTasks] = useState<ShopTask[]>([])
     const [loading, setLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState("")
@@ -191,6 +193,20 @@ export default function TasksPage() {
     }
 
     useEffect(() => { fetchTasks() }, [workshopId, priorityFilter])
+
+    // Auto-open task if passed via navigation state
+    useEffect(() => {
+        const taskId = (location.state as any)?.openTaskId
+        if (taskId && tasks.length > 0) {
+            const task = tasks.find(t => t.id === taskId)
+            if (task) {
+                setSelectedTask(task)
+                setIsDetailOpen(true)
+                // Clear state to prevent re-opening if needed, 
+                // but usually this is fine for one-off navigation
+            }
+        }
+    }, [location.state, tasks])
 
     // Filters
     const filteredTasks = useMemo(() => tasks.filter(task => {
