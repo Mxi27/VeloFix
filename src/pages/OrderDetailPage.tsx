@@ -2550,7 +2550,7 @@ export default function OrderDetailPage() {
                                     step="0.01"
                                     value={editEstimatedPrice}
                                     onChange={e => setEditEstimatedPrice(e.target.value)}
-                                    placeholder="0.00"
+                                    placeholder="0,00"
                                 />
                             </div>
                             <div className="space-y-2">
@@ -2560,7 +2560,7 @@ export default function OrderDetailPage() {
                                     step="0.01"
                                     value={editFinalPrice}
                                     onChange={e => setEditFinalPrice(e.target.value)}
-                                    placeholder="0.00"
+                                    placeholder="0,00"
                                 />
                             </div>
                         </div>
