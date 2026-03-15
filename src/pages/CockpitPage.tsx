@@ -213,7 +213,7 @@ export default function CockpitPage() {
         }
 
         // 3. OPEN WORK (Unassigned team repairs/builds)
-        const unassignedOrders = orders.filter(o => (!o.mechanic_ids || o.mechanic_ids.length === 0) && (o.status !== 'kontrolle_offen' && o.status !== 'fertig'))
+        const unassignedOrders = orders.filter(o => (!o.mechanic_ids || o.mechanic_ids.length === 0) && (o.status !== 'kontrolle_offen' && o.status !== 'fertig' && o.status !== 'abholbereit'))
         const unassignedBuilds = bikeBuilds.filter(b => !b.assigned_employee_id && (b.status !== 'fertig' && b.status !== 'abgeschlossen'))
 
         let openWorkAssignments = [
