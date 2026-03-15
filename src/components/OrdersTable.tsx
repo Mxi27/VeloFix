@@ -359,34 +359,59 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         filterTags.length > 0
     ].filter(Boolean).length
 
+    // Dynamic responsive logic: Determine visibility based on enabled columns
+    const enabledCount = Object.values(visibleColumns).filter(Boolean).length
+    const getResponsiveClass = (colId: ColumnId) => {
+        // High priority columns are always visible or show up early
+        if (colId === 'order_number' || colId === 'status' || colId === 'actions') return ""
+        
+        // If user disabled many columns, we can show more on smaller screens
+        if (enabledCount <= 4) {
+             if (colId === 'customer') return "table-cell" 
+             if (colId === 'due_date') return "sm:table-cell" 
+             if (colId === 'bike') return "md:table-cell" // Move bike to md for more space
+             return "lg:table-cell"
+        }
+
+        // Standard dynamic breakpoints (more conservative to prevent overlap)
+        switch (colId) {
+            case 'customer': return "sm:table-cell" // Hide on very small screens to favor Nr/Status/Actions
+            case 'due_date': return "md:table-cell" 
+            case 'bike': return "lg:table-cell"
+            case 'mechanic': return "xl:table-cell"
+            case 'created_at': return "2xl:table-cell"
+            default: return ""
+        }
+    }
+
     const renderTable = (ordersToRender: Order[]) => (
         <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-sm">
-            <Table className="w-full">
+            <Table className="w-full table-fixed">
                 <TableHeader>
                     <TableRow className="hover:bg-transparent bg-muted/40">
                         {visibleColumns.order_number && (
-                            <TableHead className="w-[80px] pl-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
+                            <TableHead className="w-[50px] md:w-[80px] pl-3 md:pl-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
                         )}
                         {visibleColumns.customer && (
-                            <TableHead className="hidden sm:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground lg:max-w-[150px]">Kunde</TableHead>
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>Kunde</TableHead>
                         )}
                         {visibleColumns.bike && (
-                            <TableHead className="hidden lg:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Fahrrad</TableHead>
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[160px] max-w-[30vw]", getResponsiveClass('bike'))}>Fahrrad</TableHead>
                         )}
                         {visibleColumns.mechanic && (
-                            <TableHead className="hidden xl:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Mitarbeiter</TableHead>
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[120px]", getResponsiveClass('mechanic'))}>Mitarbeiter</TableHead>
                         )}
                         {visibleColumns.due_date && (
-                            <TableHead className="hidden md:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Fällig</TableHead>
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[100px]", getResponsiveClass('due_date'))}>Fällig</TableHead>
                         )}
                         {visibleColumns.status && (
-                            <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[100px]">Status</TableHead>
+                            <TableHead className="px-2 md:px-3 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[90px] md:w-[100px] min-w-[90px]">Status</TableHead>
                         )}
                         {visibleColumns.created_at && (
-                            <TableHead className="hidden xl:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Erstellt</TableHead>
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[100px]", getResponsiveClass('created_at'))}>Erstellt</TableHead>
                         )}
                         {visibleColumns.actions && (
-                            <TableHead className="text-right pr-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[80px]">Aktion</TableHead>
+                            <TableHead className="text-right pr-3 md:pr-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[75px] md:w-[85px] min-w-[75px]">Aktion</TableHead>
                         )}
                     </TableRow>
                 </TableHeader>
@@ -408,13 +433,13 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 onClick={() => handleViewOrder(order.id)}
                             >
                                 {visibleColumns.order_number && (
-                                    <TableCell className="w-[80px] pl-4 py-4 font-mono text-[11px] font-bold text-primary truncate">
+                                    <TableCell className="w-[50px] md:w-[80px] pl-3 md:pl-4 py-4 font-mono text-[11px] font-bold text-primary truncate">
                                         {order.order_number}
                                     </TableCell>
                                 )}
                                 {visibleColumns.customer && (
-                                    <TableCell className="hidden sm:table-cell py-4">
-                                        <div className="flex flex-col min-w-0 max-w-[140px] md:max-w-[200px]">
+                                    <TableCell className={cn("hidden py-4 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                                        <div className="flex flex-col min-w-0">
                                             <span className="font-medium text-sm text-foreground truncate">{order.customer_name}</span>
                                             <span className="text-xs text-muted-foreground/80 truncate customer-email">
                                                 {order.customer_email || '—'}
@@ -423,9 +448,9 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     </TableCell>
                                 )}
                                 {visibleColumns.bike && (
-                                    <TableCell className="hidden lg:table-cell py-4 text-sm text-foreground">
-                                        <div className="max-w-[180px] flex flex-col gap-1">
-                                            <div className="flex flex-col">
+                                    <TableCell className={cn("hidden py-4 px-3 md:px-4 text-sm text-foreground min-w-[160px] max-w-[30vw]", getResponsiveClass('bike'))}>
+                                        <div className="flex flex-col gap-1 min-w-0">
+                                            <div className="flex flex-col min-w-0">
                                                 <span className="font-semibold text-foreground truncate">
                                                     {order.bike_brand && <span className="mr-1">{order.bike_brand}</span>}
                                                     {order.bike_model || '—'}
@@ -457,7 +482,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     </TableCell>
                                 )}
                                 {visibleColumns.mechanic && (
-                                    <TableCell className="hidden xl:table-cell py-4" onClick={(e) => e.stopPropagation()}>
+                                    <TableCell className={cn("hidden py-4 px-2 md:px-4", getResponsiveClass('mechanic'))} onClick={(e) => e.stopPropagation()}>
                                         {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
                                             <div className="flex flex-wrap gap-1">
                                                 {order.mechanic_ids.map(mid => (
@@ -472,7 +497,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     </TableCell>
                                 )}
                                 {visibleColumns.due_date && (
-                                    <TableCell className="hidden md:table-cell py-4 text-xs font-medium">
+                                    <TableCell className={cn("hidden py-4 px-2 md:px-4 text-xs font-medium", getResponsiveClass('due_date'))}>
                                         {order.due_date ? (
                                             <span className={new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' ? "text-red-500 font-bold" : "text-foreground"}>
                                                 {new Date(order.due_date).toLocaleDateString('de-DE')}
@@ -483,17 +508,17 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     </TableCell>
                                 )}
                                 {visibleColumns.status && (
-                                    <TableCell className="py-4 w-[100px]">
+                                    <TableCell className="py-4 px-1 md:px-2 w-[85px] md:w-[100px]">
                                         <Badge
                                             variant="secondary"
-                                            className={`capitalize font-normal border text-[10px] px-1.5 h-5 flex items-center justify-center ${STATUS_COLORS[order.status] || "bg-muted text-foreground border-border/60"}`}
+                                            className={`capitalize font-normal border text-[10px] px-1 h-5 flex items-center justify-center ${STATUS_COLORS[order.status] || "bg-muted text-foreground border-border/60"}`}
                                         >
                                             <span className="truncate">{order.status.replace(/_/g, ' ')}</span>
                                         </Badge>
                                     </TableCell>
                                 )}
                                 {visibleColumns.created_at && (
-                                    <TableCell className="hidden xl:table-cell py-4 text-xs text-muted-foreground font-mono">
+                                    <TableCell className={cn("hidden py-4 text-xs text-muted-foreground font-mono", getResponsiveClass('created_at'))}>
                                         {new Date(order.created_at).toLocaleDateString('de-DE')}
                                     </TableCell>
                                 )}
