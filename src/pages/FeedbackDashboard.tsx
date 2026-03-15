@@ -29,6 +29,7 @@ const PRICE_LABEL: Record<string, string> = {
     schnäppchen: "Schnäppchen",
     fair: "Fair",
     teuer: "Teuer",
+    preis: "Fairer Preis",
 }
 
 const PRICE_COLOR: Record<string, string> = {
@@ -39,6 +40,7 @@ const PRICE_COLOR: Record<string, string> = {
     etwas_teuer: "bg-amber-500/15 text-amber-400 border-amber-500/20",
     teuer: "bg-amber-500/15 text-amber-400 border-amber-500/20",
     zu_teuer: "bg-red-500/15 text-red-400 border-red-500/20",
+    preis: "bg-cyan-500/15 text-cyan-400 border-cyan-500/20",
 }
 
 function StarRow({ rating, small }: { rating: number; small?: boolean }) {
@@ -96,14 +98,28 @@ export default function FeedbackDashboard() {
 
         const priceCounts = feedback.reduce((acc: any, curr) => {
             if (curr.price_perception) {
-                acc[curr.price_perception] = (acc[curr.price_perception] || 0) + 1
+                curr.price_perception.split(',').forEach((v: string) => {
+                    const key = v.trim()
+                    acc[key] = (acc[key] || 0) + 1
+                })
+            }
+            if (curr.main_value) {
+                curr.main_value.split(',').forEach((v: string) => {
+                    const key = v.trim()
+                    if (['preis', 'schnäppchen', 'fair', 'sehr_fair', 'preis_leistung'].includes(key)) {
+                        acc[key] = (acc[key] || 0) + 1
+                    }
+                })
             }
             return acc
         }, {})
 
         const valueCounts = feedback.reduce((acc: any, curr) => {
             if (curr.main_value) {
-                acc[curr.main_value] = (acc[curr.main_value] || 0) + 1
+                curr.main_value.split(',').forEach((v: string) => {
+                    const key = v.trim()
+                    acc[key] = (acc[key] || 0) + 1
+                })
             }
             return acc
         }, {})
@@ -275,7 +291,8 @@ export default function FeedbackDashboard() {
                                         {stats!.topValueDriver === "schnelligkeit" && "Schnelligkeit"}
                                         {stats!.topValueDriver === "beratung" && "Beratung"}
                                         {stats!.topValueDriver === "preis" && "Preis"}
-                                        {!["qualitaet","schnelligkeit","beratung","preis"].includes(stats!.topValueDriver) && (stats!.topValueDriver || "—")}
+                                        {stats!.topValueDriver === "service" && "Service"}
+                                        {!["qualitaet","schnelligkeit","beratung","preis","service"].includes(stats!.topValueDriver) && (stats!.topValueDriver || "—")}
                                     </p>
                                     <p className="text-xs text-muted-foreground">Haupttreiber</p>
                                 </CardContent>
@@ -426,14 +443,14 @@ export default function FeedbackDashboard() {
                                                     variant="outline"
                                                     className={cn(
                                                         "capitalize text-[10px] border shrink-0",
-                                                        item.price_perception && PRICE_COLOR[item.price_perception] 
-                                                            ? PRICE_COLOR[item.price_perception] 
+                                                        item.price_perception && PRICE_COLOR[item.price_perception.split(',')[0].trim()] 
+                                                            ? PRICE_COLOR[item.price_perception.split(',')[0].trim()] 
                                                             : "bg-muted/50 text-muted-foreground"
                                                     )}
                                                 >
                                                     {item.price_perception 
-                                                        ? (PRICE_LABEL[item.price_perception] || item.price_perception.replace('_', ' ')) 
-                                                        : (item.main_value || "Keine Angabe")}
+                                                        ? (PRICE_LABEL[item.price_perception.split(',')[0].trim()] || item.price_perception.split(',')[0].trim().replace('_', ' ')) 
+                                                        : (item.main_value ? item.main_value.split(',')[0].trim().replace('_', ' ') : "Keine Angabe")}
                                                 </Badge>
                                             </div>
 
@@ -480,6 +497,7 @@ export default function FeedbackDashboard() {
                                         { key: "qualitaet", label: "Qualität & Sicherheit", icon: "🛡️" },
                                         { key: "schnelligkeit", label: "Schnelligkeit", icon: "⚡" },
                                         { key: "beratung", label: "Beratung", icon: "💬" },
+                                        { key: "service", label: "Service", icon: "🤝" },
                                         { key: "preis", label: "Günstiger Preis", icon: "💰" },
                                     ].map((driver) => {
                                         const count = stats!.valueCounts[driver.key] || 0

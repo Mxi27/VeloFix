@@ -112,6 +112,25 @@ export default function OrderStatusPage() {
                     }
                 }
 
+                // Versuche zusätzliche Workshop-Daten zu fetchen (wie google_review_url)
+                const wsId = data.workshop_id || data.workshop?.id
+                if (wsId) {
+                    try {
+                        const { data: wsData } = await supabase
+                            .from('workshops')
+                            .select('google_review_url')
+                            .eq('id', wsId)
+                            .maybeSingle()
+                        
+                        if (wsData) {
+                            if (!data.workshop) data.workshop = {}
+                            data.workshop.google_review_url = wsData.google_review_url
+                        }
+                    } catch (e) {
+                         console.warn("Could not fetch workshop google review url:", e)
+                    }
+                }
+
                 setOrder(data)
             } catch (err: any) {
                 console.error("Error fetching status:", err)
@@ -212,6 +231,24 @@ export default function OrderStatusPage() {
                         <p className="text-sm text-muted-foreground mt-1">{activeStep.sublabel}</p>
                     </div>
                 </div>
+
+                {/* ── Feedback Section (Wird jetzt oben prominent angezeigt!) ── */}
+                {effectiveStatus === 'abgeholt' && (
+                    <div className="space-y-4 pt-2">
+                        <div className="flex items-center gap-2 px-1 text-primary">
+                            <Star className="h-4 w-4 fill-current" />
+                            <p className="text-xs font-bold uppercase tracking-[0.2em]">
+                                Wie war dein Erlebnis?
+                            </p>
+                        </div>
+                        <OrderFeedback
+                            orderId={order.id}
+                            workshopId={order.workshop_id || order.workshop?.id}
+                            customerPostalCode={order.workshop?.postal_code || undefined}
+                            googleReviewUrl={order.workshop?.google_review_url}
+                        />
+                    </div>
+                )}
 
                 {/* ── Warnings ── */}
                 {order.checklist && Array.isArray(order.checklist) && order.checklist.some((item: any) => item.warning) && (
@@ -381,23 +418,6 @@ export default function OrderStatusPage() {
                         </div>
                     </div>
                 </div>
-
-                {/* ── Feedback Section ── */}
-                {effectiveStatus === 'abgeholt' && (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                            <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                            <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                                Deine Bewertung
-                            </p>
-                        </div>
-                        <OrderFeedback
-                            orderId={order.id}
-                            workshopId={order.workshop_id || order.workshop?.id}
-                            customerPostalCode={order.workshop?.postal_code || undefined}
-                        />
-                    </div>
-                )}
 
                 {/* ── Footer ── */}
                 <p className="text-center text-xs text-muted-foreground/40 pt-2">

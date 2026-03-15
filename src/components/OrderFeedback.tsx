@@ -31,18 +31,19 @@ interface OrderFeedbackProps {
 
 // ── Options ──────────────────────────────────────────────────────────────────
 
-const PRICE_OPTIONS = [
-    { label: "Sehr fair & angemessen", value: "sehr_fair", icon: ThumbsUp },
-    { label: "Preis-Leistung stimmt", value: "preis_leistung", icon: CheckCircle2 },
-    { label: "Etwas teuer, aber okay", value: "etwas_teuer", icon: Clock },
-    { label: "Definitiv zu teuer", value: "zu_teuer", icon: TrendingDown },
+const POSITIVE_ASPECTS = [
+    { label: "Qualität der Reparatur", value: "qualitaet", icon: ShieldCheck },
+    { label: "Freundlicher Service", value: "service", icon: Heart },
+    { label: "Schnelligkeit", value: "schnelligkeit", icon: Zap },
+    { label: "Fairer Preis", value: "preis", icon: Wallet },
+    { label: "Gute Beratung", value: "beratung", icon: ThumbsUp },
 ]
 
-const POSITIVE_ASPECTS = [
-    { label: "Qualität & Sicherheit", value: "qualitaet", icon: ShieldCheck },
-    { label: "Schnelligkeit", value: "schnelligkeit", icon: Zap },
-    { label: "Beratung & Transparenz", value: "beratung", icon: ThumbsUp },
-    { label: "Super Preis-Leistung", value: "preis", icon: Wallet },
+const NEGATIVE_ASPECTS = [
+    { label: "Preisgestaltung (Zu teuer)", value: "zu_teuer", icon: TrendingDown },
+    { label: "Wartezeit / Dauer", value: "dauer", icon: Clock },
+    { label: "Qualität der Arbeit", value: "qualitaet_neg", icon: AlertCircle },
+    { label: "Kommunikation / Service", value: "service_neg", icon: MessageSquarePlus },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -60,8 +61,7 @@ export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleR
     const [step, setStep] = useState(1)
     const [rating, setRating] = useState(0)
     const [hoverRating, setHoverRating] = useState(0)
-    const [pricePerception, setPricePerception] = useState("")
-    const [positiveAspect, setPositiveAspect] = useState("")
+    const [selectedAspects, setSelectedAspects] = useState<string[]>([])
     const [comment, setComment] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isSubmitted, setIsSubmitted] = useState(false)
@@ -109,8 +109,8 @@ export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleR
                     order_id: orderId,
                     workshop_id: workshopId,
                     rating,
-                    price_perception: isHappy ? null : pricePerception,
-                    main_value: isHappy ? positiveAspect : null,
+                    price_perception: isHappy ? null : selectedAspects.join(','),
+                    main_value: isHappy ? selectedAspects.join(',') : null,
                     comment,
                     customer_postal_code: customerPostalCode,
                 })
@@ -216,12 +216,11 @@ export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleR
     const totalSteps = getTotalSteps(rating)
     const displayRating = hoverRating || rating
 
-    // For the comment step: min chars required if unhappy
-    const MIN_COMMENT_CHARS = 20
-    const commentValid = isHappy || comment.trim().length >= MIN_COMMENT_CHARS
+    // For the comment step: it's optional
+    const commentValid = true
 
     // Step 2 answer chosen?
-    const step2Valid = isHappy ? !!positiveAspect : !!pricePerception
+    const step2Valid = selectedAspects.length > 0
 
     return (
         <motion.div
@@ -330,36 +329,42 @@ export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleR
                         >
                             <h3 className="text-xl font-bold text-center mb-4">
                                 {isHappy
-                                    ? "Was hat dir besonders gefallen?"
-                                    : "Wie war der Preis für dich?"
+                                    ? "Was lief besonders gut? (Mehrfachauswahl)"
+                                    : "Was hat nicht so gut gepasst? (Mehrfachauswahl)"
                                 }
                             </h3>
 
                             <div className="grid grid-cols-1 gap-2">
-                                {(isHappy ? POSITIVE_ASPECTS : PRICE_OPTIONS).map((opt) => {
-                                    const selected = isHappy ? positiveAspect === opt.value : pricePerception === opt.value
+                                {(isHappy ? POSITIVE_ASPECTS : NEGATIVE_ASPECTS).map((opt) => {
+                                    const selected = selectedAspects.includes(opt.value)
                                     return (
                                         <button
                                             key={opt.value}
                                             onClick={() => {
-                                                if (isHappy) {
-                                                    setPositiveAspect(opt.value)
-                                                } else {
-                                                    setPricePerception(opt.value)
-                                                }
+                                                setSelectedAspects(prev => 
+                                                    prev.includes(opt.value) ? prev.filter(v => v !== opt.value) : [...prev, opt.value]
+                                                )
                                             }}
                                             className={cn(
-                                                "flex items-center gap-3 p-4 rounded-xl border transition-all text-left",
+                                                "flex items-center gap-3 p-4 rounded-xl border transition-all text-left group",
                                                 selected
-                                                    ? "bg-primary/10 border-primary/40 text-foreground"
+                                                    ? "bg-primary/10 border-primary/40 text-foreground ring-1 ring-primary/20"
                                                     : "bg-muted/40 border-border/50 text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                                             )}
                                         >
+                                            <div className={cn(
+                                                "w-5 h-5 rounded flex items-center justify-center shrink-0 transition-all border",
+                                                selected 
+                                                    ? "bg-primary border-primary text-primary-foreground" 
+                                                    : "border-muted-foreground/30 bg-transparent group-hover:border-muted-foreground/50"
+                                            )}>
+                                                {selected && <CheckCircle2 className="h-3.5 w-3.5" />}
+                                            </div>
                                             <opt.icon className={cn(
-                                                "h-5 w-5 shrink-0",
-                                                selected ? "text-primary" : "text-muted-foreground/50"
+                                                "h-5 w-5 shrink-0 ml-1/2",
+                                                selected ? "text-primary hidden" : "text-muted-foreground/50"
                                             )} />
-                                            <span className="font-medium text-sm">{opt.label}</span>
+                                            <span className="font-medium text-sm pl-1">{opt.label}</span>
                                         </button>
                                     )
                                 })}
@@ -417,27 +422,9 @@ export function OrderFeedback({ orderId, workshopId, customerPostalCode, googleR
                                             ? "War alles super, nichts zu meckern..."
                                             : "Z. B.: Die Wartezeit war sehr lang und ich wurde nicht informiert..."
                                     }
-                                    className="min-h-[120px] rounded-xl resize-none pr-16"
+                                    className="min-h-[120px] rounded-xl resize-none"
                                 />
-                                {!isHappy && (
-                                    <span className={cn(
-                                        "absolute bottom-3 right-3 text-[10px] font-mono tabular-nums transition-colors",
-                                        comment.trim().length >= MIN_COMMENT_CHARS
-                                            ? "text-emerald-500"
-                                            : "text-muted-foreground/50"
-                                    )}>
-                                        {comment.trim().length}/{MIN_COMMENT_CHARS}
-                                    </span>
-                                )}
                             </div>
-
-                            {/* Pflichtfeld-Hinweis bei schlechter Bewertung */}
-                            {!isHappy && !commentValid && comment.length > 0 && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                    <MessageSquarePlus className="h-3.5 w-3.5 shrink-0" />
-                                    Noch {MIN_COMMENT_CHARS - comment.trim().length} Zeichen – damit wir wirklich helfen können.
-                                </p>
-                            )}
 
                             {/* Inline Error Banner */}
                             {errorMsg && (
