@@ -23,6 +23,7 @@ import {
 import { Wrench, CreditCard, ChevronRight, ChevronLeft, Check, ClipboardList, CalendarIcon, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
+import { ChecklistTemplateSelector } from "./ChecklistTemplateSelector"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { EmployeeSelector } from "@/components/EmployeeSelector"
@@ -51,7 +52,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     // const [showEmployeeSelect, setShowEmployeeSelect] = useState(false) // Removed external modal logic
 
     const [templates, setTemplates] = useState<any[]>([])
-    const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+    const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([])
     const [availableProviders, setAvailableProviders] = useState<string[]>([])
     const [acceptanceChecklistItems, setAcceptanceChecklistItems] = useState<string[]>([
         "Sichtprüfung auf Beschädigungen dokumentiert",
@@ -188,7 +189,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setInternalNote("")
             setLeasingDetails(null)
             setLeasingPortalEmail("")
-            setSelectedTemplateId(null)
+            setSelectedTemplateIds([])
             setSharedSelectedEmployeeId(null)
             setAssignedMechanicId("")
             setDueDate(undefined)
@@ -350,16 +351,21 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
             // 2. Service Items (To be done by mechanic)
             let serviceItems: any[] = []
-            if (selectedTemplateId) {
-                const template = templates.find(t => t.id === selectedTemplateId)
-                if (template?.items && Array.isArray(template.items)) {
-                    serviceItems = template.items.map((item: any) => ({
-                        text: item.text,
-                        description: item.description, // Copy description
-                        completed: false, // Reset completion for the order
-                        type: 'service'
-                    }))
-                }
+            if (selectedTemplateIds.length > 0) {
+                selectedTemplateIds.forEach(templateId => {
+                    const template = templates.find(t => t.id === templateId)
+                    if (template?.items && Array.isArray(template.items)) {
+                        const items = template.items.map((item: any) => ({
+                            text: item.text,
+                            description: item.description, // Copy description
+                            completed: false, // Reset completion for the order
+                            type: 'service',
+                            template_id: template.id,
+                            template_name: template.name
+                        }))
+                        serviceItems = [...serviceItems, ...items]
+                    }
+                })
             }
 
             // Combine both
@@ -991,55 +997,22 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-medium">Arbeits-Checkliste zuweisen</h3>
-                                        <p className="text-sm text-muted-foreground">Wählen Sie eine Vorlage für die Werkstatt</p>
+                                        <p className="text-sm text-muted-foreground">Wählen Sie ein oder mehrere Vorlagen für die Werkstatt</p>
                                     </div>
                                 </div>
 
-                                <div className="grid gap-3">
-                                    <div
-                                        className={cn(
-                                            "flex items-center p-4 border rounded-lg cursor-pointer transition-all",
-                                            selectedTemplateId === null
-                                                ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                                : "border-border hover:bg-accent/50"
-                                        )}
-                                        onClick={() => setSelectedTemplateId(null)}
-                                    >
-                                        <div className="flex-1">
-                                            <h4 className="font-medium">Keine Vorlage</h4>
-                                            <p className="text-sm text-muted-foreground">Leere Checkliste starten</p>
-                                        </div>
-                                        {selectedTemplateId === null && <Check className="h-5 w-5 text-primary" />}
-                                    </div>
-
-                                    {templates.map(template => (
-                                        <div
-                                            key={template.id}
-                                            className={cn(
-                                                "flex items-center p-4 border rounded-lg cursor-pointer transition-all",
-                                                selectedTemplateId === template.id
-                                                    ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                                    : "border-border hover:bg-accent/50"
-                                            )}
-                                            onClick={() => setSelectedTemplateId(template.id)}
-                                        >
-                                            <div className="flex-1">
-                                                <h4 className="font-medium">{template.name}</h4>
-                                                {template.description && (
-                                                    <p className="text-sm text-muted-foreground">{template.description}</p>
-                                                )}
-                                            </div>
-                                            {selectedTemplateId === template.id && <Check className="h-5 w-5 text-primary" />}
-                                        </div>
-                                    ))}
-
-                                    {templates.length === 0 && (
-                                        <div className="text-center p-6 border border-dashed rounded-lg text-muted-foreground">
-                                            <p>Keine Vorlagen gefunden.</p>
-                                            <p className="text-sm">Erstellen Sie Vorlagen in den Einstellungen.</p>
-                                        </div>
-                                    )}
-                                </div>
+                                <ChecklistTemplateSelector
+                                    templates={templates}
+                                    selectedTemplateIds={selectedTemplateIds}
+                                    onToggleTemplate={(id) => {
+                                        setSelectedTemplateIds(prev =>
+                                            prev.includes(id)
+                                                ? prev.filter(tid => tid !== id)
+                                                : [...prev, id]
+                                        )
+                                    }}
+                                    onClearAll={() => setSelectedTemplateIds([])}
+                                />
                             </div>
                         )}
 
@@ -1091,9 +1064,12 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                         {step === 6 && (
                             <div className="border-t border-border/20 pt-2 mt-2">
                                 <p className="text-sm">
-                                    <strong>Checkliste:</strong>{" "}
-                                    {selectedTemplateId
-                                        ? templates.find(t => t.id === selectedTemplateId)?.name
+                                    <strong>{selectedTemplateIds.length > 1 ? "Checklisten:" : "Checkliste:"}</strong>{" "}
+                                    {selectedTemplateIds.length > 0
+                                        ? templates
+                                            .filter(t => selectedTemplateIds.includes(t.id))
+                                            .map(t => t.name)
+                                            .join(", ")
                                         : "Keine Vorlage"}
                                 </p>
                             </div>

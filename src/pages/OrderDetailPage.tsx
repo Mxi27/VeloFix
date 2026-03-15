@@ -26,6 +26,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog"
 import {
     Collapsible,
@@ -109,13 +110,8 @@ const STATUS_SOLID_COLORS: Record<string, string> = {
     abgeschlossen: "bg-slate-500 shadow-slate-500/40",
 }
 
-interface ChecklistItem {
-    text: string
-    completed: boolean
-    type?: 'acceptance' | 'service'
-    completed_by?: string | null
-    completed_at?: string | null
-}
+import { ChecklistTemplateSelector } from "@/components/ChecklistTemplateSelector"
+import type { ChecklistItem } from "@/types/checklist"
 
 interface Order {
     id: string
@@ -171,15 +167,23 @@ export default function OrderDetailPage() {
     const [saving, setSaving] = useState(false)
     const [templates, setTemplates] = useState<any[]>([])
     const [workshopTags, setWorkshopTags] = useState<any[]>([])
-    const [selectedTemplateId, setSelectedTemplateId] = useState<string>("")
+    const [selectedDetailTemplateIds, setSelectedDetailTemplateIds] = useState<string[]>([])
+    const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
     const [tagInput, setTagInput] = useState("")
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
 
     const isReadOnly = userRole === 'read'
 
     // Editable fields
     const [internalNote, setInternalNote] = useState("")
     const [customerNote, setCustomerNote] = useState("")
+    
+    // Removal confirmation state
+    const [templatesToRemove, setTemplatesToRemove] = useState<{id: string, name: string}[]>([])
+    const [showRemovalWarning, setShowRemovalWarning] = useState(false)
+
+    // Custom Item state
+    const [isCustomItemModalOpen, setIsCustomItemModalOpen] = useState(false)
+    const [customItemText, setCustomItemText] = useState("")
 
 
     // Leasing dialog state
@@ -915,23 +919,58 @@ export default function OrderDetailPage() {
         setPendingOrderTypeUpdate(null)
     }
 
-    const handleApplyTemplate = async () => {
-        if (!order || !selectedTemplateId) return
-
-        const template = templates.find(t => t.id === selectedTemplateId)
-        if (!template) return
+    const handleUpdateTemplates = async (confirmedRemovalIds: string[] = []) => {
+        if (!order) return
 
         setSaving(true)
 
-        // Strict overwrite as requested
-        let newChecklist: ChecklistItem[] = []
-        if (template.items && Array.isArray(template.items)) {
-            newChecklist = template.items.map((item: any) => ({
-                text: item.text,
-                completed: false,
-                type: 'service'
+        // Get currently active template IDs
+        const currentTemplateIds = Array.from(new Set((order.checklist || [])
+            .filter(i => i.template_id)
+            .map(i => i.template_id as string)))
+
+        // Templates to add (selected in modal but not in current checklist)
+        const templateIdsToAdd = selectedDetailTemplateIds.filter(id => !currentTemplateIds.includes(id))
+        
+        // Templates to remove (in current checklist but not selected in modal)
+        // Unless it's a confirmed removal from the warning dialog
+        const templateIdsToRemove = confirmedRemovalIds.length > 0 
+            ? confirmedRemovalIds 
+            : currentTemplateIds.filter(id => !selectedDetailTemplateIds.includes(id))
+
+        // Check if any templates to remove have completed items (and not already confirmed)
+        if (confirmedRemovalIds.length === 0) {
+            const riskyRemovals = templateIdsToRemove.filter(id => {
+                return (order.checklist || []).some(item => item.template_id === id && item.completed)
+            }).map(id => ({
+                id,
+                name: templates.find(t => t.id === id)?.name || 'Unbekannte Vorlage'
             }))
+
+            if (riskyRemovals.length > 0) {
+                setTemplatesToRemove(riskyRemovals)
+                setShowRemovalWarning(true)
+                setSaving(false)
+                return
+            }
         }
+
+        // Perform the update
+        let newChecklist = (order.checklist || []).filter(item => !templateIdsToRemove.includes(item.template_id || ''))
+        
+        templateIdsToAdd.forEach(templateId => {
+            const template = templates.find(t => t.id === templateId)
+            if (template?.items && Array.isArray(template.items)) {
+                const templateItems = template.items.map((item: any) => ({
+                    text: item.text,
+                    completed: false,
+                    type: 'service',
+                    template_id: template.id,
+                    template_name: template.name
+                }))
+                newChecklist = [...newChecklist, ...templateItems]
+            }
+        })
 
         const { error } = await supabase
             .from('orders')
@@ -939,13 +978,63 @@ export default function OrderDetailPage() {
             .eq('id', order.id)
 
         if (error) {
-            toastError('Fehler', 'Die Vorlage konnte nicht angewendet werden.')
+            toastError('Fehler', 'Die Checkliste konnte nicht aktualisiert werden.')
         } else {
             setOrder({ ...order, checklist: newChecklist })
-            setIsDialogOpen(false)
-            setSelectedTemplateId("")
+            setIsTemplateModalOpen(false)
+            setSelectedDetailTemplateIds([])
+        toastSuccess('Aktualisiert', 'Die Checkliste wurde aktualisiert.')
         }
         setSaving(false)
+    }
+
+    const handleAddCustomItem = async () => {
+        if (!order || !customItemText.trim()) return
+
+        setSaving(true)
+
+        const newItem: ChecklistItem = {
+            text: customItemText.trim(),
+            completed: false,
+            type: 'service',
+            template_id: null,
+            template_name: 'Manuell hinzugefügt'
+        }
+
+        const newChecklist = [...(order.checklist || []), newItem]
+
+        const { error } = await supabase
+            .from('orders')
+            .update({ checklist: newChecklist as any })
+            .eq('id', order.id)
+
+        if (error) {
+            toastError('Fehler', 'Punkt konnte nicht hinzugefügt werden.')
+        } else {
+            setOrder({ ...order, checklist: newChecklist })
+            setIsCustomItemModalOpen(false)
+            setCustomItemText("")
+            toastSuccess('Hinzugefügt', 'Manueller Punkt hinzugefügt.')
+        }
+        setSaving(false)
+    }
+
+    const handleRemoveChecklistItem = async (index: number) => {
+        if (!order) return
+
+        const newChecklist = (order.checklist || []).filter((_, i) => i !== index)
+
+        const { error } = await supabase
+            .from('orders')
+            .update({ checklist: newChecklist as any })
+            .eq('id', order.id)
+
+        if (error) {
+            toastError('Fehler', 'Punkt konnte nicht entfernt werden.')
+        } else {
+            setOrder({ ...order, checklist: newChecklist })
+            toastSuccess('Entfernt', 'Punkt wurde entfernt.')
+        }
     }
 
     const handleToggleChecklist = async (index: number, checked: boolean, actorOverride?: { id: string, name: string }) => {
@@ -1650,90 +1739,222 @@ export default function OrderDetailPage() {
                                     )}
 
                                     {/* Template Selector */}
-                                    <div className="flex gap-2">
-                                        <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId} disabled={isReadOnly}>
-                                            <SelectTrigger className="h-8 text-xs bg-muted/40 border-border/50 flex-1">
-                                                <SelectValue placeholder="Vorlage wählen..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {templates.map(t => (
-                                                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <Button
-                                            size="sm"
-                                            className="h-8 text-xs"
-                                            disabled={!selectedTemplateId || isReadOnly}
-                                            onClick={() => setIsDialogOpen(true)}
-                                        >
-                                            Anwenden
-                                        </Button>
-
-                                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                            <DialogContent>
+                                    {/* Template Selection Modal */}
+                                    <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                                        <Dialog open={isTemplateModalOpen} onOpenChange={(open) => {
+                                            if (open && order) {
+                                                // Initialize with current templates
+                                                const currentIds = Array.from(new Set((order.checklist || [])
+                                                    .filter(i => i.template_id)
+                                                    .map(i => i.template_id as string)))
+                                                setSelectedDetailTemplateIds(currentIds)
+                                            }
+                                            setIsTemplateModalOpen(open)
+                                        }}>
+                                            <DialogTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 text-[11px] bg-muted/40 border-border/50 flex-none gap-2 px-2.5"
+                                                    disabled={isReadOnly}
+                                                >
+                                                    <Plus className="h-3 w-3" />
+                                                    Vorlagen auswählen
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="max-w-2xl">
                                                 <DialogHeader>
-                                                    <DialogTitle>Checkliste überschreiben?</DialogTitle>
+                                                    <DialogTitle>Checkliste(n) verwalten</DialogTitle>
                                                     <DialogDescription>
-                                                        Diese Aktion wird die gesamte aktuelle Checkliste löschen und durch die Punkte der Vorlage
-                                                        "{templates.find(t => t.id === selectedTemplateId)?.name}" ersetzen.
-                                                        Dies kann nicht rückgängig gemacht werden.
+                                                        Wählen Sie Vorlagen aus oder entfernen Sie diese. Beim Entfernen einer Vorlage gehen die zugehörigen Punkte verloren.
                                                     </DialogDescription>
                                                 </DialogHeader>
+                                                <div className="max-h-[60vh] overflow-y-auto px-1">
+                                                    <ChecklistTemplateSelector
+                                                        templates={templates}
+                                                        selectedTemplateIds={selectedDetailTemplateIds}
+                                                        alreadySelectedIds={Array.from(new Set((order.checklist || [])
+                                                            .filter(i => i.template_id)
+                                                            .map(i => i.template_id as string)))}
+                                                        onToggleTemplate={(id) => {
+                                                            setSelectedDetailTemplateIds(prev =>
+                                                                prev.includes(id)
+                                                                    ? prev.filter(tid => tid !== id)
+                                                                    : [...prev, id]
+                                                            )
+                                                        }}
+                                                        onClearAll={() => setSelectedDetailTemplateIds([])}
+                                                    />
+                                                </div>
                                                 <DialogFooter>
-                                                    <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                                                    <Button variant="outline" onClick={() => setIsTemplateModalOpen(false)}>
                                                         Abbrechen
                                                     </Button>
-                                                    <Button onClick={handleApplyTemplate} disabled={saving}>
-                                                        {saving ? "Wird angewendet..." : "Überschreiben"}
+                                                    <Button 
+                                                        onClick={() => handleUpdateTemplates()} 
+                                                        disabled={saving}
+                                                    >
+                                                        {saving ? "Wird aktualisiert..." : "Speichern"}
                                                     </Button>
                                                 </DialogFooter>
                                             </DialogContent>
                                         </Dialog>
+
+                                        {/* Custom Item Modal */}
+                                        <Dialog open={isCustomItemModalOpen} onOpenChange={setIsCustomItemModalOpen}>
+                                            <DialogTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 text-[11px] bg-muted/40 border-border/50 flex-none gap-2 px-2.5 whitespace-nowrap"
+                                                    disabled={isReadOnly}
+                                                >
+                                                    <Plus className="h-3 w-3" />
+                                                    Punkt hinzufügen
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="max-w-md">
+                                                <DialogHeader>
+                                                    <DialogTitle>Manueller Punkt</DialogTitle>
+                                                    <DialogDescription>
+                                                        Fügen Sie einen individuellen Punkt zur Checkliste hinzu.
+                                                    </DialogDescription>
+                                                </DialogHeader>
+                                                <div className="py-2">
+                                                    <Label htmlFor="custom-item-text" className="text-xs text-muted-foreground mb-1.5 block">Beschreibung</Label>
+                                                    <Input 
+                                                        id="custom-item-text"
+                                                        value={customItemText}
+                                                        onChange={(e) => setCustomItemText(e.target.value)}
+                                                        placeholder="z.B. Sattelstütze fetten"
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') handleAddCustomItem()
+                                                        }}
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                <DialogFooter>
+                                                    <Button variant="outline" onClick={() => setIsCustomItemModalOpen(false)}>
+                                                        Abbrechen
+                                                    </Button>
+                                                    <Button 
+                                                        onClick={handleAddCustomItem} 
+                                                        disabled={!customItemText.trim() || saving}
+                                                    >
+                                                        {saving ? "Wird hinzugefügt..." : "Hinzufügen"}
+                                                    </Button>
+                                                </DialogFooter>
+                                            </DialogContent>
+                                        </Dialog>
+
+                                        {/* Removal Warning Dialog */}
+                                        <AlertDialog open={showRemovalWarning} onOpenChange={setShowRemovalWarning}>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Fortschritt löschen?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        Sie entfernen die folgenden Checklisten, bei denen bereits Punkte abgehakt wurden: 
+                                                        <span className="font-semibold block mt-1">
+                                                            {templatesToRemove.map(t => t.name).join(', ')}
+                                                        </span>
+                                                        Der Fortschritt in diesen Listen geht unwiderruflich verloren. Möchten Sie wirklich fortfahren?
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                                                    <AlertDialogAction 
+                                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                                        onClick={() => {
+                                                            const toRemove = Array.from(new Set((order?.checklist || [])
+                                                                .filter(i => i.template_id)
+                                                                .map(i => i.template_id as string)))
+                                                                .filter(id => !selectedDetailTemplateIds.includes(id))
+                                                            handleUpdateTemplates(toRemove)
+                                                        }}
+                                                    >
+                                                        Ja, entfernen
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </div>
                                 </div>
 
                                 <CollapsibleContent>
                                     <div className="px-4 py-3">
                                         {order.checklist && order.checklist.length > 0 ? (
-                                            <div className="space-y-1.5">
-                                                {order.checklist.map((item, index) => (
-                                                    <div
-                                                        key={index}
-                                                        className={cn(
-                                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200",
-                                                            item.completed
-                                                                ? "bg-primary/5 border-primary/15"
-                                                                : "bg-transparent border-border/40 hover:border-border hover:bg-muted/30"
-                                                        )}
-                                                    >
-                                                        <Checkbox
-                                                            id={`item-${index}`}
-                                                            checked={item.completed}
-                                                            onCheckedChange={(checked) => handleToggleChecklist(index, checked as boolean)}
-                                                            disabled={isReadOnly}
-                                                            className={cn(
-                                                                "shrink-0 transition-all duration-200",
-                                                                item.completed ? "data-[state=checked]:bg-primary data-[state=checked]:border-primary" : "border-muted-foreground/30"
-                                                            )}
-                                                        />
-                                                        <div className="flex-1 min-w-0 flex items-center gap-2">
-                                                            <label
-                                                                htmlFor={`item-${index}`}
-                                                                className={cn(
-                                                                    "text-sm cursor-pointer leading-snug transition-colors duration-200 flex-1",
-                                                                    item.completed ? "text-muted-foreground/60 line-through" : "text-foreground"
-                                                                )}
-                                                            >
-                                                                {typeof item === 'string' ? item : item.text}
-                                                            </label>
-                                                            {item.type === 'acceptance' && (
-                                                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal text-muted-foreground bg-background/50 border-border/50 shrink-0">
-                                                                    Annahme
-                                                                </Badge>
-                                                            )}
-                                                        </div>
-                                                    </div>
+                                            <div className="space-y-6">
+                                                {/* Grouped Rendering */}
+                                                {Object.entries((order.checklist || []).reduce((groups: any, item, index) => {
+                                                    const groupName = item.template_name || 'Allgemein'
+                                                    if (!groups[groupName]) groups[groupName] = []
+                                                    groups[groupName].push({ ...item, originalIndex: index })
+                                                    return groups
+                                                }, {})).map(([groupName, items]: [string, any]) => (
+                                                    <Collapsible key={groupName} defaultOpen className="space-y-2">
+                                                        <CollapsibleTrigger className="flex items-center gap-2 w-full px-1 hover:bg-muted/30 rounded py-0.5 group">
+                                                            <ChevronDown className="h-3 w-3 text-muted-foreground/40 group-data-[state=closed]:-rotate-90 transition-transform" />
+                                                            <h4 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                                                                {groupName}
+                                                            </h4>
+                                                            <div className="h-[1px] flex-1 bg-border/40" />
+                                                        </CollapsibleTrigger>
+                                                        <CollapsibleContent>
+                                                            <div className="space-y-1.5 pt-1">
+                                                                {items.map((item: any) => (
+                                                                    <div
+                                                                        key={item.originalIndex}
+                                                                        className={cn(
+                                                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200 group",
+                                                                            item.completed
+                                                                                ? "bg-primary/5 border-primary/15"
+                                                                                : "bg-transparent border-border/40 hover:border-border hover:bg-muted/30"
+                                                                        )}
+                                                                    >
+                                                                        <Checkbox
+                                                                            id={`item-${item.originalIndex}`}
+                                                                            checked={item.completed}
+                                                                            onCheckedChange={(checked) => handleToggleChecklist(item.originalIndex, checked as boolean)}
+                                                                            disabled={isReadOnly}
+                                                                            className={cn(
+                                                                                "shrink-0 transition-all duration-200",
+                                                                                item.completed ? "data-[state=checked]:bg-primary data-[state=checked]:border-primary" : "border-muted-foreground/30"
+                                                                            )}
+                                                                        />
+                                                                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                                                                            <label
+                                                                                htmlFor={`item-${item.originalIndex}`}
+                                                                                className={cn(
+                                                                                    "text-sm cursor-pointer leading-snug transition-colors duration-200 flex-1",
+                                                                                    item.completed ? "text-muted-foreground/60 line-through" : "text-foreground"
+                                                                                )}
+                                                                            >
+                                                                                {typeof item === 'string' ? item : item.text}
+                                                                            </label>
+                                                                            {item.type === 'acceptance' && (
+                                                                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal text-muted-foreground bg-background/50 border-border/50 shrink-0">
+                                                                                    Annahme
+                                                                                </Badge>
+                                                                            )}
+                                                                            {!item.template_id && !isReadOnly && (
+                                                                                <Button
+                                                                                    variant="ghost"
+                                                                                    size="icon"
+                                                                                    className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0 transition-colors"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        handleRemoveChecklistItem(item.originalIndex)
+                                                                                    }}
+                                                                                >
+                                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                                </Button>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </CollapsibleContent>
+                                                    </Collapsible>
                                                 ))}
                                             </div>
                                         ) : (
