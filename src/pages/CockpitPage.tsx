@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { useNavigate } from "react-router-dom"
-import { isPast, isToday, format, addDays } from "date-fns"
+import { isPast, isToday, format } from "date-fns"
 import { de } from "date-fns/locale"
 import { getUrgencyInfo } from "@/lib/urgency"
 
@@ -227,13 +227,20 @@ export default function CockpitPage() {
             openWorkAssignments = openWorkAssignments.filter(item => item.type === 'build')
         }
 
-        // 4. TASKS (Personal + Urgent)
-        const threeDaysFromNow = addDays(new Date(), 3)
-        const myTasks = shopTasks.filter(t => {
-            const isAssigned = myMatchIds.length > 0 && myMatchIds.includes(t.assigned_to || '')
-            const isDueSoon = t.due_date && new Date(t.due_date) <= threeDaysFromNow
-            return isAssigned || isDueSoon
-        })
+        // 4. TASKS (Personal + Unassigned)
+        const myTasks = shopTasks
+            .filter(t => {
+                const isAssigned = myMatchIds.length > 0 && myMatchIds.includes(t.assigned_to || '')
+                const isUnassigned = !t.assigned_to
+                return isAssigned || isUnassigned
+            })
+            .sort((a, b) => {
+                const aIsAssigned = myMatchIds.length > 0 && myMatchIds.includes(a.assigned_to || '')
+                const bIsAssigned = myMatchIds.length > 0 && myMatchIds.includes(b.assigned_to || '')
+                if (aIsAssigned && !bIsAssigned) return -1
+                if (!aIsAssigned && bIsAssigned) return 1
+                return 0
+            })
 
         return { 
             myAssignments,
