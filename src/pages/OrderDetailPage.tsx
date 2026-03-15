@@ -9,7 +9,6 @@ import type { OrderHistoryEvent } from "@/lib/history"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -28,6 +27,11 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import {
@@ -53,7 +57,10 @@ import {
     Copy,
     Plus,
     X,
+    ChevronDown,
+    History,
 } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { LoadingScreen } from "@/components/LoadingScreen"
 import { PageTransition } from "@/components/PageTransition"
 import { BIKE_TYPE_LABELS, STATUS_COLORS } from "@/lib/constants"
@@ -198,6 +205,17 @@ export default function OrderDetailPage() {
     const [showOrderTypeConfirm, setShowOrderTypeConfirm] = useState(false)
     const [pendingStatusUpdate, setPendingStatusUpdate] = useState<{ status: string, actor?: { id: string, name: string } } | null>(null)
     const [pendingOrderTypeUpdate, setPendingOrderTypeUpdate] = useState<boolean | null>(null)
+
+    // Collapsible states
+    const [isKundenwunschOpen, setIsKundenwunschOpen] = useState(true)
+    const [isChecklistOpen, setIsChecklistOpen] = useState(true)
+    const [isInternalNotesOpen, setIsInternalNotesOpen] = useState(true)
+    const [isCustomerDataOpen, setIsCustomerDataOpen] = useState(false)
+    const [isBikeDataOpen, setIsBikeDataOpen] = useState(true)
+    const [isPriceOpen, setIsPriceOpen] = useState(true)
+    const [isLeasingOpen, setIsLeasingOpen] = useState(true)
+    const [isAssignmentsOpen, setIsAssignmentsOpen] = useState(true)
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
 
     const getEmployeeName = (id: string) => {
@@ -1393,7 +1411,7 @@ export default function OrderDetailPage() {
                                                         }
                                                     </div>
                                                     <span className={cn(
-                                                        "text-[10px] font-medium leading-tight text-center hidden sm:block max-w-[64px] whitespace-nowrap overflow-hidden text-ellipsis",
+                                                        "text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1",
                                                         isActive && "text-primary font-semibold",
                                                         isDone && "text-primary/70",
                                                         !isDone && !isActive && "text-muted-foreground"
@@ -1429,7 +1447,7 @@ export default function OrderDetailPage() {
                                                 )}>
                                                     <LEASING_STATUS.icon className={cn("h-4 w-4", order.status === LEASING_STATUS.value ? "text-white" : "text-muted-foreground")} />
                                                 </div>
-                                                <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block", order.status === LEASING_STATUS.value ? "text-emerald-600 font-semibold" : "text-muted-foreground")}>
+                                                <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1", order.status === LEASING_STATUS.value ? "text-emerald-600 font-semibold" : "text-muted-foreground")}>
                                                     {LEASING_STATUS.label}
                                                 </span>
                                             </button>
@@ -1450,7 +1468,7 @@ export default function OrderDetailPage() {
                                         )}>
                                             <COMPLETED_STATUS.icon className={cn("h-4 w-4", order.status === COMPLETED_STATUS.value ? "text-white" : "text-muted-foreground")} />
                                         </div>
-                                        <span className={cn("text-[10px] font-medium hidden sm:block", order.status === COMPLETED_STATUS.value ? "text-slate-600 font-semibold" : "text-muted-foreground")}>
+                                        <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1", order.status === COMPLETED_STATUS.value ? "text-slate-600 font-semibold" : "text-muted-foreground")}>
                                             {COMPLETED_STATUS.label}
                                         </span>
                                     </button>
@@ -1484,20 +1502,6 @@ export default function OrderDetailPage() {
                         </div>
                     </div>
 
-                    {/* ── Kundenwunsch (full-width) ──────────────────────────── */}
-                    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                        <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border/40">
-                            <div className="h-7 w-7 rounded-lg bg-violet-500/12 flex items-center justify-center">
-                                <AlertCircle className="h-3.5 w-3.5 text-violet-500" />
-                            </div>
-                            <span className="text-sm font-semibold">Kundenwunsch</span>
-                        </div>
-                        <div className="px-5 py-3.5">
-                            <div className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
-                                {customerNote || <span className="text-muted-foreground italic">Keine Beschreibung vorhanden.</span>}
-                            </div>
-                        </div>
-                    </div>
 
                     {/* ── 2 Column Grid ──────────────────────────────────────── */}
                     <div className="grid gap-5 grid-cols-1 lg:grid-cols-5">
@@ -1505,16 +1509,99 @@ export default function OrderDetailPage() {
                         {/* ━━ LEFT COLUMN (Main Work) ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
                         <div className="lg:col-span-3 space-y-5">
 
+                            {/* Kundenwunsch */}
+                            <Collapsible
+                                open={isKundenwunschOpen}
+                                onOpenChange={setIsKundenwunschOpen}
+                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                            >
+                                <CollapsibleTrigger asChild>
+                                    <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border/40 cursor-pointer hover:bg-muted/30 transition-colors group">
+                                        <div className="h-7 w-7 rounded-lg bg-violet-500/12 flex items-center justify-center">
+                                            <AlertCircle className="h-3.5 w-3.5 text-violet-500" />
+                                        </div>
+                                        <span className="text-sm font-semibold">Kundenwunsch</span>
+                                        <ChevronDown className={cn(
+                                            "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                                            isKundenwunschOpen ? "transform rotate-180" : ""
+                                        )} />
+                                    </div>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                    <div className="px-5 py-3.5">
+                                        <div className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
+                                            {customerNote || <span className="text-muted-foreground italic">Keine Beschreibung vorhanden.</span>}
+                                        </div>
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
+
+                            {/* Internal Notes */}
+                            <Collapsible
+                                open={isInternalNotesOpen}
+                                onOpenChange={setIsInternalNotesOpen}
+                                className="rounded-xl border border-border/60 bg-card overflow-hidden flex flex-col"
+                            >
+                                <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+                                    <CollapsibleTrigger asChild>
+                                        <div className="flex items-center gap-2 cursor-pointer flex-1">
+                                            <span className="text-sm font-semibold">Interne Notizen</span>
+                                            {saving && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                                            <ChevronDown className={cn(
+                                                "h-4 w-4 text-muted-foreground transition-transform duration-200 ml-1",
+                                                isInternalNotesOpen ? "transform rotate-180" : ""
+                                            )} />
+                                        </div>
+                                    </CollapsibleTrigger>
+                                    {!isReadOnly && editInternalNote !== (order?.internal_note || "") && (
+                                        <span className="text-[10px] text-primary font-medium bg-primary/10 px-2 py-0.5 rounded-full">
+                                            Ungespeicherte Änderungen...
+                                        </span>
+                                    )}
+                                </div>
+                                <CollapsibleContent className="flex-1 flex flex-col">
+                                    <div className="p-0 flex-1 flex flex-col">
+                                        {isReadOnly ? (
+                                            <div className="px-4 py-3.5 text-sm whitespace-pre-wrap leading-relaxed min-h-[120px]">
+                                                {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
+                                            </div>
+                                        ) : (
+                                            <Textarea
+                                                value={editInternalNote}
+                                                onChange={(e) => setEditInternalNote(e.target.value)}
+                                                onBlur={() => {
+                                                    if (editInternalNote !== (order?.internal_note || "")) {
+                                                        handleSaveInternalNotesData()
+                                                    }
+                                                }}
+                                                placeholder="Notizen hier tippen. Speichert automatisch beim Verlassen des Feldes..."
+                                                className="min-h-[120px] resize-y rounded-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 text-sm whitespace-pre-wrap leading-relaxed px-4 py-3.5"
+                                            />
+                                        )}
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
+
                             {/* Checklist Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                            <Collapsible
+                                open={isChecklistOpen}
+                                onOpenChange={setIsChecklistOpen}
+                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                            >
                                 <div className="px-4 py-3.5 border-b border-border/40">
                                     <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2.5">
-                                            <div className="h-7 w-7 rounded-lg bg-violet-500/12 flex items-center justify-center">
-                                                <PackageCheck className="h-3.5 w-3.5 text-violet-500" />
+                                        <CollapsibleTrigger asChild>
+                                            <div className="flex items-center gap-2.5 cursor-pointer flex-1">
+                                                <div className="h-7 w-7 rounded-lg bg-violet-500/12 flex items-center justify-center">
+                                                    <PackageCheck className="h-3.5 w-3.5 text-violet-500" />
+                                                </div>
+                                                <span className="text-sm font-semibold">Checkliste</span>
+                                                <ChevronDown className={cn(
+                                                    "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                                                    isChecklistOpen ? "transform rotate-180" : ""
+                                                )} />
                                             </div>
-                                            <span className="text-sm font-semibold">Checkliste</span>
-                                        </div>
+                                        </CollapsibleTrigger>
                                         <span className="text-xs text-muted-foreground font-medium tabular-nums">
                                             {order.checklist?.filter(i => i.completed).length || 0} / {order.checklist?.length || 0}
                                         </span>
@@ -1574,111 +1661,92 @@ export default function OrderDetailPage() {
                                     </div>
                                 </div>
 
-                                <div className="px-4 py-3">
-                                    {order.checklist && order.checklist.length > 0 ? (
-                                        <div className="space-y-1.5">
-                                            {order.checklist.map((item, index) => (
-                                                <div
-                                                    key={index}
-                                                    className={cn(
-                                                        "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200",
-                                                        item.completed
-                                                            ? "bg-primary/5 border-primary/15"
-                                                            : "bg-transparent border-border/40 hover:border-border hover:bg-muted/30"
-                                                    )}
-                                                >
-                                                    <Checkbox
-                                                        id={`item-${index}`}
-                                                        checked={item.completed}
-                                                        onCheckedChange={(checked) => handleToggleChecklist(index, checked as boolean)}
-                                                        disabled={isReadOnly}
+                                <CollapsibleContent>
+                                    <div className="px-4 py-3">
+                                        {order.checklist && order.checklist.length > 0 ? (
+                                            <div className="space-y-1.5">
+                                                {order.checklist.map((item, index) => (
+                                                    <div
+                                                        key={index}
                                                         className={cn(
-                                                            "shrink-0 transition-all duration-200",
-                                                            item.completed ? "data-[state=checked]:bg-primary data-[state=checked]:border-primary" : "border-muted-foreground/30"
+                                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-all duration-200",
+                                                            item.completed
+                                                                ? "bg-primary/5 border-primary/15"
+                                                                : "bg-transparent border-border/40 hover:border-border hover:bg-muted/30"
                                                         )}
-                                                    />
-                                                    <div className="flex-1 min-w-0 flex items-center gap-2">
-                                                        <label
-                                                            htmlFor={`item-${index}`}
+                                                    >
+                                                        <Checkbox
+                                                            id={`item-${index}`}
+                                                            checked={item.completed}
+                                                            onCheckedChange={(checked) => handleToggleChecklist(index, checked as boolean)}
+                                                            disabled={isReadOnly}
                                                             className={cn(
-                                                                "text-sm cursor-pointer leading-snug transition-colors duration-200 flex-1",
-                                                                item.completed ? "text-muted-foreground/60 line-through" : "text-foreground"
+                                                                "shrink-0 transition-all duration-200",
+                                                                item.completed ? "data-[state=checked]:bg-primary data-[state=checked]:border-primary" : "border-muted-foreground/30"
                                                             )}
-                                                        >
-                                                            {typeof item === 'string' ? item : item.text}
-                                                        </label>
-                                                        {item.type === 'acceptance' && (
-                                                            <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal text-muted-foreground bg-background/50 border-border/50 shrink-0">
-                                                                Annahme
-                                                            </Badge>
-                                                        )}
+                                                        />
+                                                        <div className="flex-1 min-w-0 flex items-center gap-2">
+                                                            <label
+                                                                htmlFor={`item-${index}`}
+                                                                className={cn(
+                                                                    "text-sm cursor-pointer leading-snug transition-colors duration-200 flex-1",
+                                                                    item.completed ? "text-muted-foreground/60 line-through" : "text-foreground"
+                                                                )}
+                                                            >
+                                                                {typeof item === 'string' ? item : item.text}
+                                                            </label>
+                                                            {item.type === 'acceptance' && (
+                                                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal text-muted-foreground bg-background/50 border-border/50 shrink-0">
+                                                                    Annahme
+                                                                </Badge>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border-2 border-dashed rounded-xl border-muted/40 bg-muted/5">
-                                            <PackageCheck className="h-9 w-9 mb-3 opacity-20" />
-                                            <p className="text-sm font-medium mb-0.5">Keine Checkliste</p>
-                                            <p className="text-xs max-w-[180px]">Wähle oben eine Vorlage aus, um zu starten.</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Internal Notes */}
-                            <div className="rounded-xl border border-amber-200/60 dark:border-amber-900/30 bg-card overflow-hidden flex flex-col">
-                                <div className="flex items-center justify-between px-4 py-3 border-b border-amber-200/40 dark:border-amber-900/20 bg-amber-50/30 dark:bg-amber-950/10">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-semibold text-amber-900 dark:text-amber-500">Interne Notizen</span>
-                                        {saving && <Loader2 className="h-3 w-3 animate-spin text-amber-500" />}
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border-2 border-dashed rounded-xl border-muted/40 bg-muted/5">
+                                                <PackageCheck className="h-9 w-9 mb-3 opacity-20" />
+                                                <p className="text-sm font-medium mb-0.5">Keine Checkliste</p>
+                                                <p className="text-xs max-w-[180px]">Wähle oben eine Vorlage aus, um zu starten.</p>
+                                            </div>
+                                        )}
                                     </div>
-                                    {!isReadOnly && editInternalNote !== (order?.internal_note || "") && (
-                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded-full">
-                                            Ungespeicherte Änderungen...
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="p-0 flex-1 flex flex-col">
-                                    {isReadOnly ? (
-                                        <div className="px-4 py-3.5 bg-amber-50/70 dark:bg-amber-950/20 text-sm whitespace-pre-wrap leading-relaxed min-h-[120px]">
-                                            {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
-                                        </div>
-                                    ) : (
-                                        <Textarea
-                                            value={editInternalNote}
-                                            onChange={(e) => setEditInternalNote(e.target.value)}
-                                            onBlur={() => {
-                                                if (editInternalNote !== (order?.internal_note || "")) {
-                                                    handleSaveInternalNotesData()
-                                                }
-                                            }}
-                                            placeholder="Notizen hier tippen. Speichert automatisch beim Verlassen des Feldes..."
-                                            className="min-h-[120px] resize-y rounded-none border-0 bg-amber-50/70 dark:bg-amber-950/20 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm whitespace-pre-wrap leading-relaxed px-4 py-3.5"
-                                        />
-                                    )}
-                                </div>
-                            </div>
+                                </CollapsibleContent>
+                            </Collapsible>
+
+
                         </div>
 
                         {/* ━━ RIGHT COLUMN (Details) ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
                         <div className="lg:col-span-2 space-y-5">
 
                             {/* Customer Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                            <Collapsible
+                                open={isCustomerDataOpen}
+                                onOpenChange={setIsCustomerDataOpen}
+                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                            >
                                 <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-blue-500/12 flex items-center justify-center">
-                                            <User className="h-3.5 w-3.5 text-blue-500" />
+                                    <CollapsibleTrigger asChild>
+                                        <div className="flex items-center gap-2.5 cursor-pointer flex-1">
+                                            <div className="h-7 w-7 rounded-lg bg-blue-500/12 flex items-center justify-center">
+                                                <User className="h-3.5 w-3.5 text-blue-500" />
+                                            </div>
+                                            <span className="text-sm font-semibold">Kundendaten</span>
+                                            <ChevronDown className={cn(
+                                                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                                                isCustomerDataOpen ? "transform rotate-180" : ""
+                                            )} />
                                         </div>
-                                        <span className="text-sm font-semibold">Kundendaten</span>
-                                    </div>
+                                    </CollapsibleTrigger>
                                     {!isReadOnly && (
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation()
                                                 setEditCustomerName(order.customer_name)
                                                 setEditCustomerEmail(order.customer_email || "")
                                                 setEditCustomerPhone(order.customer_phone || "")
@@ -1689,41 +1757,54 @@ export default function OrderDetailPage() {
                                         </Button>
                                     )}
                                 </div>
-                                <div className="px-4 py-3 space-y-2.5">
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Name</p>
-                                        <p className="text-sm font-medium">{order.customer_name}</p>
+                                <CollapsibleContent>
+                                    <div className="px-4 py-3 space-y-2.5">
+                                        <div>
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Name</p>
+                                            <p className="text-sm font-medium">{order.customer_name}</p>
+                                        </div>
+                                        {order.customer_email && (
+                                            <div className="flex items-center gap-2">
+                                                <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                <p className="text-sm truncate">{order.customer_email}</p>
+                                            </div>
+                                        )}
+                                        {order.customer_phone && (
+                                            <div className="flex items-center gap-2">
+                                                <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                <p className="text-sm">{order.customer_phone}</p>
+                                            </div>
+                                        )}
                                     </div>
-                                    {order.customer_email && (
-                                        <div className="flex items-center gap-2">
-                                            <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
-                                            <p className="text-sm truncate">{order.customer_email}</p>
-                                        </div>
-                                    )}
-                                    {order.customer_phone && (
-                                        <div className="flex items-center gap-2">
-                                            <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
-                                            <p className="text-sm">{order.customer_phone}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                                </CollapsibleContent>
+                            </Collapsible>
 
                             {/* Bike Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                            <Collapsible
+                                open={isBikeDataOpen}
+                                onOpenChange={setIsBikeDataOpen}
+                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                            >
                                 <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-orange-500/12 flex items-center justify-center">
-                                            <Bike className="h-3.5 w-3.5 text-orange-500" />
+                                    <CollapsibleTrigger asChild>
+                                        <div className="flex items-center gap-2.5 cursor-pointer flex-1">
+                                            <div className="h-7 w-7 rounded-lg bg-orange-500/12 flex items-center justify-center">
+                                                <Bike className="h-3.5 w-3.5 text-orange-500" />
+                                            </div>
+                                            <span className="text-sm font-semibold">Fahrrad</span>
+                                            <ChevronDown className={cn(
+                                                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                                                isBikeDataOpen ? "transform rotate-180" : ""
+                                            )} />
                                         </div>
-                                        <span className="text-sm font-semibold">Fahrrad</span>
-                                    </div>
+                                    </CollapsibleTrigger>
                                     {!isReadOnly && (
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation()
                                                 setEditBikeBrand(order.bike_brand || "")
                                                 setEditBikeModel(order.bike_model || "")
                                                 setEditBikeType(order.bike_type || "")
@@ -1735,43 +1816,56 @@ export default function OrderDetailPage() {
                                         </Button>
                                     )}
                                 </div>
-                                <div className="px-4 py-3 grid grid-cols-2 gap-y-3 gap-x-3">
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Marke</p>
-                                        <p className="text-sm font-medium">{order.bike_brand || '—'}</p>
+                                <CollapsibleContent>
+                                    <div className="px-4 py-3 grid grid-cols-2 gap-y-3 gap-x-3">
+                                        <div>
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Marke</p>
+                                            <p className="text-sm font-medium">{order.bike_brand || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Modell</p>
+                                            <p className="text-sm font-medium">{order.bike_model || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Farbe</p>
+                                            <p className="text-sm font-medium">{order.bike_color || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Typ</p>
+                                            <p className="text-sm font-medium">
+                                                {order.bike_type ? BIKE_TYPE_LABELS[order.bike_type] || order.bike_type : '—'}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Modell</p>
-                                        <p className="text-sm font-medium">{order.bike_model || '—'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Farbe</p>
-                                        <p className="text-sm font-medium">{order.bike_color || '—'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Typ</p>
-                                        <p className="text-sm font-medium">
-                                            {order.bike_type ? BIKE_TYPE_LABELS[order.bike_type] || order.bike_type : '—'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
+                                </CollapsibleContent>
+                            </Collapsible>
 
                             {/* Price Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                            <Collapsible
+                                open={isPriceOpen}
+                                onOpenChange={setIsPriceOpen}
+                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                            >
                                 <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-green-500/12 flex items-center justify-center">
-                                            <Euro className="h-3.5 w-3.5 text-green-600" />
+                                    <CollapsibleTrigger asChild>
+                                        <div className="flex items-center gap-2.5 cursor-pointer flex-1">
+                                            <div className="h-7 w-7 rounded-lg bg-green-500/12 flex items-center justify-center">
+                                                <Euro className="h-3.5 w-3.5 text-green-600" />
+                                            </div>
+                                            <span className="text-sm font-semibold">Preisübersicht</span>
+                                            <ChevronDown className={cn(
+                                                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                                                isPriceOpen ? "transform rotate-180" : ""
+                                            )} />
                                         </div>
-                                        <span className="text-sm font-semibold">Preisübersicht</span>
-                                    </div>
+                                    </CollapsibleTrigger>
                                     {!isReadOnly && (
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                                            onClick={() => {
+                                            onClick={(e) => {
+                                                e.stopPropagation()
                                                 setEditEstimatedPrice(order.estimated_price?.toString() || "")
                                                 setEditFinalPrice(order.final_price?.toString() || "")
                                                 setIsPriceEditDialogOpen(true)
@@ -1781,46 +1875,59 @@ export default function OrderDetailPage() {
                                         </Button>
                                     )}
                                 </div>
-                                <div className="px-4 py-3">
-                                    <div className="flex items-baseline justify-between gap-4">
-                                        <div className="flex-1">
-                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Geschätzt</p>
-                                            <p className="text-xl font-bold tracking-tight text-primary">
-                                                {order.estimated_price !== null
-                                                    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.estimated_price)
-                                                    : '—'
-                                                }
-                                            </p>
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Tatsächlich</p>
-                                            <p className="text-xl font-semibold">
-                                                {order.final_price !== null
-                                                    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.final_price)
-                                                    : <span className="text-muted-foreground italic text-sm font-normal">Offen</span>
-                                                }
-                                            </p>
+                                <CollapsibleContent>
+                                    <div className="px-4 py-3">
+                                        <div className="flex items-baseline justify-between gap-4">
+                                            <div className="flex-1">
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Geschätzt</p>
+                                                <p className="text-xl font-bold tracking-tight text-primary">
+                                                    {order.estimated_price !== null
+                                                        ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.estimated_price)
+                                                        : '—'
+                                                    }
+                                                </p>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Tatsächlich</p>
+                                                <p className="text-xl font-semibold">
+                                                    {order.final_price !== null
+                                                        ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(order.final_price)
+                                                        : <span className="text-muted-foreground italic text-sm font-normal">Offen</span>
+                                                    }
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
+                                </CollapsibleContent>
+                            </Collapsible>
 
                             {/* Leasing Card (conditional) */}
                             {order.is_leasing && (
-                                <div className="rounded-xl border border-primary/20 bg-primary/3 overflow-hidden">
+                                <Collapsible
+                                    open={isLeasingOpen}
+                                    onOpenChange={setIsLeasingOpen}
+                                    className="rounded-xl border border-primary/20 bg-primary/3 overflow-hidden"
+                                >
                                     <div className="flex items-center justify-between px-4 py-3.5 border-b border-primary/15">
-                                        <div className="flex items-center gap-2.5">
-                                            <div className="h-7 w-7 rounded-lg bg-primary/15 flex items-center justify-center">
-                                                <CreditCard className="h-3.5 w-3.5 text-primary" />
+                                        <CollapsibleTrigger asChild>
+                                            <div className="flex items-center gap-2.5 cursor-pointer flex-1">
+                                                <div className="h-7 w-7 rounded-lg bg-primary/15 flex items-center justify-center">
+                                                    <CreditCard className="h-3.5 w-3.5 text-primary" />
+                                                </div>
+                                                <span className="text-sm font-semibold">Leasing</span>
+                                                <ChevronDown className={cn(
+                                                    "h-4 w-4 text-primary/70 transition-transform duration-200",
+                                                    isLeasingOpen ? "transform rotate-180" : ""
+                                                )} />
                                             </div>
-                                            <span className="text-sm font-semibold">Leasing</span>
-                                        </div>
+                                        </CollapsibleTrigger>
                                         {!isReadOnly && (
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
                                                 className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-primary/10"
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
                                                     setEditLeasingProvider(order.leasing_provider || "")
                                                     setEditLeasingPortalEmail(order.leasing_portal_email || "")
                                                     setEditContractId(order.contract_id || "")
@@ -1834,156 +1941,180 @@ export default function OrderDetailPage() {
                                             </Button>
                                         )}
                                     </div>
-                                    <div className="px-4 py-3 space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Anbieter</p>
-                                                <p className="text-sm font-medium">{order.leasing_provider || '—'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Vertrags-Nr.</p>
-                                                <p className="text-sm font-medium truncate" title={order.contract_id || ""}>{order.contract_id || '—'}</p>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Portal E-Mail</p>
-                                            <p className="text-sm truncate">{order.leasing_portal_email || '—'}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Service Paket</p>
-                                            <p className="text-sm">{order.service_package || '—'}</p>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3 pt-1 border-t border-primary/10">
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Leasing Code</p>
-                                                <p className="font-mono text-sm">{order.leasing_code || '—'}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Insp.-Code</p>
-                                                <p className="font-mono text-sm">{order.inspection_code || '—'}</p>
-                                            </div>
-                                        </div>
-                                        {order.pickup_code && (
-                                            <div>
-                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Abhol Code</p>
-                                                <div className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1.5">
-                                                    <span className="font-mono text-sm font-medium text-primary">{order.pickup_code}</span>
+                                    <CollapsibleContent>
+                                        <div className="px-4 py-3 space-y-3">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Anbieter</p>
+                                                    <p className="text-sm font-medium">{order.leasing_provider || '—'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Vertrags-Nr.</p>
+                                                    <p className="text-sm font-medium truncate" title={order.contract_id || ""}>{order.contract_id || '—'}</p>
                                                 </div>
                                             </div>
-                                        )}
-                                        {order.is_leasing && (
-                                            <div className="flex items-center gap-2 p-2.5 bg-yellow-500/8 border border-yellow-500/15 rounded-lg">
-                                                <AlertCircle className="h-3.5 w-3.5 text-yellow-600 shrink-0" />
-                                                <p className="text-xs text-yellow-700 dark:text-yellow-500">Code wird bei Abholung erfasst</p>
+                                            <div>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Portal E-Mail</p>
+                                                <p className="text-sm truncate">{order.leasing_portal_email || '—'}</p>
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
+                                            <div>
+                                                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Service Paket</p>
+                                                <p className="text-sm">{order.service_package || '—'}</p>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 pt-1 border-t border-primary/10">
+                                                <div>
+                                                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Leasing Code</p>
+                                                    <p className="font-mono text-sm">{order.leasing_code || '—'}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-0.5">Insp.-Code</p>
+                                                    <p className="font-mono text-sm">{order.inspection_code || '—'}</p>
+                                                </div>
+                                            </div>
+                                            {order.pickup_code && (
+                                                <div>
+                                                    <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Abhol Code</p>
+                                                    <div className="inline-flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-2.5 py-1.5">
+                                                        <span className="font-mono text-sm font-medium text-primary">{order.pickup_code}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {order.is_leasing && (
+                                                <div className="flex items-center gap-2 p-2.5 bg-yellow-500/8 border border-yellow-500/15 rounded-lg">
+                                                    <AlertCircle className="h-3.5 w-3.5 text-yellow-600 shrink-0" />
+                                                    <p className="text-xs text-yellow-700 dark:text-yellow-500">Code wird bei Abholung erfasst</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </CollapsibleContent>
+                                </Collapsible>
                             )}
 
                             {/* Assignments Card */}
-                            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                            <Collapsible
+                                open={isAssignmentsOpen}
+                                onOpenChange={setIsAssignmentsOpen}
+                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                            >
                                 <div className="px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center">
-                                            <User className="h-3.5 w-3.5 text-muted-foreground" />
-                                        </div>
-                                        <span className="text-sm font-semibold">Zuständigkeiten</span>
-                                    </div>
-                                </div>
-                                <div className="px-4 py-3 space-y-4">
-                                    {/* Mechanics */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mechaniker</p>
-                                            {!isReadOnly && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-6 text-xs text-primary hover:text-primary/80 px-2 gap-1"
-                                                    onClick={() => {
-                                                        setAssignmentType('add_mechanic')
-                                                        setIsAssignmentModalOpen(true)
-                                                    }}
-                                                >
-                                                    + Hinzufügen
-                                                </Button>
-                                            )}
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
-                                                order.mechanic_ids.map((mechId) => (
-                                                    <div key={mechId} className="flex items-center justify-between group/mech bg-muted/30 px-3 py-2 rounded-lg">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="h-5 w-5 rounded-full bg-primary/15 flex items-center justify-center">
-                                                                <Wrench className="h-3 w-3 text-primary" />
-                                                            </div>
-                                                            <span className="text-sm font-medium">{getEmployeeName(mechId)}</span>
-                                                        </div>
-                                                        {!isReadOnly && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-5 w-5 text-muted-foreground hover:text-destructive opacity-0 group-hover/mech:opacity-100 transition-opacity"
-                                                                onClick={() => handleRemoveMechanic(mechId)}
-                                                            >
-                                                                <Trash2 className="h-3 w-3" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <p className="text-sm text-muted-foreground italic pl-1">Keine Mechaniker zugewiesen</p>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <div className="h-px bg-border/50" />
-
-                                    {/* QC */}
-                                    <div>
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Qualitätskontrolle</p>
-                                            {!isReadOnly && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-6 text-xs text-primary hover:text-primary/80 px-2"
-                                                    onClick={() => {
-                                                        setAssignmentType('qc')
-                                                        setIsAssignmentModalOpen(true)
-                                                    }}
-                                                >
-                                                    {order.qc_mechanic_id ? 'Ändern' : 'Zuweisen'}
-                                                </Button>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-2 bg-muted/30 px-3 py-2 rounded-lg">
-                                            <div className="h-5 w-5 rounded-full bg-green-500/15 flex items-center justify-center">
-                                                <ShieldCheck className="h-3 w-3 text-green-600" />
+                                    <CollapsibleTrigger asChild>
+                                        <div className="flex items-center gap-2.5 cursor-pointer">
+                                            <div className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center">
+                                                <User className="h-3.5 w-3.5 text-muted-foreground" />
                                             </div>
-                                            <span className="text-sm font-medium">
-                                                {order.qc_mechanic_id
-                                                    ? getEmployeeName(order.qc_mechanic_id)
-                                                    : <span className="text-muted-foreground italic font-normal">Ausstehend</span>
-                                                }
-                                            </span>
+                                            <span className="text-sm font-semibold">Zuständigkeiten</span>
+                                            <ChevronDown className={cn(
+                                                "h-4 w-4 text-muted-foreground transition-transform duration-200",
+                                                isAssignmentsOpen ? "transform rotate-180" : ""
+                                            )} />
                                         </div>
+                                    </CollapsibleTrigger>
+                                </div>
+                                <CollapsibleContent>
+                                    <div className="px-4 py-3 space-y-4">
+                                        {/* Mechanics */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Mechaniker</p>
+                                                {!isReadOnly && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-6 text-xs text-primary hover:text-primary/80 px-2 gap-1"
+                                                        onClick={() => {
+                                                            setAssignmentType('add_mechanic')
+                                                            setIsAssignmentModalOpen(true)
+                                                        }}
+                                                    >
+                                                        + Hinzufügen
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
+                                                    order.mechanic_ids.map((mechId) => (
+                                                        <div key={mechId} className="flex items-center justify-between group/mech bg-muted/30 px-3 py-2 rounded-lg">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="h-5 w-5 rounded-full bg-primary/15 flex items-center justify-center">
+                                                                    <Wrench className="h-3 w-3 text-primary" />
+                                                                </div>
+                                                                <span className="text-sm font-medium">{getEmployeeName(mechId)}</span>
+                                                            </div>
+                                                            {!isReadOnly && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-5 w-5 text-muted-foreground hover:text-destructive opacity-0 group-hover/mech:opacity-100 transition-opacity"
+                                                                    onClick={() => handleRemoveMechanic(mechId)}
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <p className="text-sm text-muted-foreground italic pl-1">Keine Mechaniker zugewiesen</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="h-px bg-border/50" />
+
+                                        {/* QC */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Qualitätskontrolle</p>
+                                                {!isReadOnly && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-6 text-xs text-primary hover:text-primary/80 px-2"
+                                                        onClick={() => {
+                                                            setAssignmentType('qc')
+                                                            setIsAssignmentModalOpen(true)
+                                                        }}
+                                                    >
+                                                        {order.qc_mechanic_id ? 'Ändern' : 'Zuweisen'}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-2 bg-muted/30 px-3 py-2 rounded-lg">
+                                                <div className="h-5 w-5 rounded-full bg-green-500/15 flex items-center justify-center">
+                                                    <ShieldCheck className="h-3 w-3 text-green-600" />
+                                                </div>
+                                                <span className="text-sm font-medium">
+                                                    {order.qc_mechanic_id
+                                                        ? getEmployeeName(order.qc_mechanic_id)
+                                                        : <span className="text-muted-foreground italic font-normal">Ausstehend</span>
+                                                    }
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
+
+                            {/* History Tile (Matching Design) */}
+                            <div className="mt-4">
+                                <div 
+                                    onClick={() => setIsHistoryModalOpen(true)}
+                                    className="rounded-xl border border-border/60 bg-card overflow-hidden cursor-pointer hover:bg-muted/30 transition-colors"
+                                >
+                                    <div className="px-5 py-3.5 flex items-center justify-between group">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center">
+                                                <History className="h-3.5 w-3.5 text-muted-foreground" />
+                                            </div>
+                                            <span className="text-sm font-semibold">Auftrags-Verlauf</span>
+                                        </div>
+                                        <ChevronDown className="-rotate-90 h-4 w-4 text-muted-foreground transition-transform duration-200" />
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* ── Order History (full-width) ────────────────────────── */}
-                    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                        <div className="px-5 py-3.5 border-b border-border/40">
-                            <span className="text-sm font-semibold">Auftrags-Verlauf</span>
-                        </div>
-                        <div className="px-5 py-3">
-                            <OrderHistory history={order.history || []} />
-                        </div>
-                    </div>
+
 
                     {/* ── Danger Zone ───────────────────────────────────────── */}
                     {(userRole === 'admin' || userRole === 'owner') && (
@@ -2468,6 +2599,30 @@ export default function OrderDetailPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+                <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+                    <DialogHeader className="px-6 py-4 border-b">
+                        <DialogTitle className="flex items-center gap-2">
+                            <History className="h-5 w-5 text-primary" />
+                            Auftrags-Verlauf
+                        </DialogTitle>
+                        <DialogDescription>
+                            Detaillierte Historie aller Änderungen und Ereignisse für diesen Auftrag.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="flex-1 px-6 py-4 overflow-y-auto">
+                        <div className="pr-4">
+                            <OrderHistory history={order?.history || []} />
+                        </div>
+                    </ScrollArea>
+                    <div className="px-6 py-4 border-t bg-muted/30 flex justify-end">
+                        <Button variant="outline" onClick={() => setIsHistoryModalOpen(false)}>
+                            Schließen
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </PageTransition >
     )
 }
