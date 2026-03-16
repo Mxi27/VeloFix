@@ -1,27 +1,26 @@
 import { useEffect, useState, useMemo } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
-import { 
-    Star, 
-    MessageSquare, 
+import {
+    Star,
+    MessageSquare,
     Zap,
     Loader2,
     TrendingUp,
     Users,
-    ChevronRight,
     ChevronDown,
-    Sparkles,
+    ChevronRight,
     ShieldCheck,
     MessageCircle,
     ThumbsUp,
-    BrainCircuit,
-    CheckCircle2
+    CheckCircle2,
+    Search,
 } from "lucide-react"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -32,6 +31,12 @@ const PRICE_LABEL: Record<string, string> = {
     "fair": "Angemessen",
     "etwas_teuer": "Gehoben / Premium",
     "zu_teuer": "Eher teuer",
+}
+
+const PRICE_BUCKET_KEYS: Record<string, string[]> = {
+    positive: ["schnäppchen", "sehr_fair"],
+    neutral: ["fair"],
+    negative: ["etwas_teuer", "zu_teuer"],
 }
 
 const VALUE_DRIVER_ICONS: Record<string, any> = {
@@ -48,16 +53,17 @@ const VALUE_DRIVER_LABELS: Record<string, string> = {
     service: "Service",
 }
 
-function StarRow({ rating, small }: { rating: number; small?: boolean }) {
+function StarDisplay({ rating, size = "sm" }: { rating: number; size?: "sm" | "md" }) {
+    const cls = size === "sm" ? "h-3 w-3" : "h-4 w-4"
     return (
-        <div className={cn("flex gap-0.5", small ? "items-center" : "")}>
+        <div className="flex gap-0.5 items-center">
             {[1, 2, 3, 4, 5].map((s) => (
                 <Star
                     key={s}
                     className={cn(
-                        small ? "h-3 w-3" : "h-4 w-4",
+                        cls,
                         s <= rating
-                            ? "fill-foreground text-foreground"
+                            ? "fill-amber-400 text-amber-400"
                             : "text-muted-foreground/20 fill-muted/20"
                     )}
                 />
@@ -66,76 +72,83 @@ function StarRow({ rating, small }: { rating: number; small?: boolean }) {
     )
 }
 
-function FeedbackItem({ item }: { item: any }) {
+function FeedbackRow({ item }: { item: any }) {
     const [expanded, setExpanded] = useState(false)
     const hasComment = !!item.comment
-    const hasTags = !!item.price_perception || !!item.main_value
-    
+    const drivers = item.main_value ? item.main_value.split(',').map((v: string) => v.trim()).filter(Boolean) : []
+
     return (
-        <div 
+        <div
             onClick={() => setExpanded(!expanded)}
-            className={cn(
-                "bg-card border rounded-3xl p-5 md:p-6 transition-all cursor-pointer group shadow-none",
-                expanded ? "border-foreground/30 shadow-sm" : "border-border/40 hover:border-border/80"
-            )}
+            className="cursor-pointer border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors"
         >
-            <div className="flex items-start justify-between gap-4">
-                <div className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center shrink-0 border border-border/40 group-hover:bg-muted transition-colors mt-0.5">
-                    <MessageSquare className={cn("h-4 w-4 transition-colors", expanded ? "text-foreground" : "text-muted-foreground/80")} />
+            <div className="flex items-start gap-4 px-4 py-4">
+                {/* Stars + rating */}
+                <div className="flex flex-col gap-1 min-w-[80px] pt-0.5">
+                    <StarDisplay rating={item.rating} />
+                    <span className="text-xs text-muted-foreground tabular-nums">{item.rating.toFixed(1)}</span>
                 </div>
-                
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 flex-wrap">
-                        <StarRow rating={item.rating} small />
-                        <span className="text-xs font-semibold text-foreground">
-                            #{item.order?.order_number || item.id.substring(0,8)}
-                        </span>
-                        <span className="text-[10px] font-medium text-muted-foreground/60 uppercase tracking-widest">
-                            {format(new Date(item.created_at), "dd.MM.yyyy", { locale: de })}
-                        </span>
-                    </div>
-                    
-                    <div className="mt-2.5">
-                        <p className={cn(
-                            "text-sm font-medium transition-all duration-200",
-                            hasComment ? "text-foreground/90" : "text-muted-foreground/40 italic",
-                            expanded ? "leading-relaxed whitespace-normal" : "truncate"
-                        )}>
-                            {hasComment ? `"${item.comment}"` : "Kein Kommentar hinterlassen"}
+
+                {/* Order info */}
+                <div className="flex flex-col gap-0.5 min-w-[130px]">
+                    <span className="text-sm font-semibold text-foreground">
+                        #{item.order?.order_number || item.id.substring(0, 8)}
+                    </span>
+                    {item.order?.bike_model && (
+                        <span className="text-xs text-muted-foreground">{item.order.bike_model}</span>
+                    )}
+                    <span className="text-xs text-muted-foreground/60">
+                        {format(new Date(item.created_at), "dd. MMM yy", { locale: de })}
+                    </span>
+                </div>
+
+                {/* Comment */}
+                <div className="flex-1 min-w-0 pt-0.5">
+                    {hasComment ? (
+                        <p className={cn("text-sm text-foreground/90 leading-relaxed", !expanded && "line-clamp-1")}>
+                            {item.comment}
                         </p>
-                    </div>
-
-                    <AnimatePresence>
-                        {expanded && hasTags && (
-                            <motion.div 
-                                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                                animate={{ opacity: 1, height: "auto", marginTop: 16 }}
-                                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                                className="flex flex-wrap gap-2 overflow-hidden"
-                            >
-                                {item.price_perception && (
-                                    <Badge variant="secondary" className="bg-muted/80 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground border-border/40 rounded-lg">
-                                        Pricing: {PRICE_LABEL[item.price_perception] || item.price_perception}
-                                    </Badge>
-                                )}
-                                {item.main_value && item.main_value.split(',').map((val: string) => (
-                                    val.trim() && (
-                                        <Badge key={val} variant="outline" className="px-2.5 py-1 text-[11px] font-semibold border-border/40 text-foreground/70 rounded-lg bg-background/50">
-                                            {VALUE_DRIVER_LABELS[val.trim()] || val.trim()}
-                                        </Badge>
-                                    )
-                                ))}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    ) : (
+                        <p className="text-sm text-muted-foreground/40 italic">Kein Kommentar</p>
+                    )}
                 </div>
 
-                <div className="shrink-0 p-1 text-muted-foreground/40 group-hover:text-foreground/70 transition-colors mt-1">
-                    <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                        <ChevronDown className="h-5 w-5" />
-                    </motion.div>
+                {/* Customer + price */}
+                <div className="flex flex-col items-end gap-1 min-w-[120px]">
+                    {item.order?.customer_name && (
+                        <span className="text-xs font-medium text-foreground/80">{item.order.customer_name}</span>
+                    )}
+                    {item.price_perception && (
+                        <Badge variant="secondary" className="text-[10px] px-2 py-0.5 h-auto">
+                            {PRICE_LABEL[item.price_perception]}
+                        </Badge>
+                    )}
                 </div>
+
+                <ChevronDown className={cn("h-4 w-4 text-muted-foreground/40 mt-0.5 shrink-0 transition-transform duration-200", expanded && "rotate-180")} />
             </div>
+
+            {/* Expanded detail */}
+            {expanded && (hasComment || drivers.length > 0) && (
+                <div className="px-4 pb-4 pt-1 border-t border-border/30 bg-muted/20">
+                    <div className="flex flex-col md:flex-row gap-4 md:gap-8">
+                        {hasComment && (
+                            <p className="flex-1 text-sm text-foreground/70 italic leading-relaxed">
+                                "{item.comment}"
+                            </p>
+                        )}
+                        {drivers.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 content-start">
+                                {drivers.map((v: string) => (
+                                    <Badge key={v} variant="outline" className="text-[10px] font-medium px-2 py-0.5 h-auto gap-1">
+                                        {VALUE_DRIVER_LABELS[v] || v}
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -144,6 +157,10 @@ export default function FeedbackDashboard() {
     const { workshopId } = useAuth()
     const [loading, setLoading] = useState(true)
     const [feedback, setFeedback] = useState<any[]>([])
+    const [searchQuery, setSearchQuery] = useState("")
+    const [ratingFilter, setRatingFilter] = useState<number | null>(null)
+    const [sortBy, setSortBy] = useState<'date' | 'best' | 'worst'>('date')
+    const [viewAll, setViewAll] = useState(false)
 
     useEffect(() => {
         const fetchFeedback = async () => {
@@ -158,9 +175,7 @@ export default function FeedbackDashboard() {
                 if (error) throw error
                 setFeedback(data || [])
             } catch (err: any) {
-                if (err?.code === '42P01') {
-                    console.warn("Feedback table not yet created.")
-                } else {
+                if (err?.code !== '42P01') {
                     console.error("Error fetching feedback:", err)
                 }
             } finally {
@@ -173,248 +188,178 @@ export default function FeedbackDashboard() {
     const stats = useMemo(() => {
         if (feedback.length === 0) return null
 
-        const avgRating = feedback.reduce((acc, curr) => acc + curr.rating, 0) / feedback.length
+        const avgRating = feedback.reduce((acc, f) => acc + f.rating, 0) / feedback.length
 
-        const priceCounts = feedback.reduce((acc: any, curr) => {
-            if (curr.price_perception) {
-                const key = curr.price_perception.trim()
-                acc[key] = (acc[key] || 0) + 1
-            }
-            return acc
-        }, {})
-
-        const valueCounts = feedback.reduce((acc: any, curr) => {
-            if (curr.main_value) {
-                curr.main_value.split(',').forEach((v: string) => {
-                    const key = v.trim()
-                    acc[key] = (acc[key] || 0) + 1
-                })
-            }
-            return acc
-        }, {})
-
-        const positivePrice = ['schnäppchen', 'sehr_fair', 'fair']
-        const positivePriceCount = positivePrice.reduce((acc, k) => acc + (priceCounts[k] || 0), 0)
-        
-        // Count total price feedback votes
-        const totalPriceVotes = Object.values(priceCounts).reduce((a: any, b: any) => a + b, 0) as number
-        const positivePricePerc = totalPriceVotes > 0 ? positivePriceCount / totalPriceVotes : 0
-        const tooCheapPerc = totalPriceVotes > 0 ? ((priceCounts['schnäppchen'] || 0) + (priceCounts['sehr_fair'] || 0)) / totalPriceVotes : 0
-
-        // Rating distribution
         const ratingDist = [5, 4, 3, 2, 1].map(r => ({
             rating: r,
             count: feedback.filter(f => f.rating === r).length,
         }))
 
-        const valueEntries = Object.entries(valueCounts)
-        const topValueDriver = valueEntries.length > 0
-            ? valueEntries.sort((a: any, b: any) => b[1] - a[1])[0][0]
-            : null
+        const valueCounts = feedback.reduce((acc: any, f) => {
+            if (f.main_value) {
+                f.main_value.split(',').forEach((v: string) => {
+                    const k = v.trim()
+                    acc[k] = (acc[k] || 0) + 1
+                })
+            }
+            return acc
+        }, {})
 
-        return {
-            avgRating,
-            priceCounts,
-            totalPriceVotes,
-            valueCounts,
-            positivePricePerc,
-            tooCheapPerc,
-            topValueDriver,
-            ratingDist,
+        const topValueDriver = Object.entries(valueCounts).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || null
+
+        const countsByBucket: Record<string, number> = { positive: 0, neutral: 0, negative: 0 }
+        const sumByBucket: Record<string, number> = { positive: 0, neutral: 0, negative: 0 }
+
+        feedback.forEach(f => {
+            if (!f.price_perception) return
+            const p = f.price_perception.trim()
+            for (const [bucket, keys] of Object.entries(PRICE_BUCKET_KEYS)) {
+                if (keys.includes(p)) {
+                    countsByBucket[bucket]++
+                    sumByBucket[bucket] += f.rating
+                }
+            }
+        })
+
+        const ratingByBucket: Record<string, number> = {}
+        for (const b of ['positive', 'neutral', 'negative']) {
+            ratingByBucket[b] = countsByBucket[b] > 0 ? sumByBucket[b] / countsByBucket[b] : 0
         }
+
+        const totalWithPrice = feedback.filter(f => f.price_perception).length
+        const positivePricePerc = totalWithPrice > 0
+            ? (countsByBucket.positive + countsByBucket.neutral) / totalWithPrice
+            : 0
+
+        return { avgRating, ratingDist, valueCounts, topValueDriver, countsByBucket, ratingByBucket, positivePricePerc }
     }, [feedback])
 
-    const generateInsightText = () => {
-        if (!stats) return null
-        if (feedback.length < 3) return "Zu wenig Daten für eine KI-Analyse. Sammle mehr Kundenfeedbackpunkt, um strategische Insights zu erhalten."
-        
-        const isPerfect = stats.avgRating >= 4.8
-        const ratingText = isPerfect ? "Dein Service ist exzellent bewertet." : `Dein Durchschnitt von ${stats.avgRating.toFixed(1)} ist solide.`
-        
-        let priceText = "Die wahrgenommenen Preise entsprechen der Markterwartung."
-        if (stats.tooCheapPerc > 0.5) {
-            priceText = `Bemerkenswert: ${Math.round(stats.tooCheapPerc * 100)}% deiner Kunden empfinden deine Preise als "Schnäppchen" oder "sehr fair". Du bist potenziell unter Wert verkauft – erwäge eine moderate Preiserhöhung.`
-        } else if (stats.positivePricePerc < 0.3) {
-            priceText = "Achtung: Einige Kunden empfinden die Preise im Verhältnis zur Leistung als zu hoch. Überprüfe die Positionierung."
-        }
+    const filteredFeedback = useMemo(() => {
+        const q = searchQuery.toLowerCase()
+        return feedback
+            .filter(f => {
+                if (ratingFilter !== null && f.rating !== ratingFilter) return false
+                if (!q) return true
+                return (
+                    f.comment?.toLowerCase().includes(q) ||
+                    f.order?.bike_model?.toLowerCase().includes(q) ||
+                    f.order?.order_number?.toString().toLowerCase().includes(q) ||
+                    f.order?.customer_name?.toLowerCase().includes(q)
+                )
+            })
+            .sort((a, b) => {
+                if (sortBy === 'best') return b.rating - a.rating
+                if (sortBy === 'worst') return a.rating - b.rating
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            })
+    }, [feedback, searchQuery, ratingFilter, sortBy])
 
-        let valueText = ""
-        if (stats.topValueDriver) {
-             valueText = ` Als stärkster Qualitätsfaktor hat sich "${VALUE_DRIVER_LABELS[stats.topValueDriver] || stats.topValueDriver}" herauskristallisiert.`
-        }
-
-        return `${ratingText} ${priceText}${valueText}`
-    }
+    const displayedFeedback = viewAll ? filteredFeedback : filteredFeedback.slice(0, 8)
 
     if (loading) {
         return (
             <DashboardLayout>
                 <div className="flex items-center justify-center min-h-[60vh]">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary opacity-50" />
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
             </DashboardLayout>
         )
     }
 
-    const hasData = feedback.length > 0
-
     return (
         <DashboardLayout>
-            <div className="max-w-[1200px] mx-auto space-y-10 pb-16 px-4 md:px-8 pt-6">
+            <div className="max-w-[1100px] mx-auto space-y-6 pb-12 px-4 md:px-6 pt-6">
 
-                {/* ── Page Header ── */}
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                    className="flex flex-col md:flex-row md:items-end justify-between gap-6"
-                >
-                    <div className="space-y-2">
-                        <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Kundenfeedback</h1>
-                        <p className="text-muted-foreground text-sm xl:text-base max-w-xl leading-relaxed">
-                            Analysiere die Zufriedenheit und Preistoleranz deiner Kunden. Nutze diese echten Daten, 
-                            um deine Marktpositionierung und Preisstrategie zu optimieren.
+                {/* Page Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground">Kundenfeedback</h1>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            Analysiere Zufriedenheit und Preiswahrnehmung deiner Kunden.
                         </p>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                        {stats && stats.tooCheapPerc > 0.5 && (
-                            <Badge variant="outline" className="px-3.5 py-1.5 text-xs font-semibold gap-2 border-foreground/20 bg-foreground/5 shadow-sm text-foreground">
-                                <TrendingUp className="h-3.5 w-3.5 text-blue-500" />
-                                Preispotenzial: Hoch
+                    <div className="flex items-center gap-2">
+                        {stats && stats.positivePricePerc > 0.6 && (
+                            <Badge variant="outline" className="gap-1.5 text-xs">
+                                <TrendingUp className="h-3 w-3 text-emerald-500" />
+                                Preispotenzial erkannt
                             </Badge>
                         )}
-                        <Badge variant="outline" className="px-3.5 py-1.5 text-xs font-medium gap-2 border-border/50 bg-card shadow-sm">
-                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Badge variant="secondary" className="gap-1.5 text-xs">
+                            <Users className="h-3 w-3" />
                             {feedback.length} Bewertungen
                         </Badge>
                     </div>
-                </motion.div>
+                </div>
 
-                {!hasData ? (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.6, delay: 0.2 }}
-                    >
-                        <Card className="bg-card/30 border-dashed border-border/50 shadow-none">
-                            <CardContent className="flex flex-col items-center justify-center py-32 text-center gap-6">
-                                <div className="w-20 h-20 rounded-3xl bg-muted/40 flex items-center justify-center border border-border/40">
-                                    <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
-                                </div>
-                                <div className="max-w-md">
-                                    <p className="font-semibold text-foreground text-lg tracking-tight">Noch kein Kundenfeedback</p>
-                                    <p className="text-sm text-muted-foreground/80 mt-2 leading-relaxed">
-                                        Sobald Kunden nach Abholung ihres Fahrrads das Feedback-Formular ausfüllen, 
-                                        fließen die Daten live in diese Analyse ein.
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-                ) : (
-                    <div className="space-y-12">
-                        {/* ── Premium AI Insights ── */}
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
-                            className="rounded-3xl border border-primary/15 bg-gradient-to-br from-primary/[0.03] via-card to-background p-8 md:p-10 shadow-sm relative overflow-hidden group"
-                        >
-                            <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-1000 pointer-events-none transform translate-x-12 -translate-y-12">
-                                <BrainCircuit className="w-64 h-64" />
+                {feedback.length === 0 ? (
+                    <Card className="border-dashed">
+                        <CardContent className="flex flex-col items-center justify-center py-24 text-center gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+                                <MessageSquare className="h-6 w-6 text-muted-foreground" />
                             </div>
-                            <div className="relative z-10 flex flex-col gap-4">
-                                <div className="flex items-center gap-2.5">
-                                    <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-                                    <h2 className="text-xs font-bold tracking-widest uppercase text-primary">Strategische Erkenntnisse</h2>
-                                </div>
-                                <p className="text-lg md:text-xl font-medium text-foreground/90 leading-relaxed max-w-4xl tracking-tight">
-                                    {generateInsightText()}
+                            <div>
+                                <p className="font-semibold text-foreground">Noch kein Kundenfeedback</p>
+                                <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+                                    Sobald Kunden das Feedback-Formular ausfüllen, erscheinen die Daten hier.
                                 </p>
                             </div>
-                        </motion.div>
+                        </CardContent>
+                    </Card>
+                ) : (
+                    <div className="space-y-6">
 
-                        {/* ── KPI Row ── */}
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-                            className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"
-                        >
-                            <Card className="bg-card border-border/30 shadow-none overflow-hidden flex flex-col justify-center py-5 rounded-3xl">
-                                <CardContent className="p-6 md:p-8 space-y-5">
-                                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Ø Kundenurteil</p>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-6xl font-black text-foreground tabular-nums tracking-tighter">
+                        {/* KPI Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                            {/* Satisfaction Card */}
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">Gesamtzufriedenheit</CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex gap-6 items-center">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-5xl font-bold tabular-nums tracking-tight text-foreground">
                                             {stats!.avgRating.toFixed(1)}
                                         </span>
-                                        <span className="text-base font-medium text-muted-foreground hidden sm:inline-block">/ 5</span>
+                                        <StarDisplay rating={Math.round(stats!.avgRating)} size="md" />
+                                        <span className="text-xs text-muted-foreground mt-1">{feedback.length} Bewertungen</span>
                                     </div>
-                                    <StarRow rating={Math.round(stats!.avgRating)} />
-                                </CardContent>
-                            </Card>
-
-                            <Card className="bg-card border-border/30 shadow-none overflow-hidden flex flex-col justify-center py-5 rounded-3xl">
-                                <CardContent className="p-6 md:p-8 space-y-5">
-                                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Preis-Wert-Fit</p>
-                                    <div className="flex items-baseline gap-2">
-                                        <span className="text-6xl font-black tabular-nums tracking-tighter text-foreground">
-                                            {Math.round(stats!.positivePricePerc * 100)}%
-                                        </span>
-                                    </div>
-                                    <p className="text-xs font-medium text-muted-foreground leading-relaxed">
-                                        finden den Preis angemessen oder sogar günstig
-                                    </p>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="col-span-2 bg-card border-border/30 shadow-none overflow-hidden rounded-3xl">
-                                <CardContent className="p-6 md:p-8 h-full flex flex-col justify-between">
-                                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-6">Preis-Wahrnehmung Detail</p>
-                                    <div className="space-y-5 flex-1 justify-center flex flex-col">
-                                        {[
-                                            { label: "Schnäppchen / Sehr fair", keys: ["schnäppchen", "sehr_fair"], color: "bg-foreground" },
-                                            { label: "Angemessen", keys: ["fair"], color: "bg-foreground/40" },
-                                            { label: "Zu teuer / Gehoben", keys: ["etwas_teuer", "zu_teuer"], color: "bg-muted-foreground/20" },
-                                        ].map((opt) => {
-                                            const count = opt.keys.reduce((acc, k) => acc + (stats!.priceCounts[k] || 0), 0)
-                                            const pct = stats!.totalPriceVotes > 0 ? (count / stats!.totalPriceVotes) * 100 : 0
+                                    <div className="flex-1 space-y-1.5">
+                                        {[5, 4, 3, 2, 1].map(r => {
+                                            const item = stats!.ratingDist.find(d => d.rating === r)
+                                            const count = item?.count || 0
+                                            const pct = feedback.length > 0 ? (count / feedback.length) * 100 : 0
                                             return (
-                                                <div key={opt.label} className="space-y-2">
-                                                    <div className="flex justify-between text-xs font-medium">
-                                                        <span className="text-muted-foreground">{opt.label}</span>
-                                                        <span className="tabular-nums font-semibold text-foreground">{count}</span>
-                                                    </div>
-                                                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                                <div key={r} className="flex items-center gap-2">
+                                                    <span className="text-xs text-muted-foreground w-3 text-right tabular-nums">{r}</span>
+                                                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                                                         <div
-                                                            className={cn("h-full rounded-full transition-all duration-1000 ease-out", opt.color)}
+                                                            className={cn(
+                                                                "h-full rounded-full transition-all duration-700",
+                                                                r === 5 ? "bg-emerald-500" :
+                                                                r === 4 ? "bg-green-500" :
+                                                                r === 3 ? "bg-amber-500" :
+                                                                r === 2 ? "bg-orange-500" : "bg-red-500"
+                                                            )}
                                                             style={{ width: `${pct}%` }}
                                                         />
                                                     </div>
+                                                    <span className="text-xs text-muted-foreground w-4 tabular-nums text-right">{count}</span>
                                                 </div>
                                             )
                                         })}
                                     </div>
                                 </CardContent>
                             </Card>
-                        </motion.div>
 
-                        {/* ── Main Insights Grid ── */}
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
-                            className="grid grid-cols-1 lg:grid-cols-2 gap-6"
-                        >
-                            
-                            {/* Value Drivers */}
-                            <Card className="bg-card border-border/30 shadow-none flex flex-col rounded-3xl">
-                                <CardHeader className="p-6 md:p-8 pb-4">
-                                    <CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Wichtigste Stärken</CardTitle>
-                                    <CardDescription className="text-xs text-foreground/50">Was Kunden besonders hervorheben</CardDescription>
+                            {/* Value Drivers Card */}
+                            <Card>
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground">Was Kunden schätzen</CardTitle>
                                 </CardHeader>
-                                <CardContent className="flex-1 p-6 md:p-8 pt-0">
-                                    <div className="grid grid-cols-2 gap-4 h-full">
+                                <CardContent>
+                                    <div className="grid grid-cols-2 gap-3">
                                         {Object.entries(VALUE_DRIVER_LABELS).map(([key, label]) => {
                                             const count = stats!.valueCounts[key] || 0
                                             const pct = feedback.length > 0 ? Math.round((count / feedback.length) * 100) : 0
@@ -425,80 +370,147 @@ export default function FeedbackDashboard() {
                                                 <div
                                                     key={key}
                                                     className={cn(
-                                                        "rounded-[1.25rem] p-5 border flex flex-col items-start gap-4 transition-all duration-300",
+                                                        "rounded-xl p-3 border flex flex-col gap-2 transition-colors",
                                                         isTop
-                                                            ? "bg-foreground/[0.03] border-foreground/10"
-                                                            : "bg-transparent border-border/40 opacity-70 hover:opacity-100"
+                                                            ? "bg-primary/5 border-primary/20"
+                                                            : "bg-muted/30 border-border/40 opacity-70"
                                                     )}
                                                 >
-                                                    <div className={cn("p-2 rounded-xl border", isTop ? "border-foreground/20 text-foreground bg-background" : "border-transparent text-muted-foreground bg-muted/40")}>
-                                                        <Icon className="w-5 h-5" />
+                                                    <div className="flex items-center justify-between">
+                                                        <Icon className={cn("h-4 w-4", isTop ? "text-primary" : "text-muted-foreground")} />
+                                                        <span className="text-sm font-bold tabular-nums">{pct}%</span>
                                                     </div>
-                                                    <div>
-                                                        <p className={cn("text-4xl font-black tabular-nums mb-1 tracking-tighter", isTop ? "text-foreground" : "text-foreground/80")}>
-                                                            {pct}%
-                                                        </p>
-                                                        <p className="text-xs font-semibold text-muted-foreground tracking-wide">{label}</p>
-                                                    </div>
+                                                    <p className="text-xs font-medium text-muted-foreground">{label}</p>
                                                 </div>
                                             )
                                         })}
                                     </div>
                                 </CardContent>
                             </Card>
+                        </div>
 
-                            {/* Rating Distrib */}
-                            <div className="grid grid-rows-1 gap-6">
-                                <Card className="bg-card border-border/30 shadow-none w-full h-full rounded-3xl flex flex-col">
-                                    <CardHeader className="p-6 md:p-8 pb-4">
-                                        <CardTitle className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Sterne-Verteilung</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="flex-1 p-6 md:p-8 pt-0 flex flex-col justify-center gap-1.5">
-                                        {stats!.ratingDist.map(({ rating: r, count }) => {
-                                            const pct = feedback.length > 0 ? (count / feedback.length) * 100 : 0
-                                            return (
-                                                <div key={r} className="flex items-center gap-4 py-2">
-                                                    <div className="flex items-center gap-1.5 w-10 shrink-0 justify-end">
-                                                        <span className="text-xs font-bold tabular-nums text-foreground">{r}</span>
-                                                        <Star className="h-3.5 w-3.5 fill-foreground text-foreground" />
-                                                    </div>
-                                                    <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full rounded-full bg-foreground transition-all duration-1000 ease-out"
-                                                            style={{ width: `${pct}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className="text-xs font-semibold text-muted-foreground w-8 text-right tabular-nums">{count}</span>
+                        {/* Price Analysis Card */}
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <CardTitle className="text-sm font-medium text-muted-foreground">Preis-Check</CardTitle>
+                                        <CardDescription className="text-xs mt-0.5">Ø-Bewertung nach Preiswahrnehmung</CardDescription>
+                                    </div>
+                                    <Badge variant="secondary" className="text-sm font-bold px-3 py-1 h-auto">
+                                        {Math.round(stats!.positivePricePerc * 100)}% Fair-Quote
+                                    </Badge>
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {[
+                                        { key: 'positive', label: 'Günstig', description: 'Kunden finden Preise niedrig', colorClass: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/40' },
+                                        { key: 'neutral', label: 'Fair', description: 'Kunden finden Preise angemessen', colorClass: 'text-blue-600 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/40' },
+                                        { key: 'negative', label: 'Teuer', description: 'Kunden finden Preise hoch', colorClass: 'text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/40' },
+                                    ].map(bucket => {
+                                        const avg = stats!.ratingByBucket[bucket.key]
+                                        const count = stats!.countsByBucket[bucket.key]
+                                        return (
+                                            <div key={bucket.key} className={cn("rounded-xl p-4 border", bucket.colorClass)}>
+                                                <p className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-1">{bucket.label}</p>
+                                                <p className="text-xs opacity-60 mb-3">{bucket.description}</p>
+                                                <div className="flex items-end gap-1.5">
+                                                    <span className="text-3xl font-bold tabular-nums">
+                                                        {count > 0 ? avg.toFixed(1) : '—'}
+                                                    </span>
+                                                    {count > 0 && <Star className="h-4 w-4 fill-current mb-1 opacity-70" />}
                                                 </div>
-                                            )
-                                        })}
-                                    </CardContent>
-                                </Card>
-                            </div>
+                                                <p className="text-xs opacity-60 mt-1">{count} {count === 1 ? 'Stimme' : 'Stimmen'}</p>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </CardContent>
+                        </Card>
 
-                        </motion.div>
+                        {/* Feedback List */}
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <div className="flex flex-col md:flex-row md:items-center gap-3">
+                                    <CardTitle className="text-sm font-medium text-muted-foreground shrink-0">Alle Feedbacks</CardTitle>
 
-                        {/* ── Feed ── */}
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
-                            className="pt-8"
-                        >
-                            <div className="flex items-center justify-between mb-8 px-2">
-                                <h3 className="text-xl font-bold tracking-tight">Letzte Bewertungen</h3>
-                                {feedback.length > 5 && (
-                                    <Button variant="ghost" size="sm" className="text-xs font-semibold tracking-wide text-muted-foreground hover:text-foreground">
-                                        Alle ansehen <ChevronRight className="h-4 w-4 ml-1" />
-                                    </Button>
+                                    {/* Search */}
+                                    <div className="relative flex-1 max-w-xs">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Suchen..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="pl-8 h-8 text-sm"
+                                        />
+                                    </div>
+
+                                    {/* Rating filter */}
+                                    <div className="flex items-center gap-1">
+                                        {[null, 5, 4, 3, 2, 1].map(r => (
+                                            <button
+                                                key={r ?? 'all'}
+                                                onClick={() => setRatingFilter(r)}
+                                                className={cn(
+                                                    "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                                                    ratingFilter === r
+                                                        ? "bg-foreground text-background"
+                                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                                )}
+                                            >
+                                                {r === null ? "Alle" : r}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Sort */}
+                                    <div className="flex items-center gap-1 ml-auto">
+                                        {([{ id: 'date', label: 'Neueste' }, { id: 'best', label: 'Beste' }, { id: 'worst', label: 'Schlechteste' }] as const).map(s => (
+                                            <button
+                                                key={s.id}
+                                                onClick={() => setSortBy(s.id)}
+                                                className={cn(
+                                                    "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
+                                                    sortBy === s.id
+                                                        ? "bg-foreground text-background"
+                                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                                )}
+                                            >
+                                                {s.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="p-0">
+                                {displayedFeedback.length === 0 ? (
+                                    <div className="py-12 text-center">
+                                        <p className="text-sm text-muted-foreground">Keine Feedbacks für diese Auswahl.</p>
+                                    </div>
+                                ) : (
+                                    <div>
+                                        {displayedFeedback.map(item => (
+                                            <FeedbackRow key={item.id} item={item} />
+                                        ))}
+                                    </div>
                                 )}
-                            </div>
-                            <div className="space-y-4">
-                                {feedback.slice(0, 5).map((item) => (
-                                    <FeedbackItem key={item.id} item={item} />
-                                ))}
-                            </div>
-                        </motion.div>
+
+                                {!viewAll && filteredFeedback.length > 8 && (
+                                    <div className="p-4 border-t border-border/40">
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full text-muted-foreground"
+                                            onClick={() => setViewAll(true)}
+                                        >
+                                            Alle {filteredFeedback.length} Feedbacks laden
+                                            <ChevronRight className="h-4 w-4 ml-1" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
 
                     </div>
                 )}
