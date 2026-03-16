@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, type NavigateFunction } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { supabase } from "@/lib/supabase"
@@ -129,7 +129,7 @@ export default function FeedbackPage() {
 
             setLoading(true)
             try {
-                let ordersQuery = supabase
+                const ordersQuery = supabase
                     .from('orders')
                     .select('*')
                     .eq('workshop_id', workshopId)
@@ -237,9 +237,11 @@ export default function FeedbackPage() {
     }, [repairFeedback, buildFeedback, searchTerm, timeFilter, sortOrder])
 
     // Calculate metrics
-    const avgRating = allFeedback.length > 0
-        ? allFeedback.reduce((acc, curr) => acc + curr.rating, 0) / allFeedback.length
-        : 0
+    const avgRating = useMemo(() =>
+        allFeedback.length > 0
+            ? allFeedback.reduce((acc, curr) => acc + curr.rating, 0) / allFeedback.length
+            : 0
+    , [allFeedback])
 
     // Calculate trend (compare last 30 days to previous 30 days)
     const trend = useMemo(() => {
@@ -468,7 +470,7 @@ export default function FeedbackPage() {
     )
 }
 
-function FeedbackCard({ item, navigate }: { item: any, navigate: any }) {
+function FeedbackCard({ item, navigate }: { item: any, navigate: NavigateFunction }) {
     const { employees } = useEmployee()
 
     const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name
