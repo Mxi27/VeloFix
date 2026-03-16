@@ -39,6 +39,15 @@ import { de } from "date-fns/locale"
 
 const PAGE_SIZE = 12
 
+type TimeFrame = "7d" | "30d" | "90d" | "all"
+
+const TIME_FRAMES: { value: TimeFrame; label: string; days: number | null }[] = [
+    { value: "7d",  label: "7T",    days: 7   },
+    { value: "30d", label: "30T",   days: 30  },
+    { value: "90d", label: "90T",   days: 90  },
+    { value: "all", label: "Alles", days: null },
+]
+
 const PRICE_LABEL: Record<string, string> = {
     "schnäppchen": "Schnäppchen",
     "sehr_fair": "Sehr fair",
@@ -81,6 +90,25 @@ function getPageNumbers(current: number, total: number): (number | null)[] {
     return pages
 }
 
+function computeMetrics(data: any[]) {
+    if (data.length === 0) return null
+    const avgRating = data.reduce((s: number, f: any) => s + f.rating, 0) / data.length
+    const satisfactionRate = data.filter((f: any) => f.rating >= 4).length / data.length
+    const countsByBucket: Record<string, number> = { positive: 0, neutral: 0, negative: 0 }
+    data.forEach((f: any) => {
+        if (!f.price_perception) return
+        const p = f.price_perception.trim()
+        for (const [bucket, keys] of Object.entries(PRICE_BUCKET_KEYS)) {
+            if (keys.includes(p)) countsByBucket[bucket]++
+        }
+    })
+    const totalWithPrice = data.filter((f: any) => f.price_perception).length
+    const fairQuote = totalWithPrice > 0
+        ? (countsByBucket.positive + countsByBucket.neutral) / totalWithPrice
+        : 0
+    return { avgRating, satisfactionRate, fairQuote, count: data.length }
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function RatingBadge({ rating }: { rating: number }) {
@@ -95,6 +123,39 @@ function RatingBadge({ rating }: { rating: number }) {
             {rating.toFixed(1)}
             <Star className="h-2.5 w-2.5 fill-current" />
         </span>
+    )
+}
+
+function TrendLine({
+    value,
+    format: fmt = "decimal",
+    label,
+}: {
+    value: number | null
+    format?: "decimal" | "percent" | "count"
+    label: string
+}) {
+    if (value === null) return null
+    const threshold = fmt === "count" ? 0.5 : 0.05
+    const isUp = value > threshold
+    const isDown = value < -threshold
+    const formatted =
+        fmt === "percent"  ? `${value > 0 ? "+" : ""}${Math.round(value * 100)}%`
+        : fmt === "count"  ? `${value > 0 ? "+" : ""}${value}`
+        :                    `${value > 0 ? "+" : ""}${value.toFixed(1)}`
+    return (
+        <p className={cn(
+            "text-xs mt-1.5 flex items-center gap-1",
+            isUp ? "text-emerald-500" : isDown ? "text-red-400" : "text-muted-foreground"
+        )}>
+            {isUp
+                ? <TrendingUp className="h-3 w-3" />
+                : isDown
+                    ? <TrendingDown className="h-3 w-3" />
+                    : <Minus className="h-3 w-3" />
+            }
+            {formatted} {label}
+        </p>
     )
 }
 
@@ -120,16 +181,11 @@ function ReviewRow({ item }: { item: any }) {
             )}
             onClick={() => expandable && setExpanded(v => !v)}
         >
-            {/* Accent bar */}
             <div className={cn("absolute left-0 top-0 bottom-0 w-[3px]", accentColor)} />
-
             <div className="flex items-center gap-4 px-5 py-3 pl-5">
-                {/* Rating */}
                 <div className="shrink-0 w-[72px] pl-2">
                     <RatingBadge rating={item.rating} />
                 </div>
-
-                {/* Auftrag */}
                 <div className="shrink-0 w-[150px]">
                     <p className="text-sm font-medium text-foreground leading-tight">
                         #{item.order?.order_number || item.id.substring(0, 8)}
@@ -140,8 +196,6 @@ function ReviewRow({ item }: { item: any }) {
                         </p>
                     )}
                 </div>
-
-                {/* Kunde */}
                 <div className="shrink-0 w-[150px]">
                     <p className="text-sm text-foreground/80 truncate">
                         {item.order?.customer_name ?? (
@@ -152,8 +206,6 @@ function ReviewRow({ item }: { item: any }) {
                         {format(new Date(item.created_at), "dd. MMM yyyy", { locale: de })}
                     </p>
                 </div>
-
-                {/* Preis */}
                 <div className="shrink-0 w-[110px]">
                     {item.price_perception ? (
                         <Badge variant="secondary" className="text-[10px] h-5 px-2 whitespace-nowrap">
@@ -163,8 +215,6 @@ function ReviewRow({ item }: { item: any }) {
                         <span className="text-muted-foreground/25 text-xs">—</span>
                     )}
                 </div>
-
-                {/* Kommentar */}
                 <div className="flex-1 min-w-0">
                     {hasComment ? (
                         <p className="text-sm text-muted-foreground line-clamp-1 italic">
@@ -174,8 +224,6 @@ function ReviewRow({ item }: { item: any }) {
                         <span className="text-xs text-muted-foreground/25 italic">Kein Kommentar</span>
                     )}
                 </div>
-
-                {/* Expand icon */}
                 <div className="shrink-0 w-5">
                     {expandable && (
                         <ChevronDown className={cn(
@@ -187,7 +235,6 @@ function ReviewRow({ item }: { item: any }) {
                 </div>
             </div>
 
-            {/* Expanded detail */}
             {expanded && (
                 <div className="px-6 pb-4 pt-2 pl-8 bg-muted/10 border-t border-border/30">
                     <div className="flex flex-col sm:flex-row gap-4">
@@ -218,6 +265,7 @@ export default function FeedbackDashboard() {
     const { workshopId } = useAuth()
     const [loading, setLoading] = useState(true)
     const [feedback, setFeedback] = useState<any[]>([])
+    const [timeFrame, setTimeFrame] = useState<TimeFrame>("30d")
     const [searchQuery, setSearchQuery] = useState("")
     const [ratingFilter, setRatingFilter] = useState<number | null>(null)
     const [sortBy, setSortBy] = useState<"date" | "best" | "worst">("date")
@@ -243,21 +291,30 @@ export default function FeedbackDashboard() {
         fetchFeedback()
     }, [workshopId])
 
-    // Reset to page 0 on filter/sort change
-    useEffect(() => { setPage(0) }, [searchQuery, ratingFilter, sortBy])
+    useEffect(() => { setPage(0) }, [searchQuery, ratingFilter, sortBy, timeFrame])
+
+    // Feedback filtered to the selected time window
+    const timeFilteredFeedback = useMemo(() => {
+        const tf = TIME_FRAMES.find(t => t.value === timeFrame)!
+        if (tf.days === null) return feedback
+        const cutoff = subDays(new Date(), tf.days)
+        return feedback.filter(f => new Date(f.created_at) >= cutoff)
+    }, [feedback, timeFrame])
 
     const stats = useMemo(() => {
         if (feedback.length === 0) return null
 
-        const avgRating = feedback.reduce((s, f) => s + f.rating, 0) / feedback.length
-        const satisfactionRate = feedback.filter(f => f.rating >= 4).length / feedback.length
+        const base = timeFilteredFeedback
+
+        const avgRating = base.length > 0 ? base.reduce((s, f) => s + f.rating, 0) / base.length : 0
+        const satisfactionRate = base.length > 0 ? base.filter(f => f.rating >= 4).length / base.length : 0
 
         const ratingDist = [5, 4, 3, 2, 1].map(r => ({
             rating: r,
-            count: feedback.filter(f => f.rating === r).length,
+            count: base.filter(f => f.rating === r).length,
         }))
 
-        const valueCounts = feedback.reduce((acc: Record<string, number>, f) => {
+        const valueCounts = base.reduce((acc: Record<string, number>, f) => {
             if (f.main_value) {
                 f.main_value.split(",").forEach((v: string) => {
                     const k = v.trim()
@@ -269,34 +326,46 @@ export default function FeedbackDashboard() {
         const topValueDriver = Object.entries(valueCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
 
         const countsByBucket: Record<string, number> = { positive: 0, neutral: 0, negative: 0 }
-        feedback.forEach(f => {
+        base.forEach(f => {
             if (!f.price_perception) return
             const p = f.price_perception.trim()
             for (const [bucket, keys] of Object.entries(PRICE_BUCKET_KEYS)) {
                 if (keys.includes(p)) countsByBucket[bucket]++
             }
         })
-        const totalWithPrice = feedback.filter(f => f.price_perception).length
+        const totalWithPrice = base.filter(f => f.price_perception).length
         const fairQuote = totalWithPrice > 0
             ? (countsByBucket.positive + countsByBucket.neutral) / totalWithPrice
             : 0
 
-        // Trend last 30d vs. previous 30d
+        // Previous period for trend comparison
         const now = new Date()
-        const d30 = subDays(now, 30)
-        const d60 = subDays(now, 60)
-        const recent = feedback.filter(f => new Date(f.created_at) >= d30)
-        const previous = feedback.filter(f => { const d = new Date(f.created_at); return d >= d60 && d < d30 })
-        const recentAvg = recent.length > 0 ? recent.reduce((s, f) => s + f.rating, 0) / recent.length : null
-        const prevAvg = previous.length > 0 ? previous.reduce((s, f) => s + f.rating, 0) / previous.length : null
-        const trendDiff = recentAvg !== null && prevAvg !== null ? recentAvg - prevAvg : null
+        const tf = TIME_FRAMES.find(t => t.value === timeFrame)!
+        const compDays = tf.days ?? 30
+        const cutoff = subDays(now, compDays)
+        const prevCutoff = subDays(now, compDays * 2)
+        const prevBase = feedback.filter(f => {
+            const d = new Date(f.created_at)
+            return d >= prevCutoff && d < cutoff
+        })
 
-        return { avgRating, satisfactionRate, ratingDist, valueCounts, topValueDriver, countsByBucket, fairQuote, trendDiff }
-    }, [feedback])
+        const prev = computeMetrics(prevBase)
+        const trendLabel = timeFrame === "all" ? "vs. Vormonat" : "vs. Vorperiode"
+
+        const trends = {
+            label: trendLabel,
+            avgRating:       base.length > 0 && prev ? avgRating - prev.avgRating : null,
+            count:           base.length > 0 && prev ? base.length - prev.count : null,
+            satisfactionRate: base.length > 0 && prev ? satisfactionRate - prev.satisfactionRate : null,
+            fairQuote:       base.length > 0 && prev ? fairQuote - prev.fairQuote : null,
+        }
+
+        return { avgRating, satisfactionRate, ratingDist, valueCounts, topValueDriver, countsByBucket, fairQuote, trends }
+    }, [feedback, timeFilteredFeedback, timeFrame])
 
     const filteredFeedback = useMemo(() => {
         const q = searchQuery.toLowerCase()
-        return feedback
+        return timeFilteredFeedback
             .filter(f => {
                 if (ratingFilter !== null && f.rating !== ratingFilter) return false
                 if (!q) return true
@@ -312,10 +381,30 @@ export default function FeedbackDashboard() {
                 if (sortBy === "worst") return a.rating - b.rating
                 return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             })
-    }, [feedback, searchQuery, ratingFilter, sortBy])
+    }, [timeFilteredFeedback, searchQuery, ratingFilter, sortBy])
 
     const totalPages = Math.ceil(filteredFeedback.length / PAGE_SIZE)
     const pagedFeedback = filteredFeedback.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+
+    const dateRangeLabel = useMemo(() => {
+        const tf = TIME_FRAMES.find(t => t.value === timeFrame)!
+        if (tf.days === null) {
+            if (feedback.length === 0) return "Alle Zeiten"
+            const sorted = [...feedback].sort((a, b) =>
+                new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            )
+            return `${format(new Date(sorted[0].created_at), "dd. MMM yyyy", { locale: de })} – ${format(new Date(), "dd. MMM yyyy", { locale: de })}`
+        }
+        return `${format(subDays(new Date(), tf.days), "dd. MMM", { locale: de })} – ${format(new Date(), "dd. MMM yyyy", { locale: de })}`
+    }, [timeFrame, feedback])
+
+    const healthStatus = useMemo(() => {
+        if (!stats || timeFilteredFeedback.length === 0) return null
+        if (stats.avgRating >= 4.5) return { label: "Ausgezeichnet", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" }
+        if (stats.avgRating >= 4.0) return { label: "Gut", cls: "bg-green-500/15 text-green-400 border-green-500/25" }
+        if (stats.avgRating >= 3.0) return { label: "Okay", cls: "bg-amber-500/15 text-amber-400 border-amber-500/25" }
+        return { label: "Kritisch", cls: "bg-red-500/15 text-red-400 border-red-500/25" }
+    }, [stats, timeFilteredFeedback.length])
 
     if (loading) {
         return (
@@ -332,11 +421,40 @@ export default function FeedbackDashboard() {
             <div className="max-w-[1100px] mx-auto space-y-5 pb-12 px-4 md:px-6 pt-6">
 
                 {/* Page header */}
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Kundenfeedback</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        Zufriedenheit, Preisempfinden und alle Bewertungen auf einen Blick
-                    </p>
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-2xl font-bold tracking-tight">Kundenfeedback</h1>
+                            {healthStatus && (
+                                <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", healthStatus.cls)}>
+                                    {healthStatus.label}
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                            Zufriedenheit, Preisempfinden und alle Bewertungen auf einen Blick
+                        </p>
+                    </div>
+                    {/* Timeframe selector */}
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-1 border border-border/30">
+                            {TIME_FRAMES.map(tf => (
+                                <button
+                                    key={tf.value}
+                                    onClick={() => setTimeFrame(tf.value)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                                        timeFrame === tf.value
+                                            ? "bg-background text-foreground shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    {tf.label}
+                                </button>
+                            ))}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground/50 tabular-nums">{dateRangeLabel}</p>
+                    </div>
                 </div>
 
                 {/* Empty state */}
@@ -364,20 +482,25 @@ export default function FeedbackDashboard() {
                                     <p className="text-xs text-muted-foreground mb-2">Ø Bewertung</p>
                                     <div className="flex items-end gap-1.5">
                                         <span className="text-3xl font-bold tabular-nums tracking-tight">
-                                            {stats!.avgRating.toFixed(1)}
+                                            {timeFilteredFeedback.length > 0 ? stats!.avgRating.toFixed(1) : "—"}
                                         </span>
-                                        <Star className="h-5 w-5 fill-amber-400 text-amber-400 mb-0.5" />
+                                        {timeFilteredFeedback.length > 0 && (
+                                            <Star className="h-5 w-5 fill-amber-400 text-amber-400 mb-0.5" />
+                                        )}
                                     </div>
-                                    <div className="flex gap-0.5 mt-1.5">
-                                        {[1, 2, 3, 4, 5].map(s => (
-                                            <Star key={s} className={cn(
-                                                "h-3 w-3",
-                                                s <= Math.round(stats!.avgRating)
-                                                    ? "fill-amber-400 text-amber-400"
-                                                    : "text-muted-foreground/20 fill-muted/10"
-                                            )} />
-                                        ))}
-                                    </div>
+                                    {timeFilteredFeedback.length > 0 && (
+                                        <div className="flex gap-0.5 mt-1.5">
+                                            {[1, 2, 3, 4, 5].map(s => (
+                                                <Star key={s} className={cn(
+                                                    "h-3 w-3",
+                                                    s <= Math.round(stats!.avgRating)
+                                                        ? "fill-amber-400 text-amber-400"
+                                                        : "text-muted-foreground/20 fill-muted/10"
+                                                )} />
+                                            ))}
+                                        </div>
+                                    )}
+                                    <TrendLine value={stats!.trends.avgRating} format="decimal" label={stats!.trends.label} />
                                 </CardContent>
                             </Card>
 
@@ -386,24 +509,14 @@ export default function FeedbackDashboard() {
                                     <p className="text-xs text-muted-foreground mb-2">Bewertungen</p>
                                     <div className="flex items-end gap-1.5">
                                         <span className="text-3xl font-bold tabular-nums tracking-tight">
-                                            {feedback.length}
+                                            {timeFilteredFeedback.length}
                                         </span>
                                         <Users className="h-4 w-4 text-muted-foreground mb-0.5" />
                                     </div>
-                                    {stats!.trendDiff !== null && (
-                                        <p className={cn(
-                                            "text-xs mt-1.5 flex items-center gap-1",
-                                            stats!.trendDiff > 0.05 ? "text-emerald-500" :
-                                            stats!.trendDiff < -0.05 ? "text-red-400" :
-                                            "text-muted-foreground"
-                                        )}>
-                                            {stats!.trendDiff > 0.05
-                                                ? <TrendingUp className="h-3 w-3" />
-                                                : stats!.trendDiff < -0.05
-                                                    ? <TrendingDown className="h-3 w-3" />
-                                                    : <Minus className="h-3 w-3" />
-                                            }
-                                            {stats!.trendDiff > 0 ? "+" : ""}{stats!.trendDiff.toFixed(1)} vs. Vormonat
+                                    <TrendLine value={stats!.trends.count} format="count" label={stats!.trends.label} />
+                                    {stats!.trends.count === null && (
+                                        <p className="text-[10px] text-muted-foreground/40 mt-1.5">
+                                            {feedback.length} gesamt
                                         </p>
                                     )}
                                 </CardContent>
@@ -414,10 +527,21 @@ export default function FeedbackDashboard() {
                                     <p className="text-xs text-muted-foreground mb-2">Zufriedenheitsrate</p>
                                     <div className="flex items-end gap-1.5">
                                         <span className="text-3xl font-bold tabular-nums tracking-tight">
-                                            {Math.round(stats!.satisfactionRate * 100)}%
+                                            {timeFilteredFeedback.length > 0 ? `${Math.round(stats!.satisfactionRate * 100)}%` : "—"}
                                         </span>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-1.5">Anteil 4★ und besser</p>
+                                    {timeFilteredFeedback.length > 0 && (
+                                        <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                                                style={{ width: `${Math.round(stats!.satisfactionRate * 100)}%` }}
+                                            />
+                                        </div>
+                                    )}
+                                    <TrendLine value={stats!.trends.satisfactionRate} format="percent" label={stats!.trends.label} />
+                                    {stats!.trends.satisfactionRate === null && (
+                                        <p className="text-xs text-muted-foreground mt-1.5">Anteil 4★ und besser</p>
+                                    )}
                                 </CardContent>
                             </Card>
 
@@ -426,144 +550,175 @@ export default function FeedbackDashboard() {
                                     <p className="text-xs text-muted-foreground mb-2">Fair-Quote</p>
                                     <div className="flex items-end gap-1.5">
                                         <span className="text-3xl font-bold tabular-nums tracking-tight">
-                                            {Math.round(stats!.fairQuote * 100)}%
+                                            {timeFilteredFeedback.length > 0 ? `${Math.round(stats!.fairQuote * 100)}%` : "—"}
                                         </span>
-                                        {stats!.fairQuote > 0.6 && (
-                                            <TrendingUp className="h-4 w-4 text-emerald-500 mb-0.5" />
-                                        )}
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-1.5">Preis als fair oder günstiger</p>
-                                </CardContent>
-                            </Card>
-
-                        </div>
-
-                        {/* ── 2. Insight Cards ── */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-                            {/* Rating Distribution — clickable to filter list */}
-                            <Card>
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-sm font-medium">Bewertungsverteilung</CardTitle>
-                                    <p className="text-xs text-muted-foreground">Klicke auf eine Zeile um zu filtern</p>
-                                </CardHeader>
-                                <CardContent className="space-y-1.5">
-                                    {[5, 4, 3, 2, 1].map(r => {
-                                        const item = stats!.ratingDist.find(d => d.rating === r)
-                                        const count = item?.count || 0
-                                        const pct = feedback.length > 0 ? (count / feedback.length) * 100 : 0
-                                        const active = ratingFilter === r
-                                        return (
-                                            <button
-                                                key={r}
-                                                onClick={() => setRatingFilter(active ? null : r)}
-                                                className={cn(
-                                                    "w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors text-left",
-                                                    active ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-muted/40"
-                                                )}
-                                            >
-                                                <span className="text-xs font-medium text-muted-foreground w-3 tabular-nums text-right shrink-0">{r}</span>
-                                                <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
-                                                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                    <div
-                                                        className={cn(
-                                                            "h-full rounded-full transition-all duration-700",
-                                                            r === 5 ? "bg-emerald-500" :
-                                                            r === 4 ? "bg-green-500" :
-                                                            r === 3 ? "bg-amber-500" :
-                                                            r === 2 ? "bg-orange-500" : "bg-red-500"
-                                                        )}
-                                                        style={{ width: `${pct}%` }}
-                                                    />
-                                                </div>
-                                                <span className="text-xs text-muted-foreground tabular-nums w-6 text-right shrink-0">{count}</span>
-                                                <span className="text-xs text-muted-foreground/40 tabular-nums w-9 text-right shrink-0">{pct.toFixed(0)}%</span>
-                                            </button>
-                                        )
-                                    })}
-                                    {ratingFilter !== null && (
-                                        <button
-                                            onClick={() => setRatingFilter(null)}
-                                            className="w-full text-xs text-primary/60 hover:text-primary pt-1 text-center transition-colors"
-                                        >
-                                            Filter zurücksetzen
-                                        </button>
+                                    {timeFilteredFeedback.length > 0 && (
+                                        <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-blue-500 rounded-full transition-all duration-700"
+                                                style={{ width: `${Math.round(stats!.fairQuote * 100)}%` }}
+                                            />
+                                        </div>
+                                    )}
+                                    <TrendLine value={stats!.trends.fairQuote} format="percent" label={stats!.trends.label} />
+                                    {stats!.trends.fairQuote === null && (
+                                        <p className="text-xs text-muted-foreground mt-1.5">Preis als fair oder günstiger</p>
                                     )}
                                 </CardContent>
                             </Card>
 
-                            <div className="flex flex-col gap-4">
+                        </div>
 
-                                {/* Value Drivers */}
+                        {/* No data in period hint */}
+                        {timeFilteredFeedback.length === 0 && (
+                            <Card className="border-dashed border-border/40">
+                                <CardContent className="py-10 text-center">
+                                    <p className="text-sm text-muted-foreground">Kein Feedback im gewählten Zeitraum.</p>
+                                    <button
+                                        onClick={() => setTimeFrame("all")}
+                                        className="mt-2 text-xs text-primary/60 hover:text-primary transition-colors"
+                                    >
+                                        Gesamten Zeitraum anzeigen
+                                    </button>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        {/* ── 2. Insight Cards ── */}
+                        {timeFilteredFeedback.length > 0 && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="md:col-span-2 flex items-center gap-2">
+                                <p className="text-xs text-muted-foreground/50 font-medium uppercase tracking-wider">Analyse</p>
+                                <span className="text-xs text-muted-foreground/40">·</span>
+                                <p className="text-xs text-muted-foreground/40 tabular-nums">{dateRangeLabel}</p>
+                            </div>
+
+                                {/* Rating Distribution */}
                                 <Card>
                                     <CardHeader className="pb-3">
-                                        <CardTitle className="text-sm font-medium">Was Kunden schätzen</CardTitle>
+                                        <CardTitle className="text-sm font-medium">Bewertungsverteilung</CardTitle>
+                                        <p className="text-xs text-muted-foreground">Klicke auf eine Zeile um zu filtern</p>
                                     </CardHeader>
-                                    <CardContent className="space-y-3">
-                                        {Object.entries(VALUE_DRIVER_LABELS).map(([key, label]) => {
-                                            const count = stats!.valueCounts[key] || 0
-                                            const pct = feedback.length > 0 ? (count / feedback.length) * 100 : 0
-                                            const isTop = key === stats!.topValueDriver
-                                            const Icon = VALUE_DRIVER_ICONS[key] || CheckCircle2
+                                    <CardContent className="space-y-1.5">
+                                        {[5, 4, 3, 2, 1].map(r => {
+                                            const item = stats!.ratingDist.find(d => d.rating === r)
+                                            const count = item?.count || 0
+                                            const pct = timeFilteredFeedback.length > 0 ? (count / timeFilteredFeedback.length) * 100 : 0
+                                            const active = ratingFilter === r
                                             return (
-                                                <div key={key} className="flex items-center gap-3">
-                                                    <Icon className={cn(
-                                                        "h-4 w-4 shrink-0",
-                                                        isTop ? "text-primary" : "text-muted-foreground/35"
-                                                    )} />
-                                                    <span className={cn(
-                                                        "text-xs w-24 shrink-0",
-                                                        isTop ? "font-medium text-foreground" : "text-muted-foreground"
-                                                    )}>
-                                                        {label}
-                                                    </span>
+                                                <button
+                                                    key={r}
+                                                    onClick={() => setRatingFilter(active ? null : r)}
+                                                    className={cn(
+                                                        "w-full flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors text-left",
+                                                        active ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-muted/40"
+                                                    )}
+                                                >
+                                                    <span className="text-xs font-medium text-muted-foreground w-3 tabular-nums text-right shrink-0">{r}</span>
+                                                    <Star className="h-3 w-3 fill-amber-400 text-amber-400 shrink-0" />
                                                     <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                                                         <div
                                                             className={cn(
                                                                 "h-full rounded-full transition-all duration-700",
-                                                                isTop ? "bg-primary" : "bg-muted-foreground/25"
+                                                                r === 5 ? "bg-emerald-500" :
+                                                                r === 4 ? "bg-green-500" :
+                                                                r === 3 ? "bg-amber-500" :
+                                                                r === 2 ? "bg-orange-500" : "bg-red-500"
                                                             )}
                                                             style={{ width: `${pct}%` }}
                                                         />
                                                     </div>
-                                                    <span className="text-xs tabular-nums text-muted-foreground w-8 text-right shrink-0">
-                                                        {Math.round(pct)}%
-                                                    </span>
-                                                </div>
+                                                    <span className="text-xs text-muted-foreground tabular-nums w-6 text-right shrink-0">{count}</span>
+                                                    <span className="text-xs text-muted-foreground/40 tabular-nums w-9 text-right shrink-0">{pct.toFixed(0)}%</span>
+                                                </button>
                                             )
                                         })}
+                                        {ratingFilter !== null && (
+                                            <button
+                                                onClick={() => setRatingFilter(null)}
+                                                className="w-full text-xs text-primary/60 hover:text-primary pt-1 text-center transition-colors"
+                                            >
+                                                Filter zurücksetzen
+                                            </button>
+                                        )}
                                     </CardContent>
                                 </Card>
 
-                                {/* Price Perception */}
-                                <Card>
-                                    <CardHeader className="pb-3">
-                                        <CardTitle className="text-sm font-medium">Preiswahrnehmung</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            {[
-                                                { key: "positive", label: "Günstig", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
-                                                { key: "neutral",  label: "Fair",    color: "text-blue-400",    bg: "bg-blue-500/10 border-blue-500/20" },
-                                                { key: "negative", label: "Teuer",   color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/20" },
-                                            ].map(b => {
-                                                const count = stats!.countsByBucket[b.key]
-                                                const total = feedback.filter(f => f.price_perception).length
-                                                const pct = total > 0 ? Math.round((count / total) * 100) : 0
+                                <div className="flex flex-col gap-4">
+
+                                    {/* Value Drivers */}
+                                    <Card>
+                                        <CardHeader className="pb-3">
+                                            <CardTitle className="text-sm font-medium">Was Kunden schätzen</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3">
+                                            {Object.entries(VALUE_DRIVER_LABELS).map(([key, label]) => {
+                                                const count = stats!.valueCounts[key] || 0
+                                                const pct = timeFilteredFeedback.length > 0 ? (count / timeFilteredFeedback.length) * 100 : 0
+                                                const isTop = key === stats!.topValueDriver
+                                                const Icon = VALUE_DRIVER_ICONS[key] || CheckCircle2
                                                 return (
-                                                    <div key={b.key} className={cn("rounded-xl p-3 border text-center", b.bg)}>
-                                                        <p className={cn("text-xl font-bold tabular-nums", b.color)}>{pct}%</p>
-                                                        <p className="text-xs text-muted-foreground mt-0.5">{b.label}</p>
-                                                        <p className="text-[10px] text-muted-foreground/50 mt-0.5">{count} Stimmen</p>
+                                                    <div key={key} className="flex items-center gap-3">
+                                                        <Icon className={cn(
+                                                            "h-4 w-4 shrink-0",
+                                                            isTop ? "text-primary" : "text-muted-foreground/35"
+                                                        )} />
+                                                        <span className={cn(
+                                                            "text-xs w-24 shrink-0",
+                                                            isTop ? "font-medium text-foreground" : "text-muted-foreground"
+                                                        )}>
+                                                            {label}
+                                                        </span>
+                                                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                            <div
+                                                                className={cn(
+                                                                    "h-full rounded-full transition-all duration-700",
+                                                                    isTop ? "bg-primary" : "bg-muted-foreground/25"
+                                                                )}
+                                                                style={{ width: `${pct}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-xs tabular-nums text-muted-foreground w-16 text-right shrink-0">
+                                                            <span className={cn(isTop ? "text-foreground font-medium" : "")}>{Math.round(pct)}%</span>
+                                                            <span className="text-muted-foreground/40 ml-1">({count})</span>
+                                                        </span>
                                                     </div>
                                                 )
                                             })}
-                                        </div>
-                                    </CardContent>
-                                </Card>
+                                        </CardContent>
+                                    </Card>
 
+                                    {/* Price Perception */}
+                                    <Card>
+                                        <CardHeader className="pb-3">
+                                            <CardTitle className="text-sm font-medium">Preiswahrnehmung</CardTitle>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {[
+                                                    { key: "positive", label: "Günstig", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+                                                    { key: "neutral",  label: "Fair",    color: "text-blue-400",    bg: "bg-blue-500/10 border-blue-500/20" },
+                                                    { key: "negative", label: "Teuer",   color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/20" },
+                                                ].map(b => {
+                                                    const count = stats!.countsByBucket[b.key]
+                                                    const total = timeFilteredFeedback.filter(f => f.price_perception).length
+                                                    const pct = total > 0 ? Math.round((count / total) * 100) : 0
+                                                    return (
+                                                        <div key={b.key} className={cn("rounded-xl p-3 border text-center", b.bg)}>
+                                                            <p className={cn("text-xl font-bold tabular-nums", b.color)}>{pct}%</p>
+                                                            <p className="text-xs text-muted-foreground mt-0.5">{b.label}</p>
+                                                            <p className="text-[10px] text-muted-foreground/50 mt-0.5">{count} Stimmen</p>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* ── 3. Reviews List ── */}
                         <Card>
@@ -575,9 +730,9 @@ export default function FeedbackDashboard() {
                                             Alle Bewertungen
                                         </CardTitle>
                                         <p className="text-xs text-muted-foreground mt-0.5">
-                                            {filteredFeedback.length !== feedback.length
-                                                ? `${filteredFeedback.length} von ${feedback.length} angezeigt`
-                                                : `${feedback.length} Einträge`
+                                            {filteredFeedback.length !== timeFilteredFeedback.length
+                                                ? `${filteredFeedback.length} von ${timeFilteredFeedback.length} angezeigt`
+                                                : `${timeFilteredFeedback.length} Einträge`
                                             }
                                         </p>
                                     </div>
@@ -627,7 +782,7 @@ export default function FeedbackDashboard() {
                                 <div className="flex items-center gap-4 text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider">
                                     <span className="w-[72px] shrink-0">Rating</span>
                                     <span className="w-[150px] shrink-0">Auftrag</span>
-                                    <span className="w-[150px] shrink-0">Kunde</span>
+                                    <span className="w-[150px] shrink-0">Kunde · Datum</span>
                                     <span className="w-[110px] shrink-0">Preis</span>
                                     <span className="flex-1">Kommentar</span>
                                 </div>
