@@ -49,10 +49,7 @@ const NEGATIVE_ASPECTS = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Returns steps depending on rating bucket */
-function getTotalSteps() {
-    return 4 // 1: Rating, 2: Price, 3: Aspects, 4: Comment
-}
+const TOTAL_STEPS = 4 // 1: Rating, 2: Price, 3: Aspects, 4: Comment
 
 const STAR_LABELS = ["", "Nicht so toll", "Ausbaufähig", "In Ordnung", "War gut!", "Perfekt! 🎉"]
 
@@ -215,13 +212,12 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
 
     // ── Main Form ────────────────────────────────────────────────────────────
 
-    const totalSteps = getTotalSteps()
+    const totalSteps = TOTAL_STEPS
     const displayRating = hoverRating || rating
 
     // Form verification
     const step2Valid = priceRating > 0
     const step3Valid = selectedAspects.length > 0
-    const commentValid = true
 
     return (
         <motion.div
@@ -480,7 +476,7 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
                     {/* ── Step 4: Comment ── */}
                     {step === 4 && (
                         <motion.div
-                            key="step3"
+                            key="step4"
                             initial={{ opacity: 0, x: 16 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -16 }}
@@ -536,7 +532,7 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
                                 </Button>
                                 <Button
                                     onClick={handleSubmit}
-                                    disabled={isSubmitting || !commentValid}
+                                    disabled={isSubmitting}
                                     className="flex-[2] font-bold rounded-xl h-11"
                                 >
                                     {isSubmitting ? (

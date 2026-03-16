@@ -602,7 +602,7 @@ export default function ServiceModePage() {
             doc.setFont("helvetica", "normal")
             doc.setTextColor(130, 130, 130)
 
-            let metaParts = []
+            const metaParts = []
 
             // If completed, show timestamp
             if (item.completed) {
