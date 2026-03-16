@@ -9,7 +9,6 @@ import {
     TrendingUp,
     TrendingDown,
     Users,
-    ChevronDown,
     ChevronLeft,
     ChevronRight,
     ShieldCheck,
@@ -111,20 +110,6 @@ function computeMetrics(data: any[]) {
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
-function RatingBadge({ rating }: { rating: number }) {
-    const cls =
-        rating >= 4.5 ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25" :
-        rating >= 4   ? "bg-green-500/15 text-green-400 border-green-500/25" :
-        rating >= 3   ? "bg-amber-500/15 text-amber-400 border-amber-500/25" :
-        rating >= 2   ? "bg-orange-500/15 text-orange-400 border-orange-500/25" :
-                        "bg-red-500/15 text-red-400 border-red-500/25"
-    return (
-        <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-bold tabular-nums", cls)}>
-            {rating.toFixed(1)}
-            <Star className="h-2.5 w-2.5 fill-current" />
-        </span>
-    )
-}
 
 function TrendLine({
     value,
@@ -159,102 +144,117 @@ function TrendLine({
     )
 }
 
-function ReviewRow({ item }: { item: any }) {
+function ReviewCard({ item }: { item: any }) {
     const [expanded, setExpanded] = useState(false)
     const hasComment = !!item.comment
+    const isLongComment = item.comment && item.comment.length > 200
     const drivers: string[] = item.main_value
         ? item.main_value.split(',').map((v: string) => v.trim()).filter(Boolean)
         : []
-    const expandable = hasComment || drivers.length > 0
 
-    const accentColor =
+    const accentBar =
         item.rating >= 4.5 ? "bg-emerald-500" :
         item.rating >= 4   ? "bg-green-500" :
         item.rating >= 3   ? "bg-amber-500" :
         item.rating >= 2   ? "bg-orange-500" : "bg-red-500"
 
+    const ratingColor =
+        item.rating >= 4.5 ? "text-emerald-400" :
+        item.rating >= 4   ? "text-green-400" :
+        item.rating >= 3   ? "text-amber-400" :
+        item.rating >= 2   ? "text-orange-400" : "text-red-400"
+
     return (
-        <div
-            className={cn(
-                "relative border-b border-border/40 last:border-0 transition-colors group",
-                expandable ? "cursor-pointer hover:bg-muted/20" : "cursor-default"
-            )}
-            onClick={() => expandable && setExpanded(v => !v)}
-        >
-            <div className={cn("absolute left-0 top-0 bottom-0 w-[3px]", accentColor)} />
-            <div className="flex items-center gap-4 px-5 py-3 pl-5">
-                <div className="shrink-0 w-[72px] pl-2">
-                    <RatingBadge rating={item.rating} />
-                </div>
-                <div className="shrink-0 w-[150px]">
-                    <p className="text-sm font-medium text-foreground leading-tight">
-                        #{item.order?.order_number || item.id.substring(0, 8)}
-                    </p>
-                    {item.order?.bike_model && (
-                        <p className="text-xs text-muted-foreground truncate max-w-[140px]">
-                            {item.order.bike_model}
-                        </p>
-                    )}
-                </div>
-                <div className="shrink-0 w-[150px]">
-                    <p className="text-sm text-foreground/80 truncate">
-                        {item.order?.customer_name ?? (
-                            <span className="text-muted-foreground/30 text-xs">—</span>
-                        )}
-                    </p>
-                    <p className="text-xs text-muted-foreground/50 tabular-nums">
+        <div className="rounded-xl border border-border/50 bg-card flex flex-col overflow-hidden">
+            {/* Colored accent stripe */}
+            <div className={cn("h-[3px] w-full shrink-0", accentBar)} />
+
+            <div className="flex flex-col gap-3 p-4 flex-1">
+                {/* Rating + date */}
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <span className={cn("text-2xl font-bold tabular-nums leading-none", ratingColor)}>
+                            {item.rating.toFixed(1)}
+                        </span>
+                        <div className="flex gap-0.5">
+                            {[1, 2, 3, 4, 5].map(s => (
+                                <Star key={s} className={cn(
+                                    "h-3 w-3",
+                                    s <= item.rating
+                                        ? "fill-amber-400 text-amber-400"
+                                        : "text-muted-foreground/15 fill-transparent"
+                                )} />
+                            ))}
+                        </div>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/40 tabular-nums shrink-0">
                         {format(new Date(item.created_at), "dd. MMM yyyy", { locale: de })}
                     </p>
                 </div>
-                <div className="shrink-0 w-[110px]">
-                    {item.price_perception ? (
-                        <Badge variant="secondary" className="text-[10px] h-5 px-2 whitespace-nowrap">
-                            {PRICE_LABEL[item.price_perception]}
-                        </Badge>
-                    ) : (
-                        <span className="text-muted-foreground/25 text-xs">—</span>
-                    )}
-                </div>
-                <div className="flex-1 min-w-0">
+
+                {/* Comment — the main content */}
+                <div className="flex-1">
                     {hasComment ? (
-                        <p className="text-sm text-muted-foreground line-clamp-1 italic">
-                            „{item.comment}"
-                        </p>
+                        <div>
+                            <p className={cn(
+                                "text-sm text-foreground/75 italic leading-relaxed",
+                                !expanded && "line-clamp-4"
+                            )}>
+                                „{item.comment}"
+                            </p>
+                            {isLongComment && (
+                                <button
+                                    onClick={() => setExpanded(v => !v)}
+                                    className="text-xs text-primary/50 hover:text-primary mt-1.5 transition-colors"
+                                >
+                                    {expanded ? "Weniger" : "Mehr lesen"}
+                                </button>
+                            )}
+                        </div>
                     ) : (
-                        <span className="text-xs text-muted-foreground/25 italic">Kein Kommentar</span>
+                        <p className="text-xs text-muted-foreground/25 italic">Kein Kommentar hinterlassen</p>
                     )}
                 </div>
-                <div className="shrink-0 w-5">
-                    {expandable && (
-                        <ChevronDown className={cn(
-                            "h-4 w-4 text-muted-foreground/30 transition-transform duration-200",
-                            "group-hover:text-muted-foreground/60",
-                            expanded && "rotate-180 text-muted-foreground/60"
-                        )} />
+
+                {/* Badges */}
+                {(item.price_perception || drivers.length > 0) && (
+                    <div className="flex flex-wrap gap-1">
+                        {item.price_perception && (
+                            <Badge variant="secondary" className="text-[10px] h-5 px-2">
+                                {PRICE_LABEL[item.price_perception]}
+                            </Badge>
+                        )}
+                        {drivers.map((v: string) => (
+                            <Badge key={v} variant="outline" className="text-[10px] h-5 px-2 text-muted-foreground/70">
+                                {VALUE_DRIVER_LABELS[v] || v}
+                            </Badge>
+                        ))}
+                    </div>
+                )}
+
+                {/* Footer: customer · order · bike */}
+                <div className="pt-2.5 border-t border-border/30 flex items-center gap-1.5 min-w-0 overflow-hidden">
+                    {item.order?.customer_name && (
+                        <>
+                            <p className="text-xs font-medium text-foreground/50 truncate shrink-0 max-w-[120px]">
+                                {item.order.customer_name}
+                            </p>
+                            <span className="text-muted-foreground/20 shrink-0">·</span>
+                        </>
+                    )}
+                    <span className="text-[11px] text-muted-foreground/35 shrink-0">
+                        #{item.order?.order_number || item.id.substring(0, 8)}
+                    </span>
+                    {item.order?.bike_model && (
+                        <>
+                            <span className="text-muted-foreground/20 shrink-0">·</span>
+                            <span className="text-[11px] text-muted-foreground/35 truncate">
+                                {item.order.bike_model}
+                            </span>
+                        </>
                     )}
                 </div>
             </div>
-
-            {expanded && (
-                <div className="px-6 pb-4 pt-2 pl-8 bg-muted/10 border-t border-border/30">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                        {hasComment && (
-                            <p className="flex-1 text-sm text-foreground/70 italic leading-relaxed">
-                                „{item.comment}"
-                            </p>
-                        )}
-                        {drivers.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 shrink-0 content-start">
-                                {drivers.map((v: string) => (
-                                    <Badge key={v} variant="outline" className="text-[10px] h-5 px-2">
-                                        {VALUE_DRIVER_LABELS[v] || v}
-                                    </Badge>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     )
 }
@@ -777,24 +777,15 @@ export default function FeedbackDashboard() {
                                 </div>
                             </CardHeader>
 
-                            {/* Column headers */}
-                            <div className="px-5 py-2 pl-8 bg-muted/20 border-b border-border/30">
-                                <div className="flex items-center gap-4 text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider">
-                                    <span className="w-[72px] shrink-0">Rating</span>
-                                    <span className="w-[150px] shrink-0">Auftrag</span>
-                                    <span className="w-[150px] shrink-0">Kunde · Datum</span>
-                                    <span className="w-[110px] shrink-0">Preis</span>
-                                    <span className="flex-1">Kommentar</span>
-                                </div>
-                            </div>
-
-                            <CardContent className="p-0">
+                            <CardContent className="p-4">
                                 {pagedFeedback.length === 0 ? (
                                     <div className="py-16 text-center">
                                         <p className="text-sm text-muted-foreground">Keine Bewertungen für diese Auswahl.</p>
                                     </div>
                                 ) : (
-                                    pagedFeedback.map(item => <ReviewRow key={item.id} item={item} />)
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {pagedFeedback.map(item => <ReviewCard key={item.id} item={item} />)}
+                                    </div>
                                 )}
                             </CardContent>
 
