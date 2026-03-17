@@ -34,7 +34,8 @@ export function WorkshopSettings({ workshopId, onSaveSuccess }: WorkshopSettings
         tax_id: '',
         ust_id: '',
         footer_text: '',
-        terms_text: ''
+        terms_text: '',
+        google_review_url: ''
     })
 
     useEffect(() => {
@@ -70,7 +71,8 @@ export function WorkshopSettings({ workshopId, onSaveSuccess }: WorkshopSettings
                 tax_id: data.tax_id || '',
                 ust_id: data.ust_id || '',
                 footer_text: data.footer_text || '',
-                terms_text: data.terms_text || ''
+                terms_text: data.terms_text || '',
+                google_review_url: data.google_review_url || ''
             })
         }
         setLoading(false)
@@ -95,6 +97,7 @@ export function WorkshopSettings({ workshopId, onSaveSuccess }: WorkshopSettings
                 ust_id: form.ust_id,
                 footer_text: form.footer_text,
                 terms_text: form.terms_text,
+                google_review_url: form.google_review_url,
                 updated_at: new Date().toISOString()
             })
             .eq('id', workshopId)
@@ -261,6 +264,23 @@ export function WorkshopSettings({ workshopId, onSaveSuccess }: WorkshopSettings
                                 className="min-h-[100px]"
                             />
                             <p className="text-xs text-muted-foreground">Wird auf Dokumenten und im Selbst-Check-In angezeigt.</p>
+                        </div>
+                    </div>
+
+                    <div className="border-t pt-6 mt-6">
+                        <h3 className="text-lg font-medium mb-4">Kundenfeedback</h3>
+                        <div className="space-y-2">
+                            <Label htmlFor="workshop-google-review">Google-Bewertungslink</Label>
+                            <Input
+                                id="workshop-google-review"
+                                value={form.google_review_url}
+                                onChange={(e) => setForm({ ...form, google_review_url: e.target.value })}
+                                placeholder="https://g.page/r/..."
+                            />
+                            <p className="text-xs text-muted-foreground">Der Link wird zufriedenen Kunden angeboten.</p>
+                            <p className="text-xs text-muted-foreground bg-primary/5 p-2 rounded-lg border border-primary/10 mt-2">
+                                💡 <strong>Wo finde ich meinen Link?</strong> Suchen Sie Ihr Unternehmen auf Google, klicken Sie auf das Icon "Nach Rezensionen fragen" und kopieren Sie den dort angezeigten Link.
+                            </p>
                         </div>
                     </div>
 
