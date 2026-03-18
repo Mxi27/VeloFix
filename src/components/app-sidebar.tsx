@@ -157,6 +157,22 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
 
                 <SidebarGroup>
                     <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
+                        Kommunikation
+                    </SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu className="space-y-0.5">
+                            {[
+                                { title: "Notizbuch", icon: BookOpen, href: "/dashboard/notebook" },
+                                { title: "Feedback", icon: Star, href: "/dashboard/feedback" },
+                            ].map((item) => (
+                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
+                            ))}
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+
+                <SidebarGroup>
+                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
                         Verwaltung
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
@@ -181,29 +197,6 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                                     />
                                 </>
                             )}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarGroup>
-                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
-                        Kommunikation
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu className="space-y-0.5">
-                            {[
-                                { title: "Notizbuch", icon: BookOpen, href: "/dashboard/notebook" },
-                                { title: "Feedback", icon: Star, href: "/dashboard/feedback" },
-                            ].map((item) => (
-                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarGroup className="mt-auto">
-                    <SidebarGroupContent>
-                        <SidebarMenu>
                             <SidebarItem 
                                 item={{ title: "Einstellungen", icon: Settings, href: "/settings" }} 
                                 location={location} 
@@ -212,6 +205,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
+
             </SidebarContent>
 
             <SidebarFooter className="border-t p-2">
