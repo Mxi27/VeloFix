@@ -84,6 +84,8 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+
 import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
@@ -150,6 +152,8 @@ interface Order {
     mechanic_ids: string[] | null // Array of UUIDs
     qc_mechanic_id: string | null
     due_date: string | null
+    email_status?: 'pending' | 'sent' | 'failed' | null
+    email_error?: string | null
 }
 
 
@@ -455,7 +459,9 @@ export default function OrderDetailPage() {
                             notes: newOrder.notes,
                             leasing_code: newOrder.leasing_code,
                             final_price: newOrder.final_price,
-                            tags: newOrder.tags
+                            tags: newOrder.tags,
+                            email_status: newOrder.email_status,
+                            email_error: newOrder.email_error
                             // updated_at not strictly needed or in interface
                         } as Order
                     })
@@ -1242,6 +1248,28 @@ export default function OrderDetailPage() {
         <PageTransition>
             <DashboardLayout>
                 <div className="space-y-6 pb-8">
+
+                    {order.email_status === 'failed' && (
+                        <Alert variant="destructive" className="relative pr-12 bg-destructive/5 text-destructive border-destructive/20 shadow-sm">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle className="font-semibold">Fehler beim E-Mail-Versand</AlertTitle>
+                            <AlertDescription className="mt-1 text-destructive/90">
+                                Die automatische Benachrichtigung an den Kunden konnte nicht verschickt werden.<br />
+                                <strong className="font-semibold">Grund:</strong> {order.email_error?.split('Error: ')[1] || order.email_error || 'Unbekannter Fehler'}
+                            </AlertDescription>
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="absolute top-2 right-2 h-6 w-6 rounded-full hover:bg-destructive/10 text-destructive transition-colors"
+                                onClick={async () => {
+                                    setOrder(prev => prev ? { ...prev, email_status: null, email_error: null } : null);
+                                    await supabase.from('orders').update({ email_status: null, email_error: null }).eq('id', order.id);
+                                }}
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </Alert>
+                    )}
 
                     {/* ── Hero Header ─────────────────────────────────────────── */}
                     <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card">
