@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { DashboardLayout } from '@/layouts/DashboardLayout'
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PageTransition } from '@/components/PageTransition'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -49,10 +49,13 @@ import {
     Wrench,
     MessageSquare,
     Tag,
+    Archive,
+    Trash2,
+    LogOut,
+    X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-
+import { OrdersTable } from '@/components/OrdersTable'
 
 type SettingsSection =
     | 'profile'
@@ -69,6 +72,10 @@ type SettingsSection =
     | 'data_archive'
     | 'export'
     | 'tags'
+    | 'archive'
+    | 'leasing_billing'
+    | 'trash'
+    | 'logout'
 
 interface NavItem {
     id: SettingsSection
@@ -90,6 +97,7 @@ const navGroups: NavGroup[] = [
             { id: 'display', label: 'Darstellung', icon: Palette },
             { id: 'notifications', label: 'Benachrichtigungen', icon: Bell },
             { id: 'security', label: 'Sicherheit', icon: Shield },
+            { id: 'logout', label: 'Abmelden', icon: LogOut },
         ],
     },
     {
@@ -108,6 +116,9 @@ const navGroups: NavGroup[] = [
     {
         label: 'System',
         items: [
+            { id: 'archive', label: 'Reparatur Archiv', icon: Archive },
+            { id: 'leasing_billing', label: 'Leasing Abrechnung', icon: CreditCard, adminOnly: true },
+            { id: 'trash', label: 'Papierkorb', icon: Trash2, adminOnly: true },
             { id: 'data_archive', label: 'Daten & Archiv', icon: DatabaseIcon, adminOnly: true },
             { id: 'export', label: 'Datenexport', icon: FileSpreadsheet, adminOnly: true },
         ],
@@ -115,12 +126,11 @@ const navGroups: NavGroup[] = [
 ]
 
 export default function SettingsPage() {
-    const { user, workshopId, userRole, leaveWorkshop } = useAuth()
+    const navigate = useNavigate()
+    const { user, workshopId, userRole, leaveWorkshop, signOut } = useAuth()
     const [saving, setSaving] = useState(false)
     const [activeSection, setActiveSection] = useState<SettingsSection>('profile')
     const [fullName, setFullName] = useState('')
-
-
 
     // Initialize full name from user metadata
     useEffect(() => {
@@ -149,9 +159,34 @@ export default function SettingsPage() {
         try {
             await leaveWorkshop()
             toast.success("Werkstatt erfolgreich verlassen")
-            // Redirect happens automatically via AuthContext/AppRoutes
         } catch (error: any) {
             toast.error("Fehler beim Verlassen", { description: error.message })
+        }
+    }
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault()
+                e.stopPropagation()
+                navigate(-1)
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown, true)
+        return () => window.removeEventListener('keydown', handleKeyDown, true)
+    }, [navigate])
+
+    const handleBack = useCallback(() => {
+        navigate(-1)
+    }, [navigate])
+
+    const handleLogout = async () => {
+        try {
+            await signOut()
+            // AuthContext will handle navigation usually, but for good measure:
+            window.location.href = '/login'
+        } catch (error: any) {
+            toast.error("Fehler beim Abmelden", { description: error.message })
         }
     }
 
@@ -335,75 +370,134 @@ export default function SettingsPage() {
             case 'data_archive':
                 return <DataLifecycleManager />
 
+            case 'archive':
+                return (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 mb-2">
+                             <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                                <Archive className="h-5 w-5" />
+                             </div>
+                             <div>
+                                <h2 className="text-xl font-bold">Reparatur Archiv</h2>
+                                <p className="text-sm text-muted-foreground text-pretty">Alle abgeschlossenen Aufträge und Leasing-Abrechnungen.</p>
+                             </div>
+                        </div>
+                        <OrdersTable showArchived={true} />
+                    </div>
+                )
+
+            case 'leasing_billing':
+                return (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 mb-2">
+                             <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                                <CreditCard className="h-5 w-5" />
+                             </div>
+                             <div>
+                                <h2 className="text-xl font-bold">Leasing Abrechnung</h2>
+                                <p className="text-sm text-muted-foreground">Leasing Aufträge, die abgeholt wurden, aber noch nicht abgeschlossen sind.</p>
+                             </div>
+                        </div>
+                        <OrdersTable mode="leasing_billing" />
+                    </div>
+                )
+
+            case 'trash':
+                return (
+                    <div className="space-y-6">
+                         <div className="flex items-center gap-3 mb-2">
+                             <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
+                                <Trash2 className="h-5 w-5" />
+                             </div>
+                             <div>
+                                <h2 className="text-xl font-bold">Papierkorb</h2>
+                                <p className="text-sm text-muted-foreground">Gelöschte Aufträge. Diese werden nach 30 Tagen automatisch endgültig gelöscht.</p>
+                             </div>
+                        </div>
+                        <OrdersTable mode="trash" />
+                    </div>
+                )
+
+            case 'logout':
+                return (
+                    <Card className="border-destructive/20 bg-destructive/5">
+                        <CardHeader>
+                            <CardTitle className="text-destructive">Abmelden</CardTitle>
+                            <CardDescription>
+                                Möchten Sie sich wirklich abmelden? Sie müssen sich erneut anmelden, um auf Ihre Werkstatt zuzugreifen.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button variant="destructive" onClick={handleLogout}>
+                                <LogOut className="mr-2 h-4 w-4" />
+                                Jetzt abmelden
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )
+
             default:
                 return null
         }
     }
 
     return (
-        <PageTransition>
-            <DashboardLayout>
-                {/* Premium Header */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-purple-500/5 border border-primary/10 p-6 mb-8">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-                    <div className="relative">
-                        <h1 className="text-2xl font-bold tracking-tight">Einstellungen</h1>
-                        <p className="text-muted-foreground text-sm mt-1">
-                            {(userRole === 'admin' || userRole === 'owner')
-                                ? 'Profil, Werkstatt und Mitarbeiter verwalten'
-                                : 'Profil und Präferenzen anpassen'}
-                        </p>
-                    </div>
+        <div className="fixed inset-0 z-[100] bg-background overflow-hidden flex flex-col">
+            {/* Header */}
+            <header className="h-16 border-b flex items-center justify-between px-6 shrink-0 bg-background sticky top-0 z-[110]">
+                <div className="flex items-center gap-4">
+                    <h1 className="text-xl font-bold tracking-tight">Einstellungen</h1>
                 </div>
+                <button
+                    onPointerDown={() => window.history.back()}
+                    className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-muted cursor-pointer transition-none"
+                    title="Schließen (Esc)"
+                >
+                    <X className="h-5 w-5" />
+                    <span className="sr-only">Schließen</span>
+                </button>
+            </header>
 
-                <div className="flex flex-col lg:flex-row gap-8">
-                    {/* Premium Sidebar Navigation */}
-                    <div className="lg:w-64 shrink-0">
-                        <nav className="sticky top-4 p-2 rounded-xl bg-muted/30 border space-y-4">
-                            {filteredNavGroups.map((group, gi) => (
-                                <div key={group.label}>
-                                    {gi > 0 && <div className="border-t border-border/50 mb-3" />}
-                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 mb-1.5">
+            <div className="flex-1 flex overflow-hidden">
+                <div className="flex w-full h-full overflow-hidden">
+                    {/* Settings Sidebar */}
+                    <aside className="w-full md:w-80 border-r bg-muted/30 overflow-y-auto shrink-0 hidden md:block">
+                        <nav className="p-4 space-y-6">
+                            {filteredNavGroups.map((group) => (
+                                <div key={group.label} className="space-y-1">
+                                    <h3 className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
                                         {group.label}
-                                    </p>
-                                    <div className="space-y-0.5">
-                                        {group.items.map((item) => {
-                                            const Icon = item.icon
-                                            const isActive = activeSection === item.id
-
-                                            return (
-                                                <button
-                                                    key={item.id}
-                                                    onClick={() => setActiveSection(item.id)}
-                                                    className={cn(
-                                                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200",
-                                                        isActive
-                                                            ? "bg-background shadow-sm border text-foreground"
-                                                            : "hover:bg-background hover:shadow-sm hover:border-border/50 border border-transparent text-muted-foreground hover:text-foreground"
-                                                    )}
-                                                >
-                                                    <div className={cn(
-                                                        "p-1.5 rounded-md transition-colors",
-                                                        isActive ? "bg-primary/10 text-primary" : "bg-transparent"
-                                                    )}>
-                                                        <Icon className="h-4 w-4" />
-                                                    </div>
-                                                    <span className="font-medium text-sm">{item.label}</span>
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
+                                    </h3>
+                                    {group.items.map((item) => (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => setActiveSection(item.id)}
+                                            className={cn(
+                                                'w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200',
+                                                activeSection === item.id
+                                                    ? 'bg-primary text-primary-foreground shadow-md'
+                                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                            )}
+                                        >
+                                            <item.icon className="h-4 w-4 shrink-0" />
+                                            {item.label}
+                                        </button>
+                                    ))}
                                 </div>
                             ))}
                         </nav>
-                    </div>
+                    </aside>
+
+                    {/* Mobile Nav */}
 
                     {/* Content Area */}
-                    <div className="flex-1 min-w-0">
-                        {renderContent()}
-                    </div>
+                    <main className="flex-1 overflow-y-auto bg-background/50 relative">
+                        <div className="max-w-4xl mx-auto p-6 md:p-10 pb-32">
+                            {renderContent()}
+                        </div>
+                    </main>
                 </div>
-            </DashboardLayout>
-        </PageTransition>
+            </div>
+        </div>
     )
 }

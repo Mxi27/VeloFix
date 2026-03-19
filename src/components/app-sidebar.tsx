@@ -1,12 +1,8 @@
 import {
     LayoutDashboard,
     PlusCircle,
-    Archive,
-    Settings,
-    LogOut,
     Bike,
-    CreditCard,
-    Trash2,
+    Settings,
     Star,
     CheckSquare,
     BookOpen,
@@ -75,19 +71,12 @@ function SidebarItem({ item, location, navigate }: SidebarItemProps) {
 }
 
 export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
-    const { user, signOut, userRole } = useAuth()
+    const { user, userRole } = useAuth()
     const navigate = useNavigate()
     const location = useLocation()
     const [isNewOrderOpen, setIsNewOrderOpen] = useState(false)
 
-    const handleLogout = async () => {
-        try {
-            await signOut()
-            navigate("/login", { replace: true })
-        } catch (error) {
-            console.error("Logout error:", error)
-        }
-    }
+
 
 
     const initials = user?.user_metadata?.full_name
@@ -143,14 +132,14 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
 
                             <div className="h-1" />
 
-                            {[
-                                { title: "Reparaturen", icon: ListTodo, href: "/dashboard" },
-                                { title: "Mein Cockpit", icon: LayoutDashboard, href: "/dashboard/cockpit" },
-                                { title: "Aufgaben", icon: CheckSquare, href: "/dashboard/tasks" },
-                                { title: "Neuradaufbau", icon: Bike, href: "/dashboard/bike-builds" },
-                            ].map((item) => (
-                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
-                            ))}
+                                {[
+                                    { title: "Reparaturen", icon: ListTodo, href: "/dashboard" },
+                                    { title: "Neuradaufbau", icon: Bike, href: "/dashboard/bike-builds" },
+                                    { title: "Mein Cockpit", icon: LayoutDashboard, href: "/dashboard/cockpit" },
+                                    { title: "Aufgaben", icon: CheckSquare, href: "/dashboard/tasks" },
+                                ].map((item) => (
+                                    <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
+                                ))}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
@@ -161,50 +150,20 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu className="space-y-0.5">
-                            {[
-                                { title: "Notizbuch", icon: BookOpen, href: "/dashboard/notebook" },
-                                { title: "Feedback", icon: Star, href: "/dashboard/feedback" },
-                            ].map((item) => (
-                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
-                            ))}
+                                {[
+                                    { title: "Notizbuch", icon: BookOpen, href: "/dashboard/notebook" },
+                                    { title: "Mitarbeiterfeedback", icon: Star, href: "/dashboard/feedback" },
+                                    ...(userRole === 'admin' || userRole === 'owner' ? [
+                                        { title: "Kundenfeedback", icon: BarChart3, href: "/dashboard/feedback-analysis" }
+                                    ] : []),
+                                ].map((item) => (
+                                    <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
+                                ))}
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
 
-                <SidebarGroup>
-                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
-                        Verwaltung
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu className="space-y-0.5">
-                            {[
-                                { title: "Reparatur Archiv", icon: Archive, href: "/dashboard/archive" },
-                                { title: "Leasing Abrechnung", icon: CreditCard, href: "/dashboard/leasing-billing" },
-                            ].map((item) => (
-                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
-                            ))}
-                            {(userRole === 'admin' || userRole === 'owner') && (
-                                <>
-                                    <SidebarItem 
-                                        item={{ title: "Papierkorb", icon: Trash2, href: "/dashboard/trash" }} 
-                                        location={location} 
-                                        navigate={navigate} 
-                                    />
-                                    <SidebarItem 
-                                        item={{ title: "Feedback Analyse", icon: BarChart3, href: "/dashboard/feedback-analysis" }} 
-                                        location={location} 
-                                        navigate={navigate} 
-                                    />
-                                </>
-                            )}
-                            <SidebarItem 
-                                item={{ title: "Einstellungen", icon: Settings, href: "/settings" }} 
-                                location={location} 
-                                navigate={navigate} 
-                            />
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+
 
             </SidebarContent>
 
@@ -230,9 +189,9 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8 rounded-lg"
-                                onClick={handleLogout}
+                                onClick={() => navigate(location.pathname + "?settings=true")}
                             >
-                                <LogOut className="h-4 w-4" />
+                                <Settings className="h-4 w-4" />
                             </Button>
                         </div>
                     </SidebarMenuItem>

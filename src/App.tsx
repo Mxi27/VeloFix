@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
@@ -32,6 +32,7 @@ import NotebookPage from "@/pages/NotebookPage";
 
 function AppRoutes() {
     const { user, workshopId, loading } = useAuth();
+    const location = useLocation();
 
     // Show loading ONLY during initial authentication check
     if (loading) {
@@ -39,6 +40,7 @@ function AppRoutes() {
     }
 
     return (
+        <>
         <Routes>
             <Route
                 path="/login"
@@ -188,14 +190,16 @@ function AppRoutes() {
             />
             <Route
                 path="/settings"
-                element={
-                    <ProtectedRoute>
-                        {workshopId ? <SettingsPage /> : <Navigate to="/onboarding" replace />}
-                    </ProtectedRoute>
-                }
+                element={<Navigate to="/dashboard?settings=true" replace />}
             />
             <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
+
+        {/* Global Overlays */}
+        {workshopId && location.search.includes('settings=true') && (
+            <SettingsPage />
+        )}
+        </>
     );
 }
 

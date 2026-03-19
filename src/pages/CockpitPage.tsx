@@ -377,7 +377,7 @@ export default function CockpitPage() {
                     </div>
 
                     {/* Panels */}
-                    <div className="flex-1 overflow-y-auto xl:overflow-hidden custom-scrollbar p-6 md:p-8 xl:p-10 lg:p-8 compact:p-1 xl:compact:p-2">
+                    <div className="flex-1 overflow-y-auto xl:overflow-hidden custom-scrollbar p-4 md:p-6 lg:p-8 xl:p-8 compact:p-1 xl:compact:p-2">
                         <div className="max-w-[1600px] mx-auto grid gap-6 md:grid-cols-2 xl:grid-cols-4 compact:gap-2 min-h-full xl:h-full transition-all">
                             <CockpitPanel
                                 title="Deine Zuweisungen"
@@ -387,7 +387,7 @@ export default function CockpitPage() {
                                 empty={myMatchIds.length === 0 ? "Klicke deinen Namen an um dich auszuwählen" : "Keine Zuweisungen gefunden"}
                                 className="xl:order-1"
                             >
-                                <div className="space-y-1 p-2">
+                                <div className="space-y-1 p-1">
                                     {cockpitData.myAssignments.map((item, idx) => {
                                         if (item.type === 'order') return (
                                             <OrderRow 
@@ -457,7 +457,7 @@ export default function CockpitPage() {
                                     </DropdownMenu>
                                 }
                             >
-                                <div className="space-y-1 p-2">
+                                <div className="space-y-1 p-1">
                                     {cockpitData.openQCAssignments.map((item, idx) => {
                                         if (item.type === 'order') return (
                                             <OrderRow
@@ -488,7 +488,7 @@ export default function CockpitPage() {
                                 empty="Keine Aufgaben fällig"
                                 className="xl:order-2"
                             >
-                                <div className="space-y-1 p-2">
+                                <div className="space-y-1 p-1">
                                     {cockpitData.myTasks.map(task => (
                                         <TaskRow
                                             key={task.id}
@@ -533,7 +533,7 @@ export default function CockpitPage() {
                                     </DropdownMenu>
                                 }
                             >
-                                <div className="space-y-1 p-2">
+                                <div className="space-y-1 p-1">
                                     {cockpitData.openWorkAssignments.map((item, idx) => {
                                         if (item.type === 'order') return (
                                             <OrderRow 
@@ -609,10 +609,8 @@ function CockpitPanel({ title, icon: Icon, accent, count, empty, children, class
                         <p className="text-sm font-medium text-center px-8">{empty}</p>
                     </div>
                 ) : (
-                    <div className="p-1 lg:p-2 compact:p-0.5">
-                        <div className="p-2 lg:p-3 compact:p-1">
-                            {children}
-                        </div>
+                    <div className="p-2 compact:p-0.5">
+                        {children}
                     </div>
                 )}
             </div>
@@ -627,7 +625,7 @@ function OrderRow({ order, onClick, selfCheckWarning }: any) {
     return (
         <button
             onClick={onClick}
-            className="group w-full flex items-center gap-2 px-3 py-2 compact:px-2 compact:py-1 rounded-xl compact:rounded-lg hover:bg-muted/50 transition-all border border-transparent hover:border-border/50"
+            className="group w-full flex items-center gap-2 px-2 py-2 compact:px-2 compact:py-1 rounded-xl compact:rounded-lg hover:bg-muted/50 transition-all border border-transparent hover:border-border/50"
         >
             <div className={cn("shrink-0 transition-colors", 
                 order.status === 'warten_auf_teile' ? "text-rose-500" :
@@ -668,7 +666,7 @@ function OrderRow({ order, onClick, selfCheckWarning }: any) {
 
 function BuildRow({ build, onClick, selfCheckWarning }: any) {
     return (
-        <button onClick={onClick} className="group w-full flex items-center gap-2 px-3 py-2 compact:px-2 compact:py-1 rounded-xl compact:rounded-lg hover:bg-muted/50 transition-all border border-transparent hover:border-border/50">
+        <button onClick={onClick} className="group w-full flex items-center gap-2 px-2 py-2 compact:px-2 compact:py-1 rounded-xl compact:rounded-lg hover:bg-muted/50 transition-all border border-transparent hover:border-border/50">
             <div className="shrink-0 text-amber-500 group-hover:text-amber-600 transition-all">
                 <Zap className="h-4.5 w-4.5" />
             </div>
@@ -692,7 +690,7 @@ function BuildRow({ build, onClick, selfCheckWarning }: any) {
 function TaskRow({ task, onToggle, onClick }: any) {
     const isOverdue = task.due_date && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date))
     return (
-        <div className="group flex items-start gap-4 compact:gap-2 px-3 py-3 compact:py-1.5 rounded-xl compact:rounded-lg hover:bg-muted/50 transition-all cursor-pointer" onClick={onClick}>
+        <div className="group flex items-start gap-3 compact:gap-2 px-2 py-2.5 compact:py-1.5 rounded-xl compact:rounded-lg hover:bg-muted/50 transition-all cursor-pointer" onClick={onClick}>
             <div className="pt-0.5 shrink-0" onClick={e => { e.stopPropagation(); onToggle() }}>
                 <Checkbox checked={task.status === 'done'} className="h-5 w-5 rounded-md" />
             </div>
