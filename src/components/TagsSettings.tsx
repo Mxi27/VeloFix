@@ -101,8 +101,9 @@ export function TagsSettings() {
 
             fetchTags()
             resetForm()
-        } catch (error: any) {
-            toastError("Fehler", error.message || "Tag konnte nicht gespeichert werden.")
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Tag konnte nicht gespeichert werden."
+            toastError("Fehler", message)
         } finally {
             setSaving(false)
         }
@@ -120,7 +121,8 @@ export function TagsSettings() {
             if (error) throw error
             toastSuccess("Tag gelöscht", "Der Tag wurde erfolgreich entfernt.")
             fetchTags()
-        } catch (error: any) {
+        } catch (error: unknown) {
+            console.error("Error deleting tag:", error)
             toastError("Fehler", "Tag konnte nicht gelöscht werden.")
         }
     }

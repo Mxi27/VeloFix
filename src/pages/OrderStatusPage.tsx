@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { OrderFeedback } from "@/components/OrderFeedback"
+import type { PublicOrderStatus } from "@/types/index"
 
 const STATUS_STEPS = [
     {
@@ -74,7 +75,7 @@ const STATUS_STEPS = [
 
 export default function OrderStatusPage() {
     const { orderId } = useParams<{ orderId: string }>()
-    const [order, setOrder] = useState<any>(null)
+    const [order, setOrder] = useState<PublicOrderStatus | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -132,9 +133,9 @@ export default function OrderStatusPage() {
                 }
 
                 setOrder(data)
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Error fetching status:", err)
-                setError(err.message || JSON.stringify(err))
+                setError(err instanceof Error ? err.message : JSON.stringify(err))
             } finally {
                 setLoading(false)
             }
@@ -199,7 +200,7 @@ export default function OrderStatusPage() {
                     <p className="text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground">Reparatur-Status</p>
                     <h1 className="text-2xl font-extrabold">{order.workshop?.name || "VeloFix"}</h1>
                     <p className="text-sm text-muted-foreground">
-                        Auftrag #{order.order_number} · {formatDate(order.created_at || order.created_date)}
+                        Auftrag #{order.order_number} · {formatDate(order.created_at ?? order.created_date ?? '')}
                     </p>
                 </div>
 
@@ -243,8 +244,8 @@ export default function OrderStatusPage() {
                         </div>
                         <OrderFeedback
                             orderId={order.id}
-                            workshopId={order.workshop_id || order.workshop?.id}
-                            googleReviewUrl={order.workshop?.google_review_url}
+                            workshopId={order.workshop_id || order.workshop?.id || ''}
+                            googleReviewUrl={order.workshop?.google_review_url ?? undefined}
                         />
                     </div>
                 )}

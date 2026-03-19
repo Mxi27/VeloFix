@@ -1,5 +1,7 @@
 import { toastSuccess, toastError } from '@/lib/toast-utils'
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import type { WorkshopTag, LeasingDetails, IntakeRequestSummary } from "@/types/index"
+import type { ChecklistTemplate } from "@/types/checklist"
 import { useNavigate } from "react-router-dom"
 import {
     Dialog,
@@ -51,7 +53,7 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     // Kiosk State
     // const [showEmployeeSelect, setShowEmployeeSelect] = useState(false) // Removed external modal logic
 
-    const [templates, setTemplates] = useState<any[]>([])
+    const [templates, setTemplates] = useState<ChecklistTemplate[]>([])
     const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([])
     const [availableProviders, setAvailableProviders] = useState<string[]>([])
     const [acceptanceChecklistItems, setAcceptanceChecklistItems] = useState<string[]>([
@@ -83,89 +85,81 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         setChecklistState(new Array(acceptanceChecklistItems.length).fill(false))
     }, [acceptanceChecklistItems])
 
-    // Form States
-    const [customerName, setCustomerName] = useState("")
-    const [customerEmail, setCustomerEmail] = useState("")
-    const [customerPhone, setCustomerPhone] = useState("")
-    const [bikeModel, setCustomerBikeModel] = useState("")
-    const [bikeBrand, setCustomerBikeBrand] = useState("")
-    const [bikeType, setCustomerBikeType] = useState("")
-    const [bikeColor, setCustomerBikeColor] = useState("")
+    // Form States – grouped by semantic domain
+    const [customer, setCustomer] = useState({ name: '', email: '', phone: '' })
+    const [bike, setBike] = useState({ brand: '', model: '', type: '', color: '' })
+    const updateCustomer = (field: keyof typeof customer, value: string) =>
+        setCustomer(prev => ({ ...prev, [field]: value }))
+    const updateBike = (field: keyof typeof bike, value: string) =>
+        setBike(prev => ({ ...prev, [field]: value }))
     const [estimatedPrice, setEstimatedPrice] = useState("")
     const [leasingProvider, setLeasingProvider] = useState("")
     const [customerNote, setCustomerNote] = useState("")
     const [internalNote, setInternalNote] = useState("")
-    const [leasingDetails, setLeasingDetails] = useState<any>(null)
+    const [leasingDetails, setLeasingDetails] = useState<LeasingDetails | null>(null)
     const [leasingPortalEmail, setLeasingPortalEmail] = useState("")
     const [assignedMechanicId, setAssignedMechanicId] = useState<string>("")
     const [dueDate, setDueDate] = useState<Date | undefined>(undefined)
     const [selectedTags, setSelectedTags] = useState<string[]>([])
-    const [availableTags, setAvailableTags] = useState<any[]>([])
+    const [availableTags, setAvailableTags] = useState<WorkshopTag[]>([])
 
     // Intake Requests State
-    const [intakeRequests, setIntakeRequests] = useState<any[]>([])
+    const [intakeRequests, setIntakeRequests] = useState<IntakeRequestSummary[]>([])
     const [showIntakeSelection, setShowIntakeSelection] = useState(false)
     const [selectedIntakeRequestId, setSelectedIntakeRequestId] = useState<string | null>(null)
     const [intakeSearchTerm, setIntakeSearchTerm] = useState("")
 
     // Fetch templates and providers when modal opens
     useEffect(() => {
-        if (workshopId && open) {
-            // Fetch Templates
-            supabase
-                .from('checklist_templates')
-                .select('*')
-                .eq('workshop_id', workshopId)
-                .order('name')
-                .then(({ data }) => {
-                    if (data) setTemplates(data)
-                })
+        if (!workshopId || !open) return
 
-            // Fetch Leasing Providers & Acceptance Checklist
-            supabase
-                .from('workshops')
-                .select('leasing_providers, acceptance_checklist')
-                .eq('id', workshopId)
-                .single()
-                .then(({ data }) => {
-                    if (data?.leasing_providers && Array.isArray(data.leasing_providers)) {
-                        setAvailableProviders(data.leasing_providers)
-                    } else {
-                        setAvailableProviders([])
-                    }
+        const loadModalData = async () => {
+            const [
+                { data: templateData, error: templateError },
+                { data: workshopData, error: workshopError },
+                { data: intakeData, error: intakeError },
+                { data: tagData, error: tagError },
+            ] = await Promise.all([
+                supabase.from('checklist_templates').select('*').eq('workshop_id', workshopId).order('name'),
+                supabase.from('workshops').select('leasing_providers, acceptance_checklist').eq('id', workshopId).single(),
+                supabase.from('intake_requests').select('*').eq('workshop_id', workshopId).eq('status', 'pending').order('created_at', { ascending: false }),
+                supabase.from('workshop_tags').select('*').eq('workshop_id', workshopId).order('name'),
+            ])
 
-                    if (data?.acceptance_checklist && Array.isArray(data.acceptance_checklist) && data.acceptance_checklist.length > 0) {
-                        setAcceptanceChecklistItems(data.acceptance_checklist)
-                    }
-                })
+            if (templateError) {
+                toastError('Fehler', 'Vorlagen konnten nicht geladen werden.')
+                console.error(templateError)
+            } else {
+                setTemplates(templateData ?? [])
+            }
 
-            // Fetch Intake Requests
-            supabase
-                .from('intake_requests')
-                .select('*')
-                .eq('workshop_id', workshopId)
-                .eq('status', 'pending')
-                .order('created_at', { ascending: false })
-                .then(({ data }) => {
-                    if (data) {
-                        // Ensure it's sorted client-side too as a safety measure
-                        const sortedData = [...data].sort((a, b) =>
-                            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-                        );
-                        setIntakeRequests(sortedData);
-                    }
-                })
+            if (workshopError) {
+                console.error('Workshop-Daten konnten nicht geladen werden:', workshopError)
+            } else {
+                setAvailableProviders(
+                    Array.isArray(workshopData?.leasing_providers) ? (workshopData.leasing_providers as string[]) : []
+                )
+                if (Array.isArray(workshopData?.acceptance_checklist) && (workshopData.acceptance_checklist as string[]).length > 0) {
+                    setAcceptanceChecklistItems(workshopData.acceptance_checklist as string[])
+                }
+            }
 
-            // Fetch Tags
-            supabase
-                .from('workshop_tags')
-                .select('*')
-                .eq('workshop_id', workshopId)
-                .order('name')
-                .then(({ data }) => {
-                    if (data) setAvailableTags(data)
-                })
+            if (intakeError) {
+                console.error('Eingangsanfragen konnten nicht geladen werden:', intakeError)
+            } else if (intakeData) {
+                setIntakeRequests(
+                    [...intakeData].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                )
+            }
+
+            if (tagError) {
+                console.error('Tags konnten nicht geladen werden:', tagError)
+            } else {
+                setAvailableTags(tagData ?? [])
+            }
         }
+
+        loadModalData()
     }, [workshopId, open])
 
     // Reset state when modal closes
@@ -175,13 +169,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             setStep(isSharedMode ? 0 : 1)
             setOrderType(null)
             setChecklistState(new Array(acceptanceChecklistItems.length).fill(false))
-            setCustomerName("")
-            setCustomerEmail("")
-            setCustomerPhone("")
-            setCustomerBikeBrand("")
-            setCustomerBikeModel("")
-            setCustomerBikeType("")
-            setCustomerBikeColor("")
+            setCustomer({ name: '', email: '', phone: '' })
+            setBike({ brand: '', model: '', type: '', color: '' })
             setEstimatedPrice("")
             setLeasingProvider("")
             setLeasingProvider("")
@@ -200,23 +189,22 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
         onOpenChange?.(newOpen)
     }
 
-    const handleImportRequest = (request: any) => {
-        setCustomerName(request.customer_name)
-        setCustomerEmail(request.customer_email || request.private_email || "") // Prefer mapped email, fallback
-        setCustomerPhone(request.customer_phone || "")
-        setLeasingPortalEmail(request.email || "") // Store original portal email
-
-        // Map Bike Data
-        setCustomerBikeBrand(request.bike_brand || "")
-        setCustomerBikeModel(request.bike_model || "")
-        setCustomerBikeType(request.bike_type || "")
-        setCustomerBikeColor(request.bike_color || "")
-
-        // Base notes from description
-        // Base notes from description
+    const handleImportRequest = (request: IntakeRequestSummary) => {
+        setCustomer({
+            name: request.customer_name,
+            // Prefer private (real) email over leasing portal email; fallback to portal email
+            email: request.private_email || request.customer_email || "",
+            phone: request.customer_phone || "",
+        })
+        setBike({
+            brand: request.bike_brand || "",
+            model: request.bike_model || "",
+            type: request.bike_type || "",
+            color: request.bike_color || "",
+        })
+        setLeasingPortalEmail(request.email || "")
         setCustomerNote(request.description || "")
 
-        // Map Due Date if present
         if (request.due_date) {
             setDueDate(new Date(request.due_date))
         }
@@ -227,8 +215,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             if (request.leasing_provider) {
                 setLeasingProvider(request.leasing_provider)
             }
-
-            // Store Leasing Details
             setLeasingDetails({
                 provider: request.leasing_provider,
                 contract_id: request.contract_id,
@@ -237,11 +223,6 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 pickup_code: request.pickup_code,
                 private_email: request.private_email
             })
-
-            // Use Private Email if available
-            if (request.private_email) {
-                setCustomerEmail(request.private_email)
-            }
         } else {
             setOrderType('standard')
             setLeasingDetails(null)
@@ -297,22 +278,19 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
     // 6: Summary
 
     // Keyboard handling for Step 1
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+            setOrderType(prev => prev === "standard" ? "leasing" : "standard")
+        } else if (e.key === "Enter" && orderType) {
+            handleNext()
+        }
+    }, [orderType]) // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => {
-        if (!open || step !== 1 || showIntakeSelection) return;
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-                setOrderType(prev => prev === "standard" ? "leasing" : "standard");
-            } else if (e.key === "Enter") {
-                if (orderType) {
-                    handleNext();
-                }
-            }
-        };
-
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [open, step, orderType, showIntakeSelection]);
+        if (!open || step !== 1 || showIntakeSelection) return
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+    }, [open, step, showIntakeSelection, handleKeyDown])
 
     const handleNext = () => {
         if (step === 1 && orderType === "standard") {
@@ -350,16 +328,16 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             //    .map(text => ({ text, completed: true, type: 'acceptance' }))
 
             // 2. Service Items (To be done by mechanic)
-            let serviceItems: any[] = []
+            let serviceItems: import('@/types/checklist').ChecklistItem[] = []
             if (selectedTemplateIds.length > 0) {
                 selectedTemplateIds.forEach(templateId => {
                     const template = templates.find(t => t.id === templateId)
                     if (template?.items && Array.isArray(template.items)) {
-                        const items = template.items.map((item: any) => ({
+                        const items = template.items.map((item) => ({
                             text: item.text,
                             description: item.description, // Copy description
                             completed: false, // Reset completion for the order
-                            type: 'service',
+                            type: 'service' as const,
                             template_id: template.id,
                             template_name: template.name
                         }))
@@ -373,7 +351,9 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             // They act only as a gateway check in the wizard
             const finalChecklist = [...serviceItems]
 
-            const orderNumber = `AV-${Math.floor(Math.random() * 10000)}`
+            // Generate a short, collision-resistant order number using a UUID fragment.
+            // Permanent sequential numbering should be handled via a DB sequence (e.g. a Postgres trigger).
+            const orderNumber = `AV-${crypto.randomUUID().slice(0, 8).toUpperCase()}`
 
             // Create initial history event
             // Determine Actor (Kiosk override or active employee)
@@ -430,13 +410,13 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 .insert({
                     workshop_id: workshopId,
                     order_number: orderNumber,
-                    customer_name: customerName,
-                    customer_email: customerEmail || null,
-                    customer_phone: customerPhone || null,
-                    bike_brand: bikeBrand || null,
-                    bike_model: bikeModel || null,
-                    bike_type: bikeType || null,
-                    bike_color: bikeColor || null,
+                    customer_name: customer.name,
+                    customer_email: customer.email || null,
+                    customer_phone: customer.phone || null,
+                    bike_brand: bike.brand || null,
+                    bike_model: bike.model || null,
+                    bike_type: bike.type || null,
+                    bike_color: bike.color || null,
                     is_leasing: orderType === 'leasing',
                     status: 'eingegangen',
                     leasing_provider: orderType === 'leasing' ? leasingProvider : null,
@@ -463,10 +443,14 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
 
             // Update Intake Request Status (if applicable)
             if (selectedIntakeRequestId) {
-                await supabase
+                const { error: intakeUpdateError } = await supabase
                     .from('intake_requests')
                     .update({ status: 'imported' })
                     .eq('id', selectedIntakeRequestId)
+                if (intakeUpdateError) {
+                    // Non-critical: order was already created successfully
+                    console.error('Intake-Anfrage Status konnte nicht aktualisiert werden:', intakeUpdateError)
+                }
             }
 
             toastSuccess('Auftrag erstellt', 'Der Auftrag wurde erfolgreich erstellt.')
@@ -477,8 +461,9 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
             if (insertedOrder) {
                 navigate(`/dashboard/orders/${insertedOrder.id}`)
             }
-        } catch (error: any) {
-            toastError('Fehler beim Erstellen', error.message || 'Der Auftrag konnte nicht erstellt werden.')
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Der Auftrag konnte nicht erstellt werden.'
+            toastError('Fehler beim Erstellen', message)
         } finally {
             setIsSubmitting(false)
         }
@@ -507,12 +492,12 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                 return orderType === 'leasing' ? !!leasingProvider : true
             case 3:
                 return !!(
-                    customerName &&
-                    customerEmail &&
-                    customerPhone &&
-                    bikeBrand &&
-                    bikeModel &&
-                    bikeType
+                    customer.name &&
+                    customer.email &&
+                    customer.phone &&
+                    bike.brand &&
+                    bike.model &&
+                    bike.type
                 )
             case 4:
                 return checklistState.every(item => item)
@@ -746,8 +731,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         <Input
                                             id="name"
                                             className="bg-muted/50"
-                                            value={customerName}
-                                            onChange={e => setCustomerName(e.target.value)}
+                                            value={customer.name}
+                                            onChange={e => updateCustomer('name', e.target.value)}
                                         />
                                     </div>
 
@@ -757,8 +742,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Input
                                                 id="email"
                                                 className="bg-muted/50"
-                                                value={customerEmail}
-                                                onChange={e => setCustomerEmail(e.target.value)}
+                                                value={customer.email}
+                                                onChange={e => updateCustomer('email', e.target.value)}
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -766,8 +751,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Input
                                                 id="phone"
                                                 className="bg-muted/50"
-                                                value={customerPhone}
-                                                onChange={e => setCustomerPhone(e.target.value)}
+                                                value={customer.phone}
+                                                onChange={e => updateCustomer('phone', e.target.value)}
                                             />
                                         </div>
                                     </div>
@@ -784,8 +769,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Input
                                                 id="brand"
                                                 className="bg-muted/50"
-                                                value={bikeBrand}
-                                                onChange={e => setCustomerBikeBrand(e.target.value)}
+                                                value={bike.brand}
+                                                onChange={e => updateBike('brand', e.target.value)}
                                             />
                                         </div>
                                         <div className="space-y-2">
@@ -793,14 +778,14 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                             <Input
                                                 id="model"
                                                 className="bg-muted/50"
-                                                value={bikeModel}
-                                                onChange={e => setCustomerBikeModel(e.target.value)}
+                                                value={bike.model}
+                                                onChange={e => updateBike('model', e.target.value)}
                                             />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="type">Typ *</Label>
-                                        <Select value={bikeType} onValueChange={setCustomerBikeType}>
+                                        <Select value={bike.type} onValueChange={v => updateBike('type', v)}>
                                             <SelectTrigger className="bg-muted/50">
                                                 <SelectValue placeholder="Auswählen" />
                                             </SelectTrigger>
@@ -818,8 +803,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         <Input
                                             id="bike_color"
                                             className="bg-muted/50"
-                                            value={bikeColor}
-                                            onChange={e => setCustomerBikeColor(e.target.value)}
+                                            value={bike.color}
+                                            onChange={e => updateBike('color', e.target.value)}
                                         />
                                     </div>
 
@@ -1023,8 +1008,8 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                     <h4 className="font-semibold mb-2">Zusammenfassung</h4>
                                     <ul className="space-y-1 text-sm text-muted-foreground">
                                         <li><strong>Typ:</strong> {orderType === "leasing" ? "Leasing" : "Standard"}</li>
-                                        <li><strong>Kunde:</strong> {customerName}</li>
-                                        <li><strong>Rad:</strong> {bikeBrand} {bikeModel} ({BIKE_TYPE_LABELS[bikeType] || bikeType})</li>
+                                        <li><strong>Kunde:</strong> {customer.name}</li>
+                                        <li><strong>Rad:</strong> {bike.brand} {bike.model} ({BIKE_TYPE_LABELS[bike.type] || bike.type})</li>
                                     </ul>
 
                                     <div className="grid md:grid-cols-2 gap-4 pt-2">
@@ -1111,12 +1096,12 @@ export function CreateOrderModal({ children, open, onOpenChange, onOrderCreated 
                                         else if (step === 2) toastError("Leasing-Anbieter fehlt", "Bitte wählen Sie einen Leasing-Anbieter aus.");
                                         else if (step === 3) {
                                             const missing = [];
-                                            if (!customerName) missing.push("Name");
-                                            if (!customerEmail) missing.push("E-Mail");
-                                            if (!customerPhone) missing.push("Telefon");
-                                            if (!bikeBrand) missing.push("Marke");
-                                            if (!bikeModel) missing.push("Modell");
-                                            if (!bikeType) missing.push("Typ");
+                                            if (!customer.name) missing.push("Name");
+                                            if (!customer.email) missing.push("E-Mail");
+                                            if (!customer.phone) missing.push("Telefon");
+                                            if (!bike.brand) missing.push("Marke");
+                                            if (!bike.model) missing.push("Modell");
+                                            if (!bike.type) missing.push("Typ");
                                             toastError("Mindestangaben fehlen", `Bitte füllen Sie folgende Felder aus: ${missing.join(", ")}`);
                                         }
                                         else if (step === 4) toastError("Checkliste unvollständig", "Bitte bestätigen Sie alle Punkte der Annahme-Checkliste.");

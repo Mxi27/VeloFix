@@ -28,6 +28,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
 import { logOrderEvent } from "@/lib/history"
+import type { WorkshopOrder } from "@/types/index"
 
 interface ChecklistItem {
     text: string
@@ -49,7 +50,7 @@ export default function ControlModePage() {
 
     // State
     const [loading, setLoading] = useState(true)
-    const [order, setOrder] = useState<any>(null)
+    const [order, setOrder] = useState<WorkshopOrder | null>(null)
     const [items, setItems] = useState<ChecklistItem[]>([])
     const [currentStepIndex, setCurrentStepIndex] = useState(0)
     const [isSaving, setIsSaving] = useState(false)
@@ -160,7 +161,7 @@ export default function ControlModePage() {
 
                 setCreditedMechanics(initialMechanics)
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Error loading order:", err)
                 toast.error("Fehler", "Auftrag konnte nicht geladen werden.")
             } finally {
@@ -203,8 +204,8 @@ export default function ControlModePage() {
 
             if (error) throw error
             return true
-        } catch (err: any) {
-            const errorMessage = err.message || 'Unbekanntes Problem'
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'Unbekanntes Problem'
             toast.error("Speichern fehlgeschlagen", `Fehler: ${errorMessage}`)
             return false
         } finally {

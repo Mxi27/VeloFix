@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
-import type { Database } from '@/types/supabase'
+import type { Database, Json } from '@/types/supabase'
 import {
     DndContext,
     closestCenter,
@@ -283,7 +283,7 @@ export function ChecklistTemplateManager() {
                     .update({
                         name: formData.name,
                         description: formData.description,
-                        items: itemsJson as any,
+                        items: itemsJson as unknown as Json,
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', editingTemplate.id)
@@ -301,7 +301,7 @@ export function ChecklistTemplateManager() {
                         workshop_id: workshopId,
                         name: formData.name,
                         description: formData.description,
-                        items: itemsJson as any
+                        items: itemsJson as unknown as Json
                     })
                     .select()
 
@@ -315,8 +315,9 @@ export function ChecklistTemplateManager() {
             setDialogOpen(false)
             resetForm()
             fetchTemplates()
-        } catch (err: any) {
-            toastError('Fehler', err.message || 'Ein unerwarteter Fehler ist aufgetreten.')
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Ein unerwarteter Fehler ist aufgetreten.'
+            toastError('Fehler', message)
         }
     }
 
@@ -358,7 +359,7 @@ export function ChecklistTemplateManager() {
 
             // 2. Create new item
             const newItem: ChecklistItem = {
-                id: `item-${Date.now()}-${Math.random()}`,
+                id: crypto.randomUUID(),
                 text: '',
                 description: '',
                 order: 0 // Order re-calc happens on save/render usually, but let's just insert
@@ -402,12 +403,14 @@ export function ChecklistTemplateManager() {
 
     const openEditDialog = (template: ChecklistTemplate) => {
         setEditingTemplate(template)
-        const items = Array.isArray(template.items) ? template.items as any[] : []
+        const items = Array.isArray(template.items)
+            ? (template.items as Array<Partial<ChecklistItem>>)
+            : []
         setFormData({
             name: template.name,
             description: template.description || '',
-            items: items.map((item: any) => ({
-                id: item.id || `item-${Date.now()}-${Math.random()}`,
+            items: items.map((item) => ({
+                id: item.id || crypto.randomUUID(),
                 text: item.text || '',
                 description: item.description || '', // Load description
                 order: item.order || 0
@@ -429,7 +432,7 @@ export function ChecklistTemplateManager() {
 
     const addItem = () => {
         const newItem: ChecklistItem = {
-            id: `item-${Date.now()}-${Math.random()}`,
+            id: crypto.randomUUID(),
             text: '',
             description: '',
             order: formData.items.length
@@ -462,8 +465,8 @@ export function ChecklistTemplateManager() {
         }
     }
 
-    const getItemsArray = (template: ChecklistTemplate): any[] => {
-        return Array.isArray(template.items) ? template.items as any[] : []
+    const getItemsArray = (template: ChecklistTemplate): Array<Partial<ChecklistItem>> => {
+        return Array.isArray(template.items) ? (template.items as Array<Partial<ChecklistItem>>) : []
     }
 
     if (!isAdmin) {

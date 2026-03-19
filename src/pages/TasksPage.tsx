@@ -162,7 +162,7 @@ export default function TasksPage() {
 
             if (error) throw error
             setTasks(data || [])
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error fetching tasks (with join):', err)
             // Fallback without join
             try {

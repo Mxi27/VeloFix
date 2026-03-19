@@ -41,11 +41,11 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 interface SidebarItemProps {
     item: {
         title: string
-        icon: any
+        icon: React.ComponentType<{ className?: string }>
         href: string
     }
-    location: any
-    navigate: any
+    location: { pathname: string }
+    navigate: (path: string) => void
 }
 
 function SidebarItem({ item, location, navigate }: SidebarItemProps) {

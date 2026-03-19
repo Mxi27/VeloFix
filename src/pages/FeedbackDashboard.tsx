@@ -282,8 +282,11 @@ export default function FeedbackDashboard() {
                     .order("created_at", { ascending: false })
                 if (error) throw error
                 setFeedback(data || [])
-            } catch (err: any) {
-                if (err?.code !== "42P01") console.error("Error fetching feedback:", err)
+            } catch (err: unknown) {
+                const pgCode = typeof err === 'object' && err !== null && 'code' in err
+                    ? (err as { code: string }).code
+                    : null
+                if (pgCode !== "42P01") console.error("Error fetching feedback:", err)
             } finally {
                 setLoading(false)
             }

@@ -1,3 +1,4 @@
+import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
@@ -13,11 +14,11 @@ export function EmployeeSelector({ onSelect, selectedEmployeeId }: EmployeeSelec
     const { employees } = useEmployee()
 
     // Sort employees: Admins first, then Alphabetical
-    const sortedEmployees = [...employees].sort((a, b) => {
+    const sortedEmployees = useMemo(() => [...employees].sort((a, b) => {
         if (a.role === 'admin' && b.role !== 'admin') return -1
         if (a.role !== 'admin' && b.role === 'admin') return 1
         return a.name.localeCompare(b.name)
-    })
+    }), [employees])
 
     return (
         <div className="grid grid-cols-2 gap-3 py-4">

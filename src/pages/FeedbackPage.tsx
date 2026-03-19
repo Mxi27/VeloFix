@@ -192,8 +192,11 @@ export default function FeedbackPage() {
                 }))
                 setBuildFeedback(validBuilds)
 
-            } catch (err: any) {
-                if (err?.code === '42P01') {
+            } catch (err: unknown) {
+                const pgCode = typeof err === 'object' && err !== null && 'code' in err
+                    ? (err as { code: string }).code
+                    : null
+                if (pgCode === '42P01') {
                     console.warn("Feedback table not yet created. Dashboard will show empty state.")
                 } else {
                     console.error("Error fetching feedback:", err)

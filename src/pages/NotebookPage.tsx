@@ -175,10 +175,9 @@ export default function NotebookPageView() {
 
             if (error) throw error
             setPages(data || [])
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Error fetching notebook pages:", err)
-            toast.error(`Fehler beim Laden: ${err.message}`)
+            toast.error(`Fehler beim Laden: ${err instanceof Error ? err.message : 'Unbekannter Fehler'}`)
         } finally {
             setLoading(false)
         }
