@@ -1,8 +1,8 @@
 import useSWR from "swr"
 import { toastSuccess, toastError } from '@/lib/toast-utils'
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { NEURAD_STATUS_MAP, NEURAD_STATUSES } from "@/lib/constants"
+import { NEURAD_STATUS_MAP } from "@/lib/constants"
 import {
     Table,
     TableBody,
@@ -14,14 +14,16 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Eye, UserPlus, Users, X, Check, Wrench, Zap, RefreshCw, SlidersHorizontal } from "lucide-react"
+import { Search, Eye, UserPlus, Users, X, Check, Zap, SlidersHorizontal, Settings2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { OrdersTableSkeleton } from "@/components/skeletons/OrdersTableSkeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuCheckboxItem,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
@@ -66,24 +68,33 @@ interface BikeBuild {
     checklist_template?: string | null
 }
 
-// Helper to get human-readable status
 function getNeuradStatus(status: string) {
     return NEURAD_STATUS_MAP[status] || { label: status, color: 'bg-muted text-muted-foreground border-border/60', dotColor: 'bg-muted-foreground' }
 }
 
-// Helper to calculate real progress % from assembly_progress
 function getAssemblyProgress(build: BikeBuild, fallbackTotal?: number): { pct: number; done: number; total: number } {
     const prog = build.assembly_progress
     if (!prog) return { pct: 0, done: 0, total: 0 }
     const done = (prog.completed_steps?.length || 0)
     const skipped = (prog.skipped_steps?.length || 0)
-    
-    // Prefer saved total_steps, then provided fallback, then calculate from current data
     const total = prog.total_steps || fallbackTotal || (done + skipped + (prog.remaining_steps?.length || 0))
-    
     if (total === 0) return { pct: 0, done: 0, total: 0 }
     return { pct: Math.round(((done + skipped) / total) * 100), done, total }
 }
+
+const COLUMN_STORAGE_KEY = 'velofix-bike-builds-columns-v1'
+
+const AVAILABLE_COLUMNS = [
+    { id: 'internal_number', label: 'Nr. / Modell', defaultVisible: true },
+    { id: 'color_size', label: 'Farbe / Größe', defaultVisible: true },
+    { id: 'customer', label: 'Kunde', defaultVisible: true },
+    { id: 'mechanic', label: 'Monteur', defaultVisible: true },
+    { id: 'progress', label: 'Fortschritt', defaultVisible: true },
+    { id: 'status', label: 'Status', defaultVisible: true },
+    { id: 'actions', label: 'Aktionen', defaultVisible: true },
+] as const
+
+type ColumnId = typeof AVAILABLE_COLUMNS[number]['id']
 
 export function BikeAssemblyTable() {
     const { workshopId } = useAuth()
@@ -96,12 +107,36 @@ export function BikeAssemblyTable() {
     const [sortField, setSortField] = useState<"created_at" | "none">("none")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
 
+    const [visibleColumns, setVisibleColumns] = useState<Record<ColumnId, boolean>>(() => {
+        const saved = localStorage.getItem(COLUMN_STORAGE_KEY)
+        if (saved) {
+            try {
+                return JSON.parse(saved)
+            } catch (e) {
+                console.error('Error parsing visible columns', e)
+            }
+        }
+        return AVAILABLE_COLUMNS.reduce((acc, col) => ({
+            ...acc,
+            [col.id]: col.defaultVisible
+        }), {} as Record<ColumnId, boolean>)
+    })
+
+    const toggleColumn = (id: ColumnId) => {
+        setVisibleColumns(prev => {
+            const next = { ...prev, [id]: !prev[id] }
+            localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(next))
+            return next
+        })
+    }
+
     const fetchBuilds = async () => {
         if (!workshopId) return []
         const { data, error } = await supabase
             .from('bike_builds')
             .select('*')
             .eq('workshop_id', workshopId)
+            .neq('status', 'trash')
             .order('created_at', { ascending: false })
         if (error) throw error
         return data as BikeBuild[]
@@ -113,7 +148,6 @@ export function BikeAssemblyTable() {
         { refreshInterval: 30000, revalidateOnFocus: true }
     )
 
-    // Fetch step counts per template for fallback calculation
     const { data: templateCounts = {} } = useSWR(
         workshopId ? ['neurad_template_counts', workshopId] : null,
         async () => {
@@ -122,9 +156,9 @@ export function BikeAssemblyTable() {
                 .select('template_name')
                 .eq('workshop_id', workshopId)
                 .eq('is_active', true)
-            
+
             if (error) throw error
-            
+
             const counts: Record<string, number> = {}
             data.forEach(step => {
                 const name = step.template_name || 'default'
@@ -151,6 +185,16 @@ export function BikeAssemblyTable() {
         }
     }
 
+    const statusCounts = useMemo(() => {
+        return {
+            all: builds.length,
+            offen: builds.filter(b => b.status === 'offen').length,
+            in_progress: builds.filter(b => b.status === 'in_progress').length,
+            fertig: builds.filter(b => b.status === 'fertig').length,
+            abgeschlossen: builds.filter(b => b.status === 'abgeschlossen').length,
+        }
+    }, [builds])
+
     const filteredBuilds = builds.filter(build => {
         const matchesSearch =
             (build.customer_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -168,23 +212,14 @@ export function BikeAssemblyTable() {
         return matchesSearch && matchesEmployee && matchesStatus
     }).sort((a, b) => {
         if (sortField === "none") return 0
-
-        const field = sortField as "created_at"
-        const aVal = a[field]
-        const bVal = b[field]
-
+        const aVal = a[sortField]
+        const bVal = b[sortField]
         if (aVal === bVal) return 0
         if (!aVal) return 1
         if (!bVal) return -1
-
         const timeA = new Date(aVal).getTime()
         const timeB = new Date(bVal).getTime()
-
-        if (sortDir === "asc") {
-            return timeA - timeB
-        } else {
-            return timeB - timeA
-        }
+        return sortDir === "asc" ? timeA - timeB : timeB - timeA
     })
 
     const handleViewBuild = (buildId: string) => {
@@ -196,38 +231,272 @@ export function BikeAssemblyTable() {
         return employees.find(e => e.id === id)?.name || "Unbekannt"
     }
 
-    if (isLoading) return <OrdersTableSkeleton />
-
-    const activeCount = filteredBuilds.filter(b => b.status === 'in_progress').length
     const activeFilterCount = [
         filterStatus !== 'all',
         filterEmployee !== 'all',
         sortField !== 'none'
     ].filter(Boolean).length
+
     const hasActiveFilters = searchTerm || activeFilterCount > 0
+
+    // Dynamic responsive logic matching OrdersTable
+    const enabledCount = Object.values(visibleColumns).filter(Boolean).length
+    const getResponsiveClass = (colId: ColumnId) => {
+        if (colId === 'internal_number' || colId === 'status' || colId === 'actions') return ""
+
+        if (enabledCount <= 4) {
+            if (colId === 'color_size') return "table-cell"
+            if (colId === 'customer') return "sm:table-cell"
+            if (colId === 'progress') return "md:table-cell"
+            return "lg:table-cell"
+        }
+
+        switch (colId) {
+            case 'color_size': return "sm:table-cell"
+            case 'customer': return "lg:table-cell"
+            case 'mechanic': return "xl:table-cell"
+            case 'progress': return "md:table-cell"
+            default: return ""
+        }
+    }
+
+    if (isLoading) return <OrdersTableSkeleton />
+
+    const renderTable = (buildsToRender: BikeBuild[]) => (
+        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-sm">
+            <Table className="w-full table-fixed">
+                <TableHeader>
+                    <TableRow className="hover:bg-transparent bg-muted/40">
+                        {visibleColumns.internal_number && (
+                            <TableHead className="w-[50px] md:w-[140px] pl-3 md:pl-5 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">
+                                Nr. / Modell
+                            </TableHead>
+                        )}
+                        {visibleColumns.color_size && (
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[100px]", getResponsiveClass('color_size'))}>
+                                Farbe / Größe
+                            </TableHead>
+                        )}
+                        {visibleColumns.customer && (
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                                Kunde
+                            </TableHead>
+                        )}
+                        {visibleColumns.mechanic && (
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[120px]", getResponsiveClass('mechanic'))}>
+                                Monteur
+                            </TableHead>
+                        )}
+                        {visibleColumns.progress && (
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[100px]", getResponsiveClass('progress'))}>
+                                Fortschritt
+                            </TableHead>
+                        )}
+                        {visibleColumns.status && (
+                            <TableHead className="px-2 md:px-3 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[90px] md:w-[100px] min-w-[90px]">
+                                Status
+                            </TableHead>
+                        )}
+                        {visibleColumns.actions && (
+                            <TableHead className="text-right pr-3 md:pr-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[75px] md:w-[85px] min-w-[75px]">
+                                Aktion
+                            </TableHead>
+                        )}
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {buildsToRender.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                                <div className="flex flex-col items-center justify-center gap-2">
+                                    <Search className="h-8 w-8 opacity-20" />
+                                    <p>Keine Neuräder gefunden</p>
+                                </div>
+                            </TableCell>
+                        </TableRow>
+                    ) : (
+                        buildsToRender.map(build => {
+                            const statusInfo = getNeuradStatus(build.status)
+                            const fallbackTotal = templateCounts[build.checklist_template || 'default']
+                            const progress = getAssemblyProgress(build, fallbackTotal)
+
+                            return (
+                                <TableRow
+                                    key={build.id}
+                                    className="group hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
+                                    onClick={() => handleViewBuild(build.id)}
+                                >
+                                    {/* Nr / Modell */}
+                                    {visibleColumns.internal_number && (
+                                        <TableCell className="w-[50px] md:w-[140px] pl-3 md:pl-5 py-3.5">
+                                            <div className="flex flex-col min-w-0">
+                                                <div className="flex items-center gap-1.5 overflow-hidden">
+                                                    <span className="font-mono text-[10px] font-bold text-primary/80 bg-primary/5 px-1 py-0.5 rounded truncate shrink">
+                                                        {build.internal_number || '—'}
+                                                    </span>
+                                                    {build.is_ebike && (
+                                                        <Zap className="h-2.5 w-2.5 text-amber-500 shrink-0" />
+                                                    )}
+                                                </div>
+                                                <span className="text-xs font-semibold text-foreground/90 truncate mt-0.5">
+                                                    {build.brand} <span className="text-muted-foreground font-medium">{build.model}</span>
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                    )}
+
+                                    {/* Farbe/Größe */}
+                                    {visibleColumns.color_size && (
+                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('color_size'))}>
+                                            <div className="flex flex-col text-sm">
+                                                <span className="text-foreground/80 font-medium">{build.color || '—'}</span>
+                                                <span className="text-[11px] text-muted-foreground leading-tight tracking-tight uppercase font-medium">{build.frame_size || ''}</span>
+                                            </div>
+                                        </TableCell>
+                                    )}
+
+                                    {/* Kunde */}
+                                    {visibleColumns.customer && (
+                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                                            <div className="flex flex-col text-sm">
+                                                <span className="font-semibold text-foreground/80">{build.customer_name || <span className="text-muted-foreground/60 italic font-medium text-xs">Lager</span>}</span>
+                                                <span className="text-[11px] text-muted-foreground/60 truncate max-w-[140px] font-medium leading-none mt-0.5 customer-email">{build.customer_email}</span>
+                                            </div>
+                                        </TableCell>
+                                    )}
+
+                                    {/* Monteur */}
+                                    {visibleColumns.mechanic && (
+                                        <TableCell className={cn("hidden py-3.5 px-2 md:px-4", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
+                                            {build.assigned_employee_id ? (
+                                                <Badge variant="outline" className="bg-background/40 hover:bg-background/60 shadow-xs border-border/40 text-[11px] font-medium py-0 px-2 h-5 transition-colors">
+                                                    {getEmployeeName(build.assigned_employee_id)}
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-[11px] text-muted-foreground/30 italic font-medium">—</span>
+                                            )}
+                                        </TableCell>
+                                    )}
+
+                                    {/* Fortschritt */}
+                                    {visibleColumns.progress && (
+                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('progress'))}>
+                                            {progress.total > 0 ? (
+                                                <div className="flex items-center gap-2.5 min-w-[90px]">
+                                                    <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden shadow-inner border border-border/5">
+                                                        <motion.div
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: `${progress.pct}%` }}
+                                                            transition={{ duration: 0.8, ease: "easeOut" }}
+                                                            className={cn(
+                                                                "h-full rounded-full shadow-sm",
+                                                                progress.pct === 100 ? "bg-emerald-500" : "bg-primary"
+                                                            )}
+                                                        />
+                                                    </div>
+                                                    <span className="text-[10px] text-muted-foreground font-bold font-mono whitespace-nowrap bg-muted/40 px-1 py-0.5 rounded border border-border/20">
+                                                        {progress.pct}%
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-[10px] text-muted-foreground/20 italic">—</span>
+                                            )}
+                                        </TableCell>
+                                    )}
+
+                                    {/* Status */}
+                                    {visibleColumns.status && (
+                                        <TableCell className="py-3.5 px-1 md:px-2 w-[85px] md:w-[100px]">
+                                            <Badge
+                                                variant="secondary"
+                                                className={cn(
+                                                    "font-medium border shadow-xs text-[9px] uppercase tracking-wider py-0 px-1 h-5 flex items-center justify-center",
+                                                    statusInfo.color
+                                                )}
+                                            >
+                                                <div className={cn("h-1 w-1 rounded-full mr-1 shadow-sm shrink-0", statusInfo.dotColor)} />
+                                                <span className="truncate">{statusInfo.label}</span>
+                                            </Badge>
+                                        </TableCell>
+                                    )}
+
+                                    {/* Aktionen */}
+                                    {visibleColumns.actions && (
+                                        <TableCell className="text-right pr-4 py-3.5 w-[80px]">
+                                            <div className="flex justify-end gap-1">
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
+                                                            onClick={e => e.stopPropagation()}
+                                                        >
+                                                            <UserPlus className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-56">
+                                                        <DropdownMenuLabel>Mitarbeiter zuweisen</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, null) }}>
+                                                            <X className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                            <span>Keine Zuweisung</span>
+                                                        </DropdownMenuItem>
+                                                        {employees.map(emp => (
+                                                            <DropdownMenuItem
+                                                                key={emp.id}
+                                                                onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, emp.id) }}
+                                                            >
+                                                                <Users className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                                                                <span className="truncate flex-1">{emp.name}</span>
+                                                                {build.assigned_employee_id === emp.id && <Check className="ml-auto h-4 w-4 shrink-0" />}
+                                                            </DropdownMenuItem>
+                                                        ))}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                                                    onClick={e => { e.stopPropagation(); handleViewBuild(build.id) }}
+                                                >
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            )
+                        })
+                    )}
+                </TableBody>
+            </Table>
+        </div>
+    )
 
     return (
         <Card className="border-none shadow-sm bg-card/50">
             <CardHeader className="pb-4">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <CardTitle className="text-xl font-bold tracking-tight text-foreground/90">
-                            Neurad Aufbau (Aktiv)
+                        <CardTitle className="text-xl font-bold tracking-tight">
+                            Aktive Neuräder
                         </CardTitle>
 
-                        {/* Filter Bar — identical to OrdersTable style */}
                         <div className="flex items-center gap-2">
+                            {/* Filter Toggle */}
                             <Popover open={showFilters} onOpenChange={setShowFilters}>
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="gap-2 bg-background border-border/50 h-9"
+                                        className="gap-2 bg-background"
                                     >
-                                        <SlidersHorizontal className="h-3.5 w-3.5" />
+                                        <SlidersHorizontal className="h-4 w-4" />
                                         Filter
                                         {activeFilterCount > 0 && (
-                                            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px] font-bold">
+                                            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
                                                 {activeFilterCount}
                                             </Badge>
                                         )}
@@ -241,7 +510,7 @@ export function BikeAssemblyTable() {
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                                                    className="h-7 text-xs"
                                                     onClick={() => {
                                                         setFilterStatus('all')
                                                         setFilterEmployee('all')
@@ -256,62 +525,41 @@ export function BikeAssemblyTable() {
 
                                         {/* Sortierung */}
                                         <div className="space-y-2">
-                                            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">Sortierung</label>
+                                            <label className="text-xs text-muted-foreground">Sortierung</label>
                                             <div className="flex items-center gap-2">
                                                 <Select value={sortField} onValueChange={(v: "created_at" | "none") => setSortField(v)}>
-                                                    <SelectTrigger className="h-9 flex-1 bg-background/50 border-border/40 text-xs">
+                                                    <SelectTrigger className="h-9 flex-1">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="none" className="text-xs">Standard</SelectItem>
-                                                        <SelectItem value="created_at" className="text-xs">Erstellt am</SelectItem>
+                                                        <SelectItem value="none">Standard</SelectItem>
+                                                        <SelectItem value="created_at">Erstellt am</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <Select value={sortDir} onValueChange={(v: "asc" | "desc") => setSortDir(v)} disabled={sortField === "none"}>
-                                                    <SelectTrigger className="h-9 w-[110px] bg-background/50 border-border/40 text-xs">
+                                                    <SelectTrigger className="h-9 w-[110px]">
                                                         <SelectValue />
                                                     </SelectTrigger>
                                                     <SelectContent>
-                                                        <SelectItem value="desc" className="text-xs">Absteigend</SelectItem>
-                                                        <SelectItem value="asc" className="text-xs">Aufsteigend</SelectItem>
+                                                        <SelectItem value="desc">Absteigend</SelectItem>
+                                                        <SelectItem value="asc">Aufsteigend</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                             </div>
                                         </div>
 
-                                        {/* Status Filter */}
-                                        <div className="space-y-2">
-                                            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">Status</label>
-                                            <Select value={filterStatus} onValueChange={setFilterStatus}>
-                                                <SelectTrigger className="h-9 bg-background/50 border-border/40 text-xs">
-                                                    <SelectValue placeholder="Status" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all" className="text-xs">Alle Status</SelectItem>
-                                                    {NEURAD_STATUSES.map(s => (
-                                                        <SelectItem key={s.value} value={s.value} className="text-xs">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className={cn("h-1.5 w-1.5 rounded-full", s.dotColor)} />
-                                                                {s.label}
-                                                            </div>
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
                                         {/* Employee Filter */}
                                         <div className="space-y-2">
-                                            <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">Mitarbeiter</label>
+                                            <label className="text-xs text-muted-foreground">Mitarbeiter</label>
                                             <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-                                                <SelectTrigger className="h-9 bg-background/50 border-border/40 text-xs">
-                                                    <SelectValue placeholder="Mitarbeiter" />
+                                                <SelectTrigger className="h-9">
+                                                    <SelectValue placeholder="Alle Mitarbeiter" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="all" className="text-xs">Alle Mitarbeiter</SelectItem>
-                                                    <SelectItem value="unassigned" className="text-xs">Nicht zugewiesen</SelectItem>
+                                                    <SelectItem value="all">Alle Mitarbeiter</SelectItem>
+                                                    <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
                                                     {employees.map(emp => (
-                                                        <SelectItem key={emp.id} value={emp.id} className="text-xs">{emp.name}</SelectItem>
+                                                        <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
@@ -323,14 +571,42 @@ export function BikeAssemblyTable() {
                                             size="sm"
                                             onClick={() => { mutate(); setShowFilters(false); }}
                                             disabled={isLoading}
-                                            className="w-full justify-start h-9 bg-background/50 border-border/40 text-xs"
+                                            className="w-full justify-start"
                                         >
-                                            <RefreshCw className={cn("mr-2 h-3.5 w-3.5", isLoading && "animate-spin")} />
+                                            <Search className="mr-2 h-4 w-4" />
                                             {isLoading ? "Lädt..." : "Aktualisieren"}
                                         </Button>
                                     </div>
                                 </PopoverContent>
                             </Popover>
+
+                            {/* Column Visibility Toggle — matches OrdersTable */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="gap-2 bg-background"
+                                    >
+                                        <Settings2 className="h-4 w-4" />
+                                        Ansicht
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    <DropdownMenuLabel>Sichtbare Spalten</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {AVAILABLE_COLUMNS.map(col => (
+                                        <DropdownMenuCheckboxItem
+                                            key={col.id}
+                                            checked={visibleColumns[col.id]}
+                                            onCheckedChange={() => toggleColumn(col.id)}
+                                            onSelect={(e) => e.preventDefault()}
+                                        >
+                                            {col.label}
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
 
                             {hasActiveFilters && (
                                 <Button
@@ -352,228 +628,78 @@ export function BikeAssemblyTable() {
                         </div>
                     </div>
 
-                    {/* Search */}
+                    {/* Search Bar */}
                     <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Suche nach Modell, Marke, Nummer, Kunde..."
-                            className="pl-9 h-10 bg-background border-border/50"
+                            className="pl-10 bg-background"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
                 </div>
             </CardHeader>
-
             <CardContent>
-                {/* Summary row */}
-                {filteredBuilds.length > 0 && (
-                    <div className="flex items-center gap-4 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground/70 mb-4 px-1">
-                        <span>{filteredBuilds.length} Einträge</span>
-                        {activeCount > 0 && (
-                            <>
-                                <span className="opacity-30">•</span>
-                                <span className="text-primary/80">
-                                    {activeCount} in Montage
+                {/* Status Tabs — matches OrdersTable */}
+                <Tabs defaultValue="all" className="space-y-6" onValueChange={setFilterStatus}>
+                    <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1 border-b-0 gap-6">
+                        <TabsTrigger value="all" className="whitespace-nowrap gap-2 pb-2">
+                            Alle
+                            <span className="text-[10px] bg-muted-foreground/10 text-muted-foreground px-1.5 py-0.5 rounded-full font-bold">
+                                {statusCounts.all}
+                            </span>
+                        </TabsTrigger>
+                        <TabsTrigger value="offen" className="whitespace-nowrap gap-2 pb-2">
+                            Offen
+                            {statusCounts.offen > 0 && (
+                                <span className="text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded-full font-bold">
+                                    {statusCounts.offen}
                                 </span>
-                            </>
-                        )}
-                    </div>
-                )}
-
-                {/* Table — Dashboard-style */}
-                <div className="rounded-xl border border-border/40 bg-card shadow-sm overflow-x-auto">
-                    <Table className="w-full">
-                        <TableHeader>
-                            <TableRow className="hover:bg-transparent bg-muted/30 border-b border-border/40">
-                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 pl-5 w-[140px]">
-                                    Nr. / Modell
-                                </TableHead>
-                                <TableHead className="hidden sm:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
-                                    Farbe / Größe
-                                </TableHead>
-                                <TableHead className="hidden lg:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
-                                    Kunde
-                                </TableHead>
-                                <TableHead className="hidden xl:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10">
-                                    Monteur
-                                </TableHead>
-                                <TableHead className="hidden md:table-cell font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 w-[100px]">
-                                    Fortschritt
-                                </TableHead>
-                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 w-[90px]">
-                                    Status
-                                </TableHead>
-                                <TableHead className="font-semibold text-[10px] uppercase tracking-wider text-muted-foreground h-10 pr-5 text-right w-[70px]">
-                                    Aktion
-                                </TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredBuilds.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={7} className="h-56 text-center">
-                                        <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground">
-                                            <div className="p-5 rounded-2xl bg-muted/30 border border-border/20 shadow-inner">
-                                                <Wrench className="h-10 w-10 opacity-20" />
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-sm text-foreground/70">Keine Neuräder gefunden</p>
-                                                <p className="text-xs opacity-60 mt-1.5">
-                                                    {hasActiveFilters ? 'Passe die Filter an' : 'Erstelle einen neuen Eintrag oben rechts'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filteredBuilds.map(build => {
-                                    const statusInfo = getNeuradStatus(build.status)
-                                    const fallbackTotal = templateCounts[build.checklist_template || 'default']
-                                    const progress = getAssemblyProgress(build, fallbackTotal)
-
-                                    return (
-                                        <TableRow
-                                            key={build.id}
-                                            className="group cursor-pointer transition-colors hover:bg-muted/30 border-b border-border/20 last:border-0"
-                                            onClick={() => handleViewBuild(build.id)}
-                                        >
-                                            {/* Nr / Modell */}
-                                            <TableCell className="pl-5 py-3.5 w-[110px]">
-                                                <div className="flex flex-col min-w-0">
-                                                    <div className="flex items-center gap-1.5 overflow-hidden">
-                                                        <span className="font-mono text-[10px] font-bold text-primary/80 bg-primary/5 px-1 py-0.5 rounded truncate shrink">
-                                                            {build.internal_number || '—'}
-                                                        </span>
-                                                        {build.is_ebike && (
-                                                            <Zap className="h-2.5 w-2.5 text-amber-500 shrink-0" />
-                                                        )}
-                                                    </div>
-                                                    <span className="text-xs font-semibold text-foreground/90 truncate mt-0.5">
-                                                        {build.brand} <span className="text-muted-foreground font-medium">{build.model}</span>
-                                                    </span>
-                                                </div>
-                                            </TableCell>
-
-                                            {/* Farbe/Größe */}
-                                            <TableCell className="hidden sm:table-cell py-3.5">
-                                                <div className="flex flex-col text-sm">
-                                                    <span className="text-foreground/80 font-medium">{build.color || '—'}</span>
-                                                    <span className="text-[11px] text-muted-foreground leading-tight tracking-tight uppercase font-medium">{build.frame_size || ''}</span>
-                                                </div>
-                                            </TableCell>
-
-                                            {/* Kunde */}
-                                            <TableCell className="hidden lg:table-cell py-3.5">
-                                                <div className="flex flex-col text-sm">
-                                                    <span className="font-semibold text-foreground/80">{build.customer_name || <span className="text-muted-foreground/60 italic font-medium text-xs">Lager</span>}</span>
-                                                        <span className="text-[11px] text-muted-foreground/60 truncate max-w-[140px] font-medium leading-none mt-0.5 customer-email">{build.customer_email}</span>
-                                                </div>
-                                            </TableCell>
-
-                                            {/* Mechaniker */}
-                                            <TableCell className="hidden xl:table-cell py-3.5" onClick={e => e.stopPropagation()}>
-                                                {build.assigned_employee_id ? (
-                                                    <Badge variant="outline" className="bg-background/40 hover:bg-background/60 shadow-xs border-border/40 text-[11px] font-medium py-0 px-2 h-5 transition-colors">
-                                                        {getEmployeeName(build.assigned_employee_id)}
-                                                    </Badge>
-                                                ) : (
-                                                    <span className="text-[11px] text-muted-foreground/30 italic font-medium">—</span>
-                                                )}
-                                            </TableCell>
-
-                                            {/* Fortschritt */}
-                                            <TableCell className="hidden md:table-cell py-3.5">
-                                                {progress.total > 0 ? (
-                                                    <div className="flex items-center gap-2.5 min-w-[90px]">
-                                                        <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden shadow-inner border border-border/5">
-                                                            <motion.div
-                                                                initial={{ width: 0 }}
-                                                                animate={{ width: `${progress.pct}%` }}
-                                                                transition={{ duration: 0.8, ease: "easeOut" }}
-                                                                className={cn(
-                                                                    "h-full rounded-full shadow-sm",
-                                                                    progress.pct === 100 ? "bg-emerald-500" : "bg-primary"
-                                                                )}
-                                                            />
-                                                        </div>
-                                                        <span className="text-[10px] text-muted-foreground font-bold font-mono whitespace-nowrap bg-muted/40 px-1 py-0.5 rounded border border-border/20">
-                                                            {progress.pct}%
-                                                        </span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-[10px] text-muted-foreground/20 italic">—</span>
-                                                )}
-                                            </TableCell>
-
-                                            {/* Status */}
-                                            <TableCell className="py-3.5 w-[80px]">
-                                                <Badge
-                                                    variant="secondary"
-                                                    className={cn(
-                                                        "font-medium border shadow-xs text-[9px] uppercase tracking-wider py-0 px-1 h-5 flex items-center justify-center",
-                                                        statusInfo.color
-                                                    )}
-                                                >
-                                                    <div className={cn("h-1 w-1 rounded-full mr-1 shadow-sm shrink-0", statusInfo.dotColor)} />
-                                                    <span className="truncate">{statusInfo.label}</span>
-                                                </Badge>
-                                            </TableCell>
-
-                                            {/* Aktionen */}
-                                            <TableCell className="text-right pr-4 py-3.5 w-[60px]">
-                                                <div className="flex justify-end gap-1">
-                                                    {/* Mechaniker zuweisen */}
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-lg opacity-0 lg:group-hover:opacity-100 transition-all duration-200"
-                                                                onClick={e => e.stopPropagation()}
-                                                            >
-                                                                <UserPlus className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-56">
-                                                            <DropdownMenuLabel className="text-xs uppercase tracking-wider text-muted-foreground/70 px-3 py-2">Mechaniker zuweisen</DropdownMenuLabel>
-                                                            <DropdownMenuSeparator className="bg-border/40" />
-                                                            <DropdownMenuItem className="text-xs py-2 px-3 focus:bg-muted" onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, null) }}>
-                                                                <X className="mr-2 h-3.5 w-3.5 text-muted-foreground/60" />
-                                                                <span>Keine Zuweisung</span>
-                                                            </DropdownMenuItem>
-                                                            {employees.map(emp => (
-                                                                <DropdownMenuItem
-                                                                    key={emp.id}
-                                                                    className="text-xs py-2 px-3 focus:bg-muted"
-                                                                    onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, emp.id) }}
-                                                                >
-                                                                    <Users className="mr-2 h-3.5 w-3.5 text-muted-foreground/60 shrink-0" />
-                                                                    <span className="font-medium truncate flex-1">{emp.name}</span>
-                                                                    {build.assigned_employee_id === emp.id && <Check className="ml-auto h-3.5 w-3.5 text-primary shrink-0" />}
-                                                                </DropdownMenuItem>
-                                                            ))}
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-
-                                                    {/* Details */}
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/5 rounded-lg border border-transparent lg:hover:border-primary/20 transition-all"
-                                                        onClick={e => { e.stopPropagation(); handleViewBuild(build.id) }}
-                                                    >
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    )
-                                })
                             )}
-                        </TableBody>
-                    </Table>
-                </div>
+                        </TabsTrigger>
+                        <TabsTrigger value="in_progress" className="whitespace-nowrap gap-2 pb-2">
+                            In Montage
+                            {statusCounts.in_progress > 0 && (
+                                <span className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded-full font-bold">
+                                    {statusCounts.in_progress}
+                                </span>
+                            )}
+                        </TabsTrigger>
+                        <TabsTrigger value="fertig" className="whitespace-nowrap gap-2 pb-2">
+                            Montiert
+                            {statusCounts.fertig > 0 && (
+                                <span className="text-[10px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-1.5 py-0.5 rounded-full font-bold">
+                                    {statusCounts.fertig}
+                                </span>
+                            )}
+                        </TabsTrigger>
+                        <TabsTrigger value="abgeschlossen" className="whitespace-nowrap gap-2 pb-2">
+                            Kontrolliert
+                            {statusCounts.abgeschlossen > 0 && (
+                                <span className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full font-bold">
+                                    {statusCounts.abgeschlossen}
+                                </span>
+                            )}
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="all" className="mt-0">
+                        {renderTable(filteredBuilds)}
+                    </TabsContent>
+                    <TabsContent value="offen" className="mt-0">
+                        {renderTable(filteredBuilds)}
+                    </TabsContent>
+                    <TabsContent value="in_progress" className="mt-0">
+                        {renderTable(filteredBuilds)}
+                    </TabsContent>
+                    <TabsContent value="fertig" className="mt-0">
+                        {renderTable(filteredBuilds)}
+                    </TabsContent>
+                    <TabsContent value="abgeschlossen" className="mt-0">
+                        {renderTable(filteredBuilds)}
+                    </TabsContent>
+                </Tabs>
             </CardContent>
         </Card>
     )
