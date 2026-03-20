@@ -2,6 +2,7 @@ import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { StatsCards } from "@/components/StatsCards"
 import { OrdersTable } from "@/components/OrdersTable"
 import { PageTransition } from "@/components/PageTransition"
+import { PageHeader } from "@/components/PageHeader"
 import { CreateOrderModal } from "@/components/CreateOrderModal"
 import { useAuth } from "@/contexts/AuthContext"
 import { useState, useEffect } from "react"
@@ -33,49 +34,29 @@ export default function DashboardPage() {
         <PageTransition>
             <DashboardLayout onOrderCreated={handleOrderCreated}>
 
-                {/* ── Header ── */}
-                <div className="px-1 mb-5">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-
-                        {/* Title Section */}
-                        <div className="flex items-center gap-3">
-                            <div className="hidden sm:flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-                                <Bike className="h-4 w-4" />
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-bold tracking-tight leading-tight text-foreground">
-                                    Reparaturen
-                                </h1>
-                                <p className="text-sm text-muted-foreground mt-0.5">Alle Werkstattaufträge im Überblick</p>
-                            </div>
-                        </div>
-
-                        {/* Right side: New Order button */}
-                        <div className="flex items-center gap-2">
-                            {userRole !== 'read' && (
-                                <CreateOrderModal
-                                    open={isNewOrderOpen}
-                                    onOpenChange={setIsNewOrderOpen}
-                                    onOrderCreated={handleOrderCreated}
-                                >
-                                    <Button
-                                        size="sm"
-                                        className="gap-1.5 h-9 font-medium"
-                                        onClick={() => setIsNewOrderOpen(true)}
-                                    >
-                                        <PlusCircle className="h-4 w-4" />
-                                        Neuer Auftrag
-                                    </Button>
-                                </CreateOrderModal>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── Stats ── */}
-                <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+                <PageHeader
+                    icon={Bike}
+                    title="Reparaturen"
+                    description="Alle Werkstattaufträge im Überblick"
+                    action={userRole !== 'read' ? (
+                        <CreateOrderModal
+                            open={isNewOrderOpen}
+                            onOpenChange={setIsNewOrderOpen}
+                            onOrderCreated={handleOrderCreated}
+                        >
+                            <Button
+                                size="sm"
+                                className="gap-1.5 h-9 font-medium"
+                                onClick={() => setIsNewOrderOpen(true)}
+                            >
+                                <PlusCircle className="h-4 w-4" />
+                                Neuer Auftrag
+                            </Button>
+                        </CreateOrderModal>
+                    ) : undefined}
+                >
                     <StatsCards key={`stats-${refreshKey}`} />
-                </div>
+                </PageHeader>
 
                 {/* ── Orders Table ── */}
                 <OrdersTable key={refreshKey} />

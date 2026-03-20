@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { DashboardLayout } from '@/layouts/DashboardLayout'
 import { PageTransition } from '@/components/PageTransition'
+import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -49,6 +50,7 @@ import {
     Wrench,
     MessageSquare,
     Tag,
+    Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -343,18 +345,13 @@ export default function SettingsPage() {
     return (
         <PageTransition>
             <DashboardLayout>
-                {/* Premium Header */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-purple-500/5 border border-primary/10 p-6 mb-8">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-                    <div className="relative">
-                        <h1 className="text-2xl font-bold tracking-tight">Einstellungen</h1>
-                        <p className="text-muted-foreground text-sm mt-1">
-                            {(userRole === 'admin' || userRole === 'owner')
-                                ? 'Profil, Werkstatt und Mitarbeiter verwalten'
-                                : 'Profil und Präferenzen anpassen'}
-                        </p>
-                    </div>
-                </div>
+                <PageHeader
+                    icon={Settings}
+                    title="Einstellungen"
+                    description={(userRole === 'admin' || userRole === 'owner')
+                        ? 'Profil, Werkstatt und Mitarbeiter verwalten'
+                        : 'Profil und Präferenzen anpassen'}
+                />
 
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Premium Sidebar Navigation */}

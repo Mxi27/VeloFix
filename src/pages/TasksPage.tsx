@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { PageTransition } from "@/components/PageTransition"
+import { PageHeader } from "@/components/PageHeader"
 import { CreateShopTaskDialog } from "@/components/CreateShopTaskDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -300,28 +301,13 @@ export default function TasksPage() {
     return (
         <PageTransition>
             <DashboardLayout>
-                {/* ── Premium Header ── */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-orange-500/5 border border-primary/10 p-6 mb-6">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-
-                    <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className="hidden sm:flex p-3 rounded-xl bg-primary/10 border border-primary/20">
-                                <ListTodo className="h-6 w-6 text-primary" />
-                            </div>
-                            <div>
-                                <h1 className="text-2xl font-bold tracking-tight">Werkstatt-Aufgaben</h1>
-                                <p className="text-muted-foreground text-sm mt-0.5">
-                                    Verwalte allgemeine und wiederkehrende Aufgaben.
-                                </p>
-                            </div>
-                        </div>
-                        <CreateShopTaskDialog onTaskCreated={fetchTasks} />
-                    </div>
-
-                    {/* Mini Stats */}
-                    <div className="relative flex flex-wrap gap-3 mt-5">
+                <PageHeader
+                    icon={ListTodo}
+                    title="Werkstatt-Aufgaben"
+                    description="Verwalte allgemeine und wiederkehrende Aufgaben."
+                    action={<CreateShopTaskDialog onTaskCreated={fetchTasks} />}
+                >
+                    <div className="flex flex-wrap gap-3">
                         {[
                             { icon: Circle, color: 'text-slate-400', count: openCount, label: 'Offen' },
                             { icon: PlayCircle, color: 'text-blue-500', count: inProgressCount, label: 'In Arbeit' },
@@ -341,7 +327,7 @@ export default function TasksPage() {
                             </div>
                         )}
                     </div>
-                </div>
+                </PageHeader>
 
                 {/* ── Search, Filter & View Toggle ── */}
                 <div className="flex flex-col sm:flex-row gap-3 mb-6">

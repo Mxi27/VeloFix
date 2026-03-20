@@ -19,6 +19,7 @@ import {
     Minus,
 } from "lucide-react"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
+import { PageHeader } from "@/components/PageHeader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -421,45 +422,39 @@ export default function FeedbackDashboard() {
 
     return (
         <DashboardLayout>
-            <div className="max-w-[1100px] mx-auto space-y-5 pb-12 px-4 md:px-6 pt-6">
-
-                {/* Page header */}
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h1 className="text-2xl font-bold tracking-tight">Kundenfeedback</h1>
-                            {healthStatus && (
-                                <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", healthStatus.cls)}>
-                                    {healthStatus.label}
-                                </span>
-                            )}
+                <PageHeader
+                    icon={MessageSquare}
+                    title="Kundenfeedback"
+                    description="Zufriedenheit, Preisempfinden und alle Bewertungen auf einen Blick"
+                    titleBadge={healthStatus ? (
+                        <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", healthStatus.cls)}>
+                            {healthStatus.label}
+                        </span>
+                    ) : undefined}
+                    action={
+                        <div className="flex flex-col items-end gap-1.5">
+                            <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-1 border border-border/30">
+                                {TIME_FRAMES.map(tf => (
+                                    <button
+                                        key={tf.value}
+                                        onClick={() => setTimeFrame(tf.value)}
+                                        className={cn(
+                                            "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                                            timeFrame === tf.value
+                                                ? "bg-background text-foreground shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground"
+                                        )}
+                                    >
+                                        {tf.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-[11px] text-muted-foreground/50 tabular-nums">{dateRangeLabel}</p>
                         </div>
-                        <p className="text-sm text-muted-foreground mt-0.5">
-                            Zufriedenheit, Preisempfinden und alle Bewertungen auf einen Blick
-                        </p>
-                    </div>
-                    {/* Timeframe selector */}
-                    <div className="flex flex-col items-end gap-1.5 shrink-0">
-                        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-1 border border-border/30">
-                            {TIME_FRAMES.map(tf => (
-                                <button
-                                    key={tf.value}
-                                    onClick={() => setTimeFrame(tf.value)}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                                        timeFrame === tf.value
-                                            ? "bg-background text-foreground shadow-sm"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    {tf.label}
-                                </button>
-                            ))}
-                        </div>
-                        <p className="text-[11px] text-muted-foreground/50 tabular-nums">{dateRangeLabel}</p>
-                    </div>
-                </div>
+                    }
+                />
 
+            <div className="space-y-5 pb-12">
                 {/* Empty state */}
                 {feedback.length === 0 ? (
                     <Card className="border-dashed">
