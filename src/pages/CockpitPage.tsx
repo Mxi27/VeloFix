@@ -319,16 +319,16 @@ export default function CockpitPage() {
                                 </div>
                             )}
 
-                            {/* Right: Today's achievements — compact stat pills */}
-                            <div className="flex items-center gap-0.5 bg-background/50 rounded-xl border border-border/50 px-1.5 py-1 overflow-x-auto no-scrollbar shrink-0">
-                                <StatPill icon={ListTodo}    label="Reparaturen" value={achievements.bikesFinished}  color="blue"   />
-                                <div className="h-4 w-[1px] bg-border/60 mx-1 shrink-0" />
-                                <StatPill icon={Zap}         label="Neuräder"    value={achievements.buildsFinished} color="amber"  />
-                                <div className="h-4 w-[1px] bg-border/60 mx-1 shrink-0" />
-                                <StatPill icon={ShieldCheck} label="Kontrollen"  value={achievements.qcFinished}     color="purple" />
-                                <div className="h-4 w-[1px] bg-border/60 mx-1 shrink-0" />
-                                <StatPill icon={CheckCircle2} label="Aufgaben"   value={achievements.tasksFinished}  color="orange" />
-                            </div>
+                    {/* Right: Today's achievements — compact stat pills */}
+                    <div className="flex items-center gap-0.5 bg-card/80 dark:bg-card/60 backdrop-blur-md rounded-xl border border-border/60 shadow-sm px-1.5 py-1 overflow-x-auto no-scrollbar shrink-0">
+                        <StatPill icon={ListTodo}    label="Reparaturen" value={achievements.bikesFinished}  color="blue"   />
+                        <div className="h-4 w-[1px] bg-border/50 mx-1 shrink-0" />
+                        <StatPill icon={Zap}         label="Neuräder"    value={achievements.buildsFinished} color="amber"  />
+                        <div className="h-4 w-[1px] bg-border/50 mx-1 shrink-0" />
+                        <StatPill icon={ShieldCheck} label="Kontrollen"  value={achievements.qcFinished}     color="purple" />
+                        <div className="h-4 w-[1px] bg-border/50 mx-1 shrink-0" />
+                        <StatPill icon={CheckCircle2} label="Aufgaben"   value={achievements.tasksFinished}  color="orange" />
+                    </div>
                         </div>
                     </div>
 
@@ -549,33 +549,39 @@ function StatPill({ icon: Icon, label, value, color }: { icon: any, label: strin
 }
 
 const ACCENT_MAP = {
-    blue:    { icon: 'text-blue-400',    bg: 'bg-blue-500/15',    border: 'border-t-blue-500/60',    headerBg: 'from-blue-500/8',    glow: 'bg-blue-500/5'    },
-    purple:  { icon: 'text-purple-400',  bg: 'bg-purple-500/15',  border: 'border-t-purple-500/60',  headerBg: 'from-purple-500/8',  glow: 'bg-purple-500/5'  },
-    orange:  { icon: 'text-orange-400',  bg: 'bg-orange-500/15',  border: 'border-t-orange-500/60',  headerBg: 'from-orange-500/8',  glow: 'bg-orange-500/5'  },
-    emerald: { icon: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-t-emerald-500/60', headerBg: 'from-emerald-500/8', glow: 'bg-emerald-500/5' },
+    blue:    { icon: 'text-blue-400',    bg: 'bg-blue-500/15',    border: 'border-t-blue-400',    headerBg: 'from-blue-500/10',    ringColor: 'ring-blue-500/10'    },
+    purple:  { icon: 'text-purple-400',  bg: 'bg-purple-500/15',  border: 'border-t-purple-400',  headerBg: 'from-purple-500/10',  ringColor: 'ring-purple-500/10'  },
+    orange:  { icon: 'text-orange-400',  bg: 'bg-orange-500/15',  border: 'border-t-orange-400',  headerBg: 'from-orange-500/10',  ringColor: 'ring-orange-500/10'  },
+    emerald: { icon: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-t-emerald-400', headerBg: 'from-emerald-500/10', ringColor: 'ring-emerald-500/10' },
 } as const
 
 function CockpitPanel({ title, icon: Icon, accent, count, empty, children, className, action }: any) {
-    const { icon: iconColor, bg, border, headerBg, glow } = ACCENT_MAP[accent as keyof typeof ACCENT_MAP]
+    const { icon: iconColor, bg, border, headerBg, ringColor } = ACCENT_MAP[accent as keyof typeof ACCENT_MAP]
     const isEmpty = count === 0
 
     return (
         <div className={cn(
-            "flex flex-col rounded-2xl compact:rounded-xl border border-border/50 border-t-2 bg-card shadow-sm overflow-hidden min-w-0 transition-all hover:shadow-lg hover:border-border/70 h-full min-h-[300px] lg:min-h-[360px] max-h-[40vh] xl:max-h-none",
+            "flex flex-col rounded-2xl compact:rounded-xl border border-border/60 border-t-2 bg-card overflow-hidden min-w-0 h-full min-h-[300px] lg:min-h-[360px] max-h-[40vh] xl:max-h-none",
+            "shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-shadow duration-300",
+            // Inner top glow via ring
+            "ring-1 ring-inset", ringColor,
             border, className
         )}>
-            {/* Panel header with subtle colored gradient */}
+            {/* Panel header with accent gradient */}
             <div className={cn(
                 "flex-shrink-0 flex items-center justify-between px-4 py-3.5 compact:px-2 compact:py-1.5 border-b border-border/40",
                 "bg-gradient-to-r to-transparent", headerBg
             )}>
                 <div className="flex items-center gap-3">
-                    <div className={cn("p-2 rounded-xl border border-white/5", bg)}>
-                        <Icon className={cn("h-4.5 w-4.5", iconColor)} />
+                    <div className={cn(
+                        "p-2 rounded-xl border border-white/8 shadow-sm",
+                        bg
+                    )}>
+                        <Icon className={cn("h-4 w-4", iconColor)} />
                     </div>
                     <div>
                         <h3 className="font-bold text-foreground text-sm lg:text-base leading-tight">{title}</h3>
-                        <p className="text-[10px] lg:text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                        <p className="text-[10px] lg:text-xs text-muted-foreground/70 font-semibold uppercase tracking-widest">
                             {count > 0 ? `${count} Einträge` : 'Leer'}
                         </p>
                     </div>
@@ -586,10 +592,10 @@ function CockpitPanel({ title, icon: Icon, accent, count, empty, children, class
             <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative">
                 {isEmpty ? (
                     <div className="flex flex-col items-center justify-center gap-3 h-full py-10 lg:py-20">
-                        <div className={cn("p-4 rounded-2xl border border-white/5 opacity-30", bg)}>
+                        <div className={cn("p-4 rounded-2xl opacity-25", bg)}>
                             <Icon className={cn("h-7 w-7", iconColor)} />
                         </div>
-                        <p className="text-sm font-medium text-center px-8 text-muted-foreground/50">{empty}</p>
+                        <p className="text-sm font-medium text-center px-8 text-muted-foreground/40">{empty}</p>
                     </div>
                 ) : (
                     <div className="p-2 lg:p-3 compact:p-1">

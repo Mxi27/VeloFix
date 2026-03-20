@@ -365,7 +365,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     }
 
     const renderTable = (ordersToRender: Order[]) => (
-        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-sm">
+        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-[var(--shadow-xs)]">
             <Table className="w-full table-fixed">
                 <TableHeader>
                     <TableRow className="hover:bg-transparent bg-muted/40">
@@ -409,7 +409,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                         ordersToRender.map((order) => (
                             <TableRow
                                 key={order.id}
-                                className="hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
+                                className="hover:bg-muted/30 cursor-pointer transition-colors duration-150 border-b border-border/40 last:border-0"
                                 onClick={() => handleViewOrder(order.id)}
                             >
                                 {visibleColumns.order_number && (
@@ -590,7 +590,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
     return (
         <>
-            <Card className="border-none shadow-sm bg-card/50">
+            <Card className="border border-border/70 shadow-[var(--shadow-card)] bg-card">
                 <CardHeader className="pb-4">
                     <div className="flex flex-col gap-4">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
