@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PageTransition } from '@/components/PageTransition'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -176,9 +175,6 @@ export default function SettingsPage() {
         return () => window.removeEventListener('keydown', handleKeyDown, true)
     }, [navigate])
 
-    const handleBack = useCallback(() => {
-        navigate(-1)
-    }, [navigate])
 
     const handleLogout = async () => {
         try {
