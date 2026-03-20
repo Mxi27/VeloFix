@@ -285,8 +285,8 @@ export default function OrderDetailPage() {
                     {/* ── Hero Header ─────────────────────────────────────────── */}
                     <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card">
                         {/* Ambient background glow */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/4 via-transparent to-primary/2 pointer-events-none" />
-                        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/6 blur-3xl pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-primary/3 pointer-events-none" />
+                        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/12 blur-3xl pointer-events-none" />
 
                         <div className="relative px-6 py-5">
                             {/* ── Row 1: Navigation ── */}
@@ -579,9 +579,9 @@ export default function OrderDetailPage() {
                                                 >
                                                     <div className={cn(
                                                         "relative h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
-                                                        isDone && "bg-primary/15 border border-primary/30",
+                                                        isDone && "bg-primary/12 border border-primary/35",
                                                         isActive && cn(STATUS_SOLID_COLORS[step.value], "text-primary-foreground shadow-sm scale-110 border-transparent"),
-                                                        !isDone && !isActive && "bg-muted/60 border border-border/50 text-muted-foreground group-hover:border-primary/30 group-hover:bg-primary/5"
+                                                        !isDone && !isActive && "bg-transparent border border-border/70 text-muted-foreground group-hover:border-primary/40 group-hover:bg-primary/8"
                                                     )}>
                                                         {isDone
                                                             ? <Check className="h-4 w-4 text-primary" />
@@ -621,7 +621,7 @@ export default function OrderDetailPage() {
                                                 <div className={cn(
                                                     "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
                                                     order.status === LEASING_STATUS.value && cn(STATUS_SOLID_COLORS.abgeholt, "text-white shadow-sm scale-110"),
-                                                    order.status !== LEASING_STATUS.value && "bg-muted/60 border border-border/50 text-muted-foreground group-hover:border-emerald-300 group-hover:bg-emerald-500/5"
+                                                    order.status !== LEASING_STATUS.value && "bg-transparent border border-border/70 text-muted-foreground group-hover:border-emerald-500/50 group-hover:bg-emerald-500/8"
                                                 )}>
                                                     <LEASING_STATUS.icon className={cn("h-4 w-4", order.status === LEASING_STATUS.value ? "text-white" : "text-muted-foreground")} />
                                                 </div>
@@ -642,7 +642,7 @@ export default function OrderDetailPage() {
                                         <div className={cn(
                                             "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
                                             order.status === COMPLETED_STATUS.value && cn(STATUS_SOLID_COLORS.abgeschlossen, "text-white shadow-sm scale-110"),
-                                            order.status !== COMPLETED_STATUS.value && "bg-muted/60 border border-border/50 text-muted-foreground group-hover:border-slate-300 group-hover:bg-slate-500/5"
+                                            order.status !== COMPLETED_STATUS.value && "bg-transparent border border-border/70 text-muted-foreground group-hover:border-slate-500/50 group-hover:bg-slate-500/8"
                                         )}>
                                             <COMPLETED_STATUS.icon className={cn("h-4 w-4", order.status === COMPLETED_STATUS.value ? "text-white" : "text-muted-foreground")} />
                                         </div>

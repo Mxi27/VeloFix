@@ -167,7 +167,7 @@ export const AllRepairsList = ({ orders, employees }: AllRepairsListProps) => {
                         <List className="h-4 w-4 text-emerald-600" />
                     </div>
                     <h2 className="text-lg font-semibold tracking-tight">Alle Reparaturen</h2>
-                    <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                    <Badge variant="secondary" className="bg-muted text-muted-foreground">
                         {filteredOrders.length}
                     </Badge>
                     <span className="text-xs text-muted-foreground ml-2">

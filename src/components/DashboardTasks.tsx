@@ -138,12 +138,12 @@ export function DashboardTasks() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'abholbereit': return 'text-emerald-600 bg-emerald-50 border-emerald-200'
-            case 'in_bearbeitung': return 'text-blue-600 bg-blue-50 border-blue-200'
-            case 'warten_auf_teile': return 'text-amber-600 bg-amber-50 border-amber-200'
-            case 'kontrolle_offen': return 'text-yellow-600 bg-yellow-50 border-yellow-200'
-            case 'eingegangen': return 'text-slate-600 bg-slate-50 border-slate-200'
-            default: return 'text-slate-600 bg-slate-50 border-slate-200'
+            case 'abholbereit': return 'text-emerald-700 bg-emerald-500/12 border-emerald-500/25 dark:text-emerald-400 dark:bg-emerald-500/15 dark:border-emerald-500/25'
+            case 'in_bearbeitung': return 'text-blue-700 bg-blue-500/12 border-blue-500/25 dark:text-blue-400 dark:bg-blue-500/15 dark:border-blue-500/25'
+            case 'warten_auf_teile': return 'text-amber-700 bg-amber-500/12 border-amber-500/25 dark:text-amber-400 dark:bg-amber-500/15 dark:border-amber-500/25'
+            case 'kontrolle_offen': return 'text-yellow-700 bg-yellow-500/12 border-yellow-500/25 dark:text-yellow-400 dark:bg-yellow-500/15 dark:border-yellow-500/25'
+            case 'eingegangen': return 'text-slate-700 bg-slate-500/10 border-slate-500/20 dark:text-slate-400 dark:bg-slate-500/15 dark:border-slate-500/20'
+            default: return 'text-slate-700 bg-slate-500/10 border-slate-500/20 dark:text-slate-400 dark:bg-slate-500/15 dark:border-slate-500/20'
         }
     }
 
@@ -210,7 +210,7 @@ export function DashboardTasks() {
                 className="group flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card hover:border-primary/20 hover:bg-accent/5 hover:shadow-sm transition-all cursor-pointer"
             >
                 <div className="flex items-start gap-3 overflow-hidden">
-                    <div className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${isOverdue ? 'bg-red-500' : (isDueToday ? 'bg-orange-500' : 'bg-slate-300')}`} />
+                    <div className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${isOverdue ? 'bg-red-500' : (isDueToday ? 'bg-orange-500' : 'bg-muted-foreground/35')}`} />
                     <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm truncate">{order.order_number}</span>

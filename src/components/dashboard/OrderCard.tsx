@@ -97,7 +97,7 @@ export const OrderCard = ({ order, onClick, showMechanics = false, employees = [
                 "group relative flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer",
                 "hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30",
                 isOverdue
-                    ? "border-red-200/80 bg-red-50/30 hover:bg-red-50/50"
+                    ? "border-red-500/30 bg-red-500/8 hover:bg-red-500/12 dark:border-red-500/25 dark:bg-red-500/10 dark:hover:bg-red-500/15"
                     : "border-border/50 bg-card/80 hover:bg-card",
             )}
         >
@@ -115,7 +115,7 @@ export const OrderCard = ({ order, onClick, showMechanics = false, employees = [
                             {STATUS_LABELS[order.status] || order.status}
                         </Badge>
                         {isUnassigned && (
-                            <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-dashed border-amber-300 text-amber-600 bg-amber-50/50">
+                            <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-dashed border-amber-500/40 text-amber-700 bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/35 dark:bg-amber-500/12">
                                 Frei
                             </Badge>
                         )}
