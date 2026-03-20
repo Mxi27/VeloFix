@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react'
-import { type User, type Session, type AuthError } from '@supabase/supabase-js'
+import { type User, type Session, type AuthError, type RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { designConfig } from '@/lib/design-config'
 
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [workshopId, setWorkshopId] = useState<string | null>(null)
     const [userRole, setUserRole] = useState<UserRole>(null)
     const [loading, setLoading] = useState(true)
-    const channelRef = useRef<any>(null)
+    const channelRef = useRef<RealtimeChannel | null>(null)
 
     // Helper to fetch and apply workshop accent color
     const syncAccentColor = async (wId: string) => {
@@ -73,7 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 },
                 async (payload) => {
                     const { applyThemeColor } = await import('@/lib/theme')
-                    console.log('Realtime DB update received:', payload.new)
                     let newColor = null
                     if (payload.new && payload.new.design_config?.primaryColor) {
                         newColor = payload.new.design_config.primaryColor
@@ -89,15 +88,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 'broadcast',
                 { event: 'THEME_UPDATE' },
                 async ({ payload }) => {
-                    console.log('Broadcast message received:', payload)
                     if (payload.accent_color) {
                         const { applyThemeColor } = await import('@/lib/theme')
                         applyThemeColor(payload.accent_color)
                     }
                 }
             )
-            .subscribe((status, err) => {
-                console.log(`Realtime status for workshop ${workshopId}:`, status)
+            .subscribe((_status, err) => {
                 if (err) console.error('Realtime subscription error:', err)
             })
 
@@ -105,22 +102,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Fallback 1: Window Focus - Fetch latest from DB when tab becomes active
         const handleFocus = () => {
-             console.log('Window focused, syncing theme color...')
-             syncAccentColor(workshopId)
+            syncAccentColor(workshopId)
         }
         window.addEventListener('focus', handleFocus)
 
         // Fallback 2: Storage Event - Cross-tab sync within same browser
         const handleStorage = (e: StorageEvent) => {
             if (e.key === 'velofix-accent-color' && e.newValue) {
-                import('@/lib/theme').then(({ applyThemeColor }) => {
-                    applyThemeColor(e.newValue!)
-                })
+                import('@/lib/theme')
+                    .then(({ applyThemeColor }) => applyThemeColor(e.newValue!))
+                    .catch((err) => console.error('Failed to apply theme color from storage:', err))
             }
             if (e.key === 'compact-mode' && e.newValue) {
-                import('@/lib/theme').then(({ applyCompactMode }) => {
-                    applyCompactMode(e.newValue === 'true')
-                })
+                import('@/lib/theme')
+                    .then(({ applyCompactMode }) => applyCompactMode(e.newValue === 'true'))
+                    .catch((err) => console.error('Failed to apply compact mode from storage:', err))
             }
         }
         window.addEventListener('storage', handleStorage)
@@ -129,7 +125,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // only runs when the page is actually visible to save resources
         const pulseInterval = setInterval(() => {
             if (document.visibilityState === 'visible') {
-                console.log('Background pulse: checking for theme updates...')
                 syncAccentColor(workshopId)
             }
         }, 30000)
@@ -145,7 +140,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const broadcastThemeChange = (color: string) => {
         if (channelRef.current) {
-            console.log('Broadcasting theme change:', color)
             channelRef.current.send({
                 type: 'broadcast',
                 event: 'THEME_UPDATE',
@@ -314,13 +308,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     }
 
                     // Background fetch
-                    fetchMembership().then(({ workshopId: wId, role }) => {
-                        if (mounted) {
-                            setWorkshopId(wId)
-                            setUserRole(role)
-                            setLoading(false) // Ensure loading is cleared
-                        }
-                    })
+                    fetchMembership()
+                        .then(({ workshopId: wId, role }) => {
+                            if (mounted) {
+                                setWorkshopId(wId)
+                                setUserRole(role)
+                                setLoading(false)
+                            }
+                        })
+                        .catch((err) => {
+                            console.error('Background membership fetch failed:', err)
+                            if (mounted) setLoading(false)
+                        })
                 }
             } else if (event === 'TOKEN_REFRESHED') {
                 if (newSession) {
@@ -334,12 +333,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 // Only fetch if we are logged in but missing workshop data (recovery)
                 if (!workshopId) {
-                    fetchMembership().then(({ workshopId: wId, role }) => {
-                        if (mounted) {
-                            setWorkshopId(wId)
-                            setUserRole(role)
-                        }
-                    })
+                    fetchMembership()
+                        .then(({ workshopId: wId, role }) => {
+                            if (mounted) {
+                                setWorkshopId(wId)
+                                setUserRole(role)
+                            }
+                        })
+                        .catch((err) => console.error('Recovery membership fetch failed:', err))
                 }
             }
         })
@@ -386,12 +387,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
 
             return { error: null }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Unexpected error during sign in:", err)
             if (mountedRef.current) {
                 setLoading(false)
             }
-            return { error: { message: err.message || "An unexpected error occurred", name: "UnexpectedError" } as AuthError }
+            const message = err instanceof Error ? err.message : "An unexpected error occurred"
+            return { error: { message, name: "UnexpectedError" } as AuthError }
         }
     }
 

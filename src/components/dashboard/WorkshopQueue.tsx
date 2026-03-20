@@ -76,7 +76,7 @@ export const WorkshopQueue = ({ orders, employees }: WorkshopQueueProps) => {
                         <Wrench className="h-4 w-4 text-amber-600" />
                     </div>
                     <h2 className="text-lg font-semibold tracking-tight">Warteschlange</h2>
-                    <Badge variant="secondary" className="bg-slate-100 text-slate-700 ml-1">
+                    <Badge variant="secondary" className="bg-muted text-muted-foreground ml-1">
                         {filteredOrders.length}
                     </Badge>
                 </div>

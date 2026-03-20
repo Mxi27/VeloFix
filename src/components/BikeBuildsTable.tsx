@@ -75,7 +75,8 @@ export function BikeBuildsTable({ mode = 'active' }: { mode?: 'active' | 'trash'
 
     const { data: builds = [], isLoading, mutate } = useSWR(
         workshopId ? ['bike_builds', workshopId, mode] : null,
-        fetchBuilds
+        fetchBuilds,
+        { refreshInterval: 30000, revalidateOnFocus: true }
     )
 
     const handleRestore = async (id: string) => {

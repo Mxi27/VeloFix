@@ -102,9 +102,9 @@ export function StartAssemblyDialog({ open, onOpenChange, onSuccess }: StartAsse
             // Navigate to detail
             navigate(`/dashboard/bike-builds/${data.id}`)
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Error creating build:", error)
-            toast.error("Fehler beim Starten", { description: error.message })
+            toast.error("Fehler beim Starten", { description: error instanceof Error ? error.message : undefined })
         } finally {
             setLoading(false)
         }

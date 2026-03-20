@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Wrench, CheckCircle, Receipt } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -20,13 +20,7 @@ export function StatsCards() {
     })
     const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        if (workshopId) {
-            fetchStats()
-        }
-    }, [workshopId])
-
-    const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
         if (!workshopId) return
 
         setLoading(true)
@@ -62,7 +56,11 @@ export function StatsCards() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [workshopId])
+
+    useEffect(() => {
+        if (workshopId) fetchStats()
+    }, [workshopId, fetchStats])
 
     const pills = [
         {

@@ -1,5 +1,6 @@
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { PageTransition } from "@/components/PageTransition"
+import { PageHeader } from "@/components/PageHeader"
 import { BikeAssemblyTable } from "@/components/BikeAssemblyTable"
 import { CreateBikeBuildModal } from "@/components/CreateBikeBuildModal"
 import { Bike, Clock, Wrench, CheckCircle } from "lucide-react"
@@ -69,29 +70,12 @@ export default function BikeBuildsPage() {
     return (
         <PageTransition>
             <DashboardLayout>
-                {/* Header — matches DashboardPage */}
-                <div className="px-1 mb-5">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-                        <div className="flex items-center gap-3">
-                            <div className="hidden sm:flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-                                <Bike className="h-4 w-4" />
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-bold tracking-tight leading-tight text-foreground">
-                                    Neuradaufbau
-                                </h1>
-                                <p className="text-sm text-muted-foreground mt-0.5">Alle Neuräder im Überblick</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            {userRole !== 'read' && <CreateBikeBuildModal />}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Stats Pills — matches StatsCards */}
-                <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+                <PageHeader
+                    icon={Bike}
+                    title="Neuradaufbau"
+                    description="Alle Neuräder im Überblick"
+                    action={userRole !== 'read' ? <CreateBikeBuildModal /> : undefined}
+                >
                     {statsLoading ? (
                         <div className="flex items-center gap-2 flex-wrap">
                             {[1, 2, 3].map((i) => (
@@ -105,7 +89,7 @@ export default function BikeBuildsPage() {
                                 return (
                                     <div
                                         key={pill.label}
-                                        className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/50 bg-muted/40 text-sm"
+                                        className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/50 bg-background/60 backdrop-blur-sm text-sm"
                                     >
                                         <Icon className={cn("h-3.5 w-3.5 shrink-0", pill.iconColor)} />
                                         <span className="text-muted-foreground text-xs">{pill.label}</span>
@@ -117,7 +101,7 @@ export default function BikeBuildsPage() {
                             })}
                         </div>
                     )}
-                </div>
+                </PageHeader>
 
                 {/* Table */}
                 <BikeAssemblyTable />

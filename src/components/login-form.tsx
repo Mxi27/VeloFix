@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { cn } from "@/lib/utils"
@@ -28,35 +28,15 @@ export function LoginForm({
     const [loading, setLoading] = useState(false)
     const { signIn } = useAuth()
     const navigate = useNavigate()
-    const mounted = useRef(true)
-
-    useEffect(() => {
-        return () => {
-            mounted.current = false
-        }
-    }, [])
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setError("")
         setLoading(true)
 
-        console.log("LoginForm: handleSubmit started")
         try {
-            console.log("LoginForm: Calling signIn...")
-            const result = await signIn(email, password)
-            console.log("LoginForm: signIn returned", result)
-            const { error: authError } = result
-
-            if (!mounted.current) {
-                console.warn("LoginForm: Component unmounted during request. Proceeding carefully.")
-                // Should we return? If we return, the UI stays stuck "Loading..." if the component is somehow still visible.
-                // Let's try to update state anyway. React will warn if it's truly dead, but if it's a zombie, it might fix the UI.
-                // return
-            }
+            const { error: authError } = await signIn(email, password)
 
             if (authError) {
-                console.error("LoginForm: Login error caught:", authError)
                 // Deutsche Fehlermeldungen
                 if (authError.message.includes("Invalid login credentials")) {
                     setError("Ungültige E-Mail oder Passwort")
@@ -65,18 +45,14 @@ export function LoginForm({
                 } else {
                     setError(authError.message)
                 }
-                console.log("LoginForm: Setting loading to false")
                 setLoading(false)
             } else {
-                console.log("LoginForm: Login success, navigating")
                 navigate("/dashboard")
             }
         } catch (e) {
             console.error("Unexpected login error in form:", e)
-            if (mounted.current) {
-                setError("Ein unerwarteter Fehler ist aufgetreten")
-                setLoading(false)
-            }
+            setError("Ein unerwarteter Fehler ist aufgetreten")
+            setLoading(false)
         }
     }
 

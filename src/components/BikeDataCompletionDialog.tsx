@@ -140,9 +140,9 @@ export function BikeDataCompletionDialog({ open, onOpenChange, buildId, onSucces
             onSuccess?.()
             navigate("/dashboard/bike-builds")
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Error completing build:", error)
-            toast.error("Fehler beim Abschließen", { description: error.message })
+            toast.error("Fehler beim Abschließen", { description: error instanceof Error ? error.message : undefined })
         } finally {
             setSaving(false)
         }

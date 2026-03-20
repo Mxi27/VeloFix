@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
+import type { Database } from "@/types/supabase"
+
+type BikeBuild = Database['public']['bike_builds']['Row']
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { PageTransition } from "@/components/PageTransition"
 import { Loader2 } from "lucide-react"
@@ -15,10 +18,10 @@ export default function BikeBuildDetailPage() {
     const { id } = useParams()
     const navigate = useNavigate()
     const location = useLocation()
-    const returnPath = (location.state as any)?.from || '/dashboard/bike-builds'
+    const returnPath = (location.state as { from?: string } | null)?.from ?? '/dashboard/bike-builds'
     const { workshopId } = useAuth()
 
-    const [build, setBuild] = useState<any | null>(null)
+    const [build, setBuild] = useState<BikeBuild | null>(null)
     const [loading, setLoading] = useState(true)
     const [viewMode, setViewMode] = useState<'overview' | 'workshop' | 'control'>('overview')
 
@@ -50,9 +53,10 @@ export default function BikeBuildDetailPage() {
                             filter: `id=eq.${realId}`
                         },
                         (payload) => {
-                            setBuild((current: any) => {
-                                if (!current) return payload.new
-                                return { ...current, ...payload.new }
+                            setBuild((current) => {
+                                const updated = payload.new as BikeBuild
+                                if (!current) return updated
+                                return { ...current, ...updated }
                             })
                         }
                     )

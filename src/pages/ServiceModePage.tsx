@@ -28,6 +28,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
 import { logOrderEvent } from "@/lib/history"
+import type { WorkshopOrder } from "@/types/index"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import jsPDF from "jspdf"
@@ -68,7 +69,7 @@ export default function ServiceModePage() {
 
     // State
     const [loading, setLoading] = useState(true)
-    const [order, setOrder] = useState<any>(null)
+    const [order, setOrder] = useState<WorkshopOrder | null>(null)
     const [items, setItems] = useState<ChecklistItem[]>([])
     const [currentStepIndex, setCurrentStepIndex] = useState(0)
     const [isSaving, setIsSaving] = useState(false)
@@ -158,7 +159,7 @@ export default function ServiceModePage() {
                 const firstTodo = parsedItems.findIndex(i => !i.completed && !i.skipped)
                 if (firstTodo >= 0) setCurrentStepIndex(firstTodo)
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Error loading order:", err)
                 toast.error("Fehler", "Auftrag konnte nicht geladen werden.")
             } finally {

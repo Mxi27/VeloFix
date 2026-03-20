@@ -150,7 +150,11 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
 
     const refreshEmployees = async () => {
         if (!user) return
-        const { data } = await supabase.from('employees').select('*').eq('active', true).order('name')
+        const { data, error } = await supabase.from('employees').select('*').eq('active', true).order('name')
+        if (error) {
+            console.error('Mitarbeiterliste konnte nicht aktualisiert werden:', error)
+            return
+        }
         if (data) setEmployees(data)
     }
 

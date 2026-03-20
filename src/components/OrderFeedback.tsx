@@ -122,9 +122,9 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
                 throw error
             }
             setIsSubmitted(true)
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error("Error submitting feedback:", err)
-            setErrorMsg(err.message || "Fehler beim Senden. Bitte versuche es später erneut.")
+            setErrorMsg(err instanceof Error ? err.message : "Fehler beim Senden. Bitte versuche es später erneut.")
         } finally {
             setIsSubmitting(false)
         }

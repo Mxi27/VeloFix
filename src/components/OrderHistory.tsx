@@ -1,4 +1,5 @@
 import type { OrderHistoryEvent } from "@/lib/history"
+import type { GroupedHistoryEvent, HistoryItemEntry } from "@/types/index"
 import { format } from "date-fns"
 
 import {
@@ -10,7 +11,7 @@ import {
     ChevronDown,
     ChevronUp
 } from "lucide-react"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -25,8 +26,8 @@ function groupEvents(events: OrderHistoryEvent[]) {
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     )
 
-    const grouped: any[] = []
-    let currentGroup: any = null
+    const grouped: Array<GroupedHistoryEvent | OrderHistoryEvent> = []
+    let currentGroup: GroupedHistoryEvent | null = null
 
     // Iterate
     sortedDetails.forEach(event => {
@@ -81,7 +82,7 @@ function groupEvents(events: OrderHistoryEvent[]) {
                     currentGroup.description = event.description
                 } else {
                     currentGroup.metadata.items.push({
-                        text: isStatusChange ? event.description : event.title,
+                        text: (isStatusChange ? event.description : event.title) ?? event.title,
                         actor: event.actor,
                         timestamp: event.timestamp
                     })
@@ -108,7 +109,7 @@ function groupEvents(events: OrderHistoryEvent[]) {
             // Item 5 (pushed 1st), Item 4 (pushed 2nd)...
             // We want Item 1, Item 2, Item 3.
             // So yes, reverse needed to get Oldest->Newest visual flow inside the expanded card.
-            g.metadata.items.sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+            g.metadata.items.sort((a: HistoryItemEntry, b: HistoryItemEntry) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
         }
     })
 
@@ -120,7 +121,7 @@ export function OrderHistory({ history }: OrderHistoryProps) {
         return <div className="text-sm text-muted-foreground pt-4 text-center">Noch keine Einträge</div>
     }
 
-    const groupedHistory = groupEvents(history)
+    const groupedHistory = useMemo(() => groupEvents(history), [history])
 
     return (
         <div className="relative space-y-0 pb-4">
@@ -251,7 +252,7 @@ function HistoryItem({ event }: { event: OrderHistoryEvent & { hasMixedActors?: 
                                                 )}
 
                                                 {event.metadata?.items && Array.isArray(event.metadata.items) ? (
-                                                    event.metadata.items.map((item: any, idx: number) => (
+                                                    event.metadata.items.map((item: HistoryItemEntry, idx: number) => (
                                                         <div key={idx} className="flex items-start gap-3 text-sm group/item">
                                                             <div className="mt-0.5 text-green-500">
                                                                 <CheckCircle2 className="w-4 h-4" />

@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { supabase } from "@/lib/supabase"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { PageTransition } from "@/components/PageTransition"
+import { PageHeader } from "@/components/PageHeader"
 import { CreateShopTaskDialog } from "@/components/CreateShopTaskDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -88,9 +89,9 @@ const COLUMN_CONFIG = [
         key: 'open' as const,
         title: 'Offen',
         icon: Circle,
-        iconColor: 'text-slate-400',
-        headerBg: 'bg-slate-50/80 dark:bg-slate-900/30',
-        badgeBg: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+        iconColor: 'text-muted-foreground',
+        headerBg: 'bg-muted/30',
+        badgeBg: 'bg-muted/50 text-muted-foreground',
         emptyText: 'Keine offenen Aufgaben',
     },
     {
@@ -98,8 +99,8 @@ const COLUMN_CONFIG = [
         title: 'In Arbeit',
         icon: PlayCircle,
         iconColor: 'text-blue-500',
-        headerBg: 'bg-blue-50/80 dark:bg-blue-950/30',
-        badgeBg: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
+        headerBg: 'bg-blue-500/10',
+        badgeBg: 'bg-blue-500/15 text-blue-600 dark:text-blue-400',
         emptyText: 'Keine Aufgaben in Arbeit',
     },
     {
@@ -107,8 +108,8 @@ const COLUMN_CONFIG = [
         title: 'Erledigt',
         icon: CheckCircle2,
         iconColor: 'text-emerald-500',
-        headerBg: 'bg-emerald-50/80 dark:bg-emerald-950/30',
-        badgeBg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
+        headerBg: 'bg-emerald-500/10',
+        badgeBg: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
         emptyText: 'Noch nichts erledigt',
     },
 ]
@@ -162,7 +163,7 @@ export default function TasksPage() {
 
             if (error) throw error
             setTasks(data || [])
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error fetching tasks (with join):', err)
             // Fallback without join
             try {
@@ -300,28 +301,13 @@ export default function TasksPage() {
     return (
         <PageTransition>
             <DashboardLayout>
-                {/* ── Premium Header ── */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-orange-500/5 border border-primary/10 p-6 mb-6">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-
-                    <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className="hidden sm:flex p-3 rounded-xl bg-primary/10 border border-primary/20">
-                                <ListTodo className="h-6 w-6 text-primary" />
-                            </div>
-                            <div>
-                                <h1 className="text-2xl font-bold tracking-tight">Werkstatt-Aufgaben</h1>
-                                <p className="text-muted-foreground text-sm mt-0.5">
-                                    Verwalte allgemeine und wiederkehrende Aufgaben.
-                                </p>
-                            </div>
-                        </div>
-                        <CreateShopTaskDialog onTaskCreated={fetchTasks} />
-                    </div>
-
-                    {/* Mini Stats */}
-                    <div className="relative flex flex-wrap gap-3 mt-5">
+                <PageHeader
+                    icon={ListTodo}
+                    title="Werkstatt-Aufgaben"
+                    description="Verwalte allgemeine und wiederkehrende Aufgaben."
+                    action={<CreateShopTaskDialog onTaskCreated={fetchTasks} />}
+                >
+                    <div className="flex flex-wrap gap-3">
                         {[
                             { icon: Circle, color: 'text-slate-400', count: openCount, label: 'Offen' },
                             { icon: PlayCircle, color: 'text-blue-500', count: inProgressCount, label: 'In Arbeit' },
@@ -341,7 +327,7 @@ export default function TasksPage() {
                             </div>
                         )}
                     </div>
-                </div>
+                </PageHeader>
 
                 {/* ── Search, Filter & View Toggle ── */}
                 <div className="flex flex-col sm:flex-row gap-3 mb-6">
@@ -349,14 +335,14 @@ export default function TasksPage() {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Aufgaben suchen..."
-                            className="pl-10 bg-card border-border/50 rounded-xl h-10"
+                            className="pl-10 bg-background border-border/50 rounded-xl h-10"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <div className="flex gap-2">
                         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                            <SelectTrigger className="w-[150px] bg-card border-border/50 rounded-xl h-10">
+                            <SelectTrigger className="w-[150px] bg-background border-border/50 rounded-xl h-10">
                                 <div className="flex items-center gap-2">
                                     <Filter className="h-3.5 w-3.5 text-muted-foreground" />
                                     <SelectValue placeholder="Priorität" />
@@ -372,7 +358,7 @@ export default function TasksPage() {
 
                         {categories.length > 0 && (
                             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                                <SelectTrigger className="w-[150px] bg-card border-border/50 rounded-xl h-10">
+                                <SelectTrigger className="w-[150px] bg-background border-border/50 rounded-xl h-10">
                                     <div className="flex items-center gap-2">
                                         <Tag className="h-3.5 w-3.5 text-muted-foreground" />
                                         <SelectValue placeholder="Kategorie" />
@@ -388,7 +374,7 @@ export default function TasksPage() {
                         )}
 
                         {/* View Toggle */}
-                        <div className="flex bg-card border border-border/50 rounded-xl overflow-hidden">
+                        <div className="flex bg-background border border-border/50 rounded-xl overflow-hidden">
                             <Button
                                 variant="ghost"
                                 size="icon"
@@ -542,20 +528,20 @@ function DroppableColumn({ column, tasks, onTaskClick, onStatusChange, onDelete,
     const isActive = isOver || (over && taskIds.includes(over.id as string))
 
     return (
-        <div 
+        <div
             ref={setNodeRef}
-            className={`flex flex-col h-full min-h-[500px] p-2 rounded-2xl transition-all duration-200 ${isActive
-                ? 'bg-primary/5 ring-2 ring-primary/20 ring-dashed shadow-inner'
-                : ''
+            className={`flex flex-col h-full min-h-[500px] p-3 rounded-2xl border transition-all duration-200 ${isActive
+                ? 'bg-primary/5 border-primary/20 ring-2 ring-primary/20 ring-dashed shadow-inner'
+                : 'bg-muted/20 border-border/30'
             }`}
         >
             {/* Column Header */}
-            <div className={`flex items-center justify-between px-4 py-3 rounded-xl ${column.headerBg} mb-3`}>
-                <div className="flex items-center gap-2.5">
-                    <column.icon className={`h-4 w-4 ${column.iconColor}`} />
-                    <span className="font-semibold text-sm tracking-tight">{column.title}</span>
+            <div className={`flex items-center justify-between px-3 py-2.5 rounded-xl border border-border/30 ${column.headerBg} mb-3`}>
+                <div className="flex items-center gap-2 min-w-0">
+                    <column.icon className={`h-4 w-4 shrink-0 ${column.iconColor}`} />
+                    <span className="font-semibold text-sm tracking-tight whitespace-nowrap">{column.title}</span>
                 </div>
-                <Badge variant="secondary" className={`text-xs px-2 py-0.5 font-medium ${column.badgeBg}`}>
+                <Badge variant="secondary" className={`text-xs px-2 py-0.5 font-medium shrink-0 ml-2 ${column.badgeBg}`}>
                     {tasks.length}
                 </Badge>
             </div>
@@ -580,7 +566,7 @@ function DroppableColumn({ column, tasks, onTaskClick, onStatusChange, onDelete,
                             <motion.div
                                 initial={{ opacity: 0, scale: 0.95 }}
                                 animate={{ opacity: 1, scale: 1 }}
-                                className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border/40 rounded-xl"
+                                className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-border/50 rounded-xl bg-muted/10"
                             >
                                 <column.icon className="h-8 w-8 text-muted-foreground/20 mb-3" />
                                 <p className="text-sm text-muted-foreground/60">{column.emptyText}</p>
@@ -657,13 +643,13 @@ function TaskCard({ task, index, onClick, onStatusChange, onDelete, getNextStatu
                 onClick={onClick}
                 {...dragAttributes}
                 {...dragListeners}
-                className={`group relative bg-card border rounded-xl overflow-hidden transition-all duration-200 ${isDragging
-                    ? 'border-primary/30 shadow-lg ring-2 ring-primary/10 cursor-grabbing'
-                    : 'border-border/50 hover:border-primary/20 hover:shadow-md cursor-pointer'
+                className={`group relative bg-card border rounded-xl overflow-hidden transition-all duration-200 shadow-md ${isDragging
+                    ? 'border-primary/40 shadow-xl ring-2 ring-primary/15 cursor-grabbing'
+                    : 'border-border/60 hover:border-border/90 hover:shadow-lg cursor-pointer'
                     }`}
             >
                 {/* Priority Strip */}
-                <div className={`absolute left-0 top-0 bottom-0 w-1 ${priorityConfig.strip} opacity-60`} />
+                <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${priorityConfig.strip}`} />
 
                 <div className="p-4 pl-5">
                     {/* Title Row */}
@@ -685,11 +671,11 @@ function TaskCard({ task, index, onClick, onStatusChange, onDelete, getNextStatu
                             </button>
 
                             <div className="min-w-0">
-                                <h3 className={`font-semibold text-sm leading-tight ${task.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
+                                <h3 className={`font-semibold text-sm leading-tight ${task.status === 'done' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                                     {task.title}
                                 </h3>
                                 {task.description && (
-                                    <p className="text-xs text-muted-foreground/60 mt-1 line-clamp-2 leading-relaxed task-description">
+                                    <p className="text-xs text-muted-foreground/75 mt-1 line-clamp-2 leading-relaxed task-description">
                                         {task.description}
                                     </p>
                                 )}
@@ -846,13 +832,13 @@ function DroppableListSection({ group, onTaskClick, onStatusChange, onDelete, ge
     return (
         <div
             ref={setNodeRef}
-            className={`flex flex-col rounded-2xl transition-all duration-200 p-2 ${isActive
-                ? 'bg-primary/5 ring-2 ring-primary/20 ring-dashed shadow-inner'
-                : ''
+            className={`flex flex-col rounded-2xl border transition-all duration-200 p-3 ${isActive
+                ? 'bg-primary/5 border-primary/20 ring-2 ring-primary/20 ring-dashed shadow-inner'
+                : 'bg-muted/20 border-border/30'
             }`}
         >
             {/* Section Header */}
-            <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl ${group.headerBg} mb-2`}>
+            <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border border-border/30 ${group.headerBg} mb-2`}>
                 <group.icon className={`h-4 w-4 ${group.iconColor}`} />
                 <span className="font-semibold text-sm tracking-tight">{group.title}</span>
                 <Badge variant="secondary" className={`text-xs px-2 py-0.5 font-medium ${group.badgeBg}`}>
@@ -940,9 +926,9 @@ function ListRow({ task, onClick, onStatusChange, onDelete, getNextStatus, dragA
             {...dragAttributes}
             {...dragListeners}
             className={`group flex items-center gap-4 px-4 py-3 transition-all rounded-lg ${
-                isDragging 
-                    ? 'bg-background shadow-lg opacity-50 z-50 cursor-grabbing' 
-                    : 'hover:bg-muted/30 cursor-pointer'
+                isDragging
+                    ? 'bg-card shadow-lg opacity-50 z-50 cursor-grabbing'
+                    : 'hover:bg-muted/40 cursor-pointer'
             }`}
         >
             {/* Status Toggle */}
@@ -971,7 +957,7 @@ function ListRow({ task, onClick, onStatusChange, onDelete, getNextStatus, dragA
                     )}
                 </div>
                 {task.description && (
-                    <p className="text-xs text-muted-foreground/50 truncate mt-0.5 task-description">{task.description}</p>
+                    <p className="text-xs text-muted-foreground/70 truncate mt-0.5 task-description">{task.description}</p>
                 )}
             </div>
 

@@ -41,11 +41,11 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
 interface SidebarItemProps {
     item: {
         title: string
-        icon: any
+        icon: React.ComponentType<{ className?: string }>
         href: string
     }
-    location: any
-    navigate: any
+    location: { pathname: string }
+    navigate: (path: string) => void
 }
 
 function SidebarItem({ item, location, navigate }: SidebarItemProps) {
@@ -98,14 +98,19 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
 
     return (
         <Sidebar>
-            <SidebarHeader className="border-b">
-                <div className="flex items-center gap-3 px-2 py-3">
-                    <div className="bg-primary p-2 rounded-lg">
-                        <Bike className="h-5 w-5 text-primary-foreground" />
+            {/* ── Header: Logo with ambient glow ── */}
+            <SidebarHeader className="border-b border-sidebar-border/60">
+                <div className="flex items-center gap-3 px-3 py-3.5">
+                    <div className="relative shrink-0">
+                        {/* Ambient glow behind icon */}
+                        <div className="absolute inset-[-6px] rounded-2xl bg-primary/20 blur-md pointer-events-none" />
+                        <div className="relative bg-gradient-to-br from-primary to-primary-dark p-2 rounded-xl shadow-lg shadow-primary/25">
+                            <Bike className="h-4.5 w-4.5 text-primary-foreground" />
+                        </div>
                     </div>
                     <div className="flex flex-col">
-                        <span className="font-semibold tracking-tight">VeloFix</span>
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="font-bold tracking-tight text-foreground">VeloFix</span>
+                        <span className="text-[10px] text-muted-foreground font-medium tracking-wide uppercase">
                             Werkstatt Pro
                         </span>
                     </div>
@@ -114,7 +119,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
 
             <SidebarContent className="px-2">
                 <SidebarGroup>
-                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 px-2 pt-4 pb-2">
                         Werkstatt
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
@@ -129,7 +134,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                                     <SidebarMenuItem>
                                         <SidebarMenuButton
                                             asChild
-                                            className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground cursor-pointer rounded-lg h-9 font-medium"
+                                            className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground cursor-pointer rounded-xl h-9 font-semibold shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 transition-all duration-200"
                                             onClick={() => setIsNewOrderOpen(true)}
                                         >
                                             <span className="flex items-center gap-2">
@@ -156,7 +161,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                 </SidebarGroup>
 
                 <SidebarGroup>
-                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 px-2 pt-4 pb-2">
                         Verwaltung
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
@@ -169,15 +174,15 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                             ))}
                             {(userRole === 'admin' || userRole === 'owner') && (
                                 <>
-                                    <SidebarItem 
-                                        item={{ title: "Papierkorb", icon: Trash2, href: "/dashboard/trash" }} 
-                                        location={location} 
-                                        navigate={navigate} 
+                                    <SidebarItem
+                                        item={{ title: "Papierkorb", icon: Trash2, href: "/dashboard/trash" }}
+                                        location={location}
+                                        navigate={navigate}
                                     />
-                                    <SidebarItem 
-                                        item={{ title: "Feedback Analyse", icon: BarChart3, href: "/dashboard/feedback-analysis" }} 
-                                        location={location} 
-                                        navigate={navigate} 
+                                    <SidebarItem
+                                        item={{ title: "Feedback Analyse", icon: BarChart3, href: "/dashboard/feedback-analysis" }}
+                                        location={location}
+                                        navigate={navigate}
                                     />
                                 </>
                             )}
@@ -186,7 +191,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                 </SidebarGroup>
 
                 <SidebarGroup>
-                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
+                    <SidebarGroupLabel className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/50 px-2 pt-4 pb-2">
                         Kommunikation
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
@@ -204,41 +209,42 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                 <SidebarGroup className="mt-auto">
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            <SidebarItem 
-                                item={{ title: "Einstellungen", icon: Settings, href: "/settings" }} 
-                                location={location} 
-                                navigate={navigate} 
+                            <SidebarItem
+                                item={{ title: "Einstellungen", icon: Settings, href: "/settings" }}
+                                location={location}
+                                navigate={navigate}
                             />
                         </SidebarMenu>
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
 
-            <SidebarFooter className="border-t p-2">
+            {/* ── Footer: User card ── */}
+            <SidebarFooter className="p-2 border-t border-sidebar-border/60">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <div className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors">
-                            <Avatar className="h-8 w-8 rounded-lg">
+                        <div className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-sidebar-accent/60 transition-colors duration-150">
+                            <Avatar className="h-8 w-8 rounded-lg shrink-0">
                                 <AvatarImage src="" />
-                                <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-xs font-medium">
+                                <AvatarFallback className="rounded-lg bg-primary/15 text-primary text-xs font-bold">
                                     {initials}
                                 </AvatarFallback>
                             </Avatar>
-                            <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-medium text-sm">
+                            <div className="grid flex-1 text-left text-sm leading-tight min-w-0">
+                                <span className="truncate font-semibold text-sm text-foreground">
                                     {user?.user_metadata?.full_name || "Benutzer"}
                                 </span>
-                                <span className="truncate text-xs text-muted-foreground">
+                                <span className="truncate text-[11px] text-muted-foreground">
                                     {user?.email}
                                 </span>
                             </div>
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 rounded-lg"
+                                className="h-7 w-7 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted shrink-0"
                                 onClick={handleLogout}
                             >
-                                <LogOut className="h-4 w-4" />
+                                <LogOut className="h-3.5 w-3.5" />
                             </Button>
                         </div>
                     </SidebarMenuItem>

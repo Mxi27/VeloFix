@@ -1,6 +1,8 @@
 import useSWR from "swr"
 import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState, useMemo } from "react"
+import { useColumnVisibility } from "@/hooks/useColumnVisibility"
+import type { AssemblyProgress, ControlData } from "@/types/index"
 import { useNavigate } from "react-router-dom"
 import { NEURAD_STATUS_MAP } from "@/lib/constants"
 import {
@@ -62,8 +64,8 @@ interface BikeBuild {
     status: string
     created_at: string
     assigned_employee_id: string | null
-    assembly_progress: any
-    control_data: any
+    assembly_progress: AssemblyProgress | null
+    control_data: ControlData | null
     is_ebike?: boolean
     checklist_template?: string | null
 }
@@ -107,28 +109,7 @@ export function BikeAssemblyTable() {
     const [sortField, setSortField] = useState<"created_at" | "none">("none")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
 
-    const [visibleColumns, setVisibleColumns] = useState<Record<ColumnId, boolean>>(() => {
-        const saved = localStorage.getItem(COLUMN_STORAGE_KEY)
-        if (saved) {
-            try {
-                return JSON.parse(saved)
-            } catch (e) {
-                console.error('Error parsing visible columns', e)
-            }
-        }
-        return AVAILABLE_COLUMNS.reduce((acc, col) => ({
-            ...acc,
-            [col.id]: col.defaultVisible
-        }), {} as Record<ColumnId, boolean>)
-    })
-
-    const toggleColumn = (id: ColumnId) => {
-        setVisibleColumns(prev => {
-            const next = { ...prev, [id]: !prev[id] }
-            localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(next))
-            return next
-        })
-    }
+    const { visibleColumns, toggleColumn } = useColumnVisibility<ColumnId>(COLUMN_STORAGE_KEY, AVAILABLE_COLUMNS)
 
     const fetchBuilds = async () => {
         if (!workshopId) return []
