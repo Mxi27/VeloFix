@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from "react"
 import {
     ShieldCheck, ListTodo, CheckCircle2,
     ChevronRight, ChevronDown, Zap, UserCheck, FastForward,
-    Calendar, Bike, Clock, Pause, Play, PackageCheck, Check, Archive, Filter
+    Calendar, Clock, Pause, Play, PackageCheck, Check, Archive, Filter
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Checkbox } from "@/components/ui/checkbox"
