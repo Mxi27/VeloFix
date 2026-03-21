@@ -32,9 +32,7 @@ import {
     DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-    Card, CardContent, CardHeader, CardTitle,
-} from "@/components/ui/card"
+
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
@@ -314,12 +312,6 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         return sortDir === "asc" ? diff : -diff
     })
 
-    const titleMap: Record<TableMode, string> = {
-        active: "Aktive Aufträge",
-        archived: "Archivierte Aufträge",
-        leasing_billing: "Leasing Abrechnung",
-        trash: "Papierkorb"
-    }
 
     // Dynamic responsive logic matching BikeAssemblyTable
     const enabledCount = Object.values(visibleColumns).filter(Boolean).length
@@ -619,16 +611,20 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     )
 
     return (
-        <>
-            <Card className="border-none shadow-sm bg-card/50">
-                <CardHeader className="pb-4">
-                    <div className="flex flex-col gap-4">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <CardTitle className="text-xl font-bold tracking-tight">
-                                {titleMap[effectiveMode] || "Aufträge"}
-                            </CardTitle>
+        <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                {/* Search Bar */}
+                <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Suche nach Kunde, Nr., Modell, Marke oder Tag..."
+                        className="pl-10 bg-background"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                                 {/* Filter Toggle */}
                                 <Popover open={showFilters} onOpenChange={setShowFilters}>
                                     <PopoverTrigger asChild>
@@ -830,21 +826,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     </Button>
                                 )}
                             </div>
-                        </div>
-
-                        {/* Search Bar */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Suche nach Kunde, Nr., Modell, Marke oder Tag..."
-                                className="pl-10 bg-background"
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
+            </div>
                     {/* Status Tabs */}
                     {effectiveMode === 'active' ? (
                         <Tabs defaultValue="all" value={filterStatus} onValueChange={setFilterStatus} className="space-y-6">
@@ -886,8 +868,6 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                     ) : (
                         renderTable(filteredOrders)
                     )}
-                </CardContent>
-            </Card>
 
             <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
                 <AlertDialogContent>
@@ -910,6 +890,6 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </>
+        </div>
     )
 }

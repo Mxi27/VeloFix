@@ -31,8 +31,6 @@ export function PageHeader({ title, description, titleBadge, action, children }:
             {children && (
                 <div className="mt-4">{children}</div>
             )}
-
-            <div className="mt-6 border-b border-border" />
         </div>
     )
 }

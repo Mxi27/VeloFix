@@ -31,12 +31,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card"
+
 import {
     Select,
     SelectContent,
@@ -457,15 +452,20 @@ export function BikeAssemblyTable() {
     )
 
     return (
-        <Card className="border-none shadow-sm bg-card/50">
-            <CardHeader className="pb-4">
-                <div className="flex flex-col gap-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <CardTitle className="text-xl font-bold tracking-tight">
-                            Aktive Neuräder
-                        </CardTitle>
+        <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                {/* Search Bar */}
+                <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Suche nach Modell, Marke, Nummer, Kunde..."
+                        className="pl-10 bg-background"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
 
-                        <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                             {/* Filter Toggle */}
                             <Popover open={showFilters} onOpenChange={setShowFilters}>
                                 <PopoverTrigger asChild>
@@ -607,21 +607,7 @@ export function BikeAssemblyTable() {
                                 </Button>
                             )}
                         </div>
-                    </div>
-
-                    {/* Search Bar */}
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder="Suche nach Modell, Marke, Nummer, Kunde..."
-                            className="pl-10 bg-background"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
+            </div>
                 {/* Status Tabs — matches OrdersTable */}
                 <Tabs defaultValue="all" className="space-y-6" onValueChange={setFilterStatus}>
                     <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1 border-b-0 gap-6">
@@ -681,7 +667,6 @@ export function BikeAssemblyTable() {
                         {renderTable(filteredBuilds)}
                     </TabsContent>
                 </Tabs>
-            </CardContent>
-        </Card>
+        </div>
     )
 }

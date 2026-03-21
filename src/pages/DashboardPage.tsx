@@ -1,5 +1,4 @@
 import { DashboardLayout } from "@/layouts/DashboardLayout"
-import { StatsCards } from "@/components/StatsCards"
 import { OrdersTable } from "@/components/OrdersTable"
 import { PageTransition } from "@/components/PageTransition"
 import { PageHeader } from "@/components/PageHeader"
@@ -30,7 +29,6 @@ export default function DashboardPage() {
                 <PageHeader
                     icon={Bike}
                     title="Reparaturen"
-                    description="Alle Werkstattaufträge im Überblick"
                     action={userRole !== 'read' ? (
                         <CreateOrderModal
                             open={isNewOrderOpen}
@@ -48,9 +46,7 @@ export default function DashboardPage() {
                             </Button>
                         </CreateOrderModal>
                     ) : undefined}
-                >
-                    <StatsCards key={`stats-${refreshKey}`} />
-                </PageHeader>
+                />
 
                 {/* ── Orders Table ── */}
                 <OrdersTable key={refreshKey} />
