@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
-import { Wrench, CheckCircle, Receipt } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { Skeleton } from "@/components/ui/skeleton"
-import { cn } from "@/lib/utils"
 
 interface Stats {
     openOrders: number
@@ -11,18 +9,16 @@ interface Stats {
     leasingPending: number
 }
 
+/**
+ * Notion-style database property counts — inline, flat, no cards.
+ */
 export function StatsCards() {
     const { workshopId } = useAuth()
-    const [stats, setStats] = useState<Stats>({
-        openOrders: 0,
-        completedToday: 0,
-        leasingPending: 0
-    })
+    const [stats, setStats] = useState<Stats>({ openOrders: 0, completedToday: 0, leasingPending: 0 })
     const [loading, setLoading] = useState(true)
 
     const fetchStats = useCallback(async () => {
         if (!workshopId) return
-
         setLoading(true)
         const today = new Date()
         today.setHours(0, 0, 0, 0)
@@ -42,8 +38,7 @@ export function StatsCards() {
             const completedToday = orders?.filter(o => {
                 const finishedStatuses = ['abholbereit', 'abgeholt', 'abgeschlossen']
                 if (!finishedStatuses.includes(o.status)) return false
-                const updatedAt = new Date(o.updated_at)
-                return updatedAt >= today
+                return new Date(o.updated_at) >= today
             }).length || 0
 
             const leasingPending = orders?.filter(o =>
@@ -62,57 +57,30 @@ export function StatsCards() {
         if (workshopId) fetchStats()
     }, [workshopId, fetchStats])
 
-    const pills = [
-        {
-            label: "Offene Aufträge",
-            value: stats.openOrders,
-            icon: Wrench,
-            iconColor: "text-amber-500",
-            valueColor: "text-amber-600 dark:text-amber-400",
-        },
-        {
-            label: "Heute fertig",
-            value: stats.completedToday,
-            icon: CheckCircle,
-            iconColor: "text-emerald-500",
-            valueColor: "text-emerald-600 dark:text-emerald-400",
-        },
-        {
-            label: "Leasing offen",
-            value: stats.leasingPending,
-            icon: Receipt,
-            iconColor: "text-blue-500",
-            valueColor: "text-blue-600 dark:text-blue-400",
-        },
-    ]
-
     if (loading) {
         return (
-            <div className="flex items-center gap-2 flex-wrap">
-                {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-8 w-36 rounded-full" />
-                ))}
+            <div className="flex items-center gap-5">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-28" />
             </div>
         )
     }
 
+    const items = [
+        { label: "Offen", value: stats.openOrders,      color: "text-foreground" },
+        { label: "Heute fertig", value: stats.completedToday, color: "text-foreground" },
+        { label: "Leasing offen", value: stats.leasingPending, color: stats.leasingPending > 0 ? "text-orange-600 dark:text-orange-400" : "text-foreground" },
+    ]
+
     return (
-        <div className="flex items-center gap-2 flex-wrap">
-            {pills.map((pill) => {
-                const Icon = pill.icon
-                return (
-                    <div
-                        key={pill.label}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/50 bg-muted/40 text-sm"
-                    >
-                        <Icon className={cn("h-3.5 w-3.5 shrink-0", pill.iconColor)} />
-                        <span className="text-muted-foreground text-xs">{pill.label}</span>
-                        <span className={cn("font-bold tabular-nums text-sm leading-none", pill.valueColor)}>
-                            {pill.value}
-                        </span>
-                    </div>
-                )
-            })}
+        <div className="flex items-center gap-5 flex-wrap">
+            {items.map((item) => (
+                <div key={item.label} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <span>{item.label}</span>
+                    <span className={`font-semibold tabular-nums ${item.color}`}>{item.value}</span>
+                </div>
+            ))}
         </div>
     )
 }

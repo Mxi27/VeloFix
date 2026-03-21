@@ -284,7 +284,7 @@ export default function CockpitPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent
                                         align="start"
-                                        className="w-60 rounded-xl border border-border/50 bg-popover backdrop-blur-xl shadow-2xl p-1.5"
+                                        className="w-60 rounded-lg border border-border bg-popover p-1.5"
                                     >
                                         {nonSharedModeEmployees.map(emp => (
                                             <DropdownMenuItem
@@ -320,7 +320,7 @@ export default function CockpitPage() {
                             )}
 
                     {/* Right: Today's achievements — compact stat pills */}
-                    <div className="flex items-center gap-0.5 bg-card/80 dark:bg-card/60 backdrop-blur-md rounded-xl border border-border/60 shadow-sm px-1.5 py-1 overflow-x-auto no-scrollbar shrink-0">
+                    <div className="flex items-center gap-0.5 bg-card rounded-lg border border-border px-1.5 py-1 overflow-x-auto no-scrollbar shrink-0">
                         <StatPill icon={ListTodo}    label="Reparaturen" value={achievements.bikesFinished}  color="blue"   />
                         <div className="h-4 w-[1px] bg-border/50 mx-1 shrink-0" />
                         <StatPill icon={Zap}         label="Neuräder"    value={achievements.buildsFinished} color="amber"  />
@@ -534,15 +534,13 @@ const STAT_COLOR_MAP = {
 } as const
 
 function StatPill({ icon: Icon, label, value, color }: { icon: any, label: string, value: number, color: keyof typeof STAT_COLOR_MAP }) {
-    const { icon: iconColor, bg, border } = STAT_COLOR_MAP[color]
+    const { icon: iconColor } = STAT_COLOR_MAP[color]
     return (
-        <div className="flex items-center gap-1.5 whitespace-nowrap px-1.5 py-0.5">
-            <div className={cn("h-6 w-6 rounded-md flex items-center justify-center border shrink-0", bg, border)}>
-                <Icon className={cn("h-3 w-3", iconColor)} />
-            </div>
-            <div className="flex flex-col leading-none">
-                <span className="text-[9px] text-muted-foreground/70 font-semibold uppercase tracking-wider hidden lg:block">{label}</span>
+        <div className="flex items-center gap-2 whitespace-nowrap px-2 py-1">
+            <Icon className={cn("h-3.5 w-3.5 shrink-0", iconColor)} />
+            <div className="flex items-baseline gap-1.5">
                 <span className="text-sm font-bold tabular-nums text-foreground">{value}</span>
+                <span className="text-[11px] text-muted-foreground hidden lg:block">{label}</span>
             </div>
         </div>
     )
@@ -556,32 +554,24 @@ const ACCENT_MAP = {
 } as const
 
 function CockpitPanel({ title, icon: Icon, accent, count, empty, children, className, action }: any) {
-    const { icon: iconColor, bg, border, headerBg, ringColor } = ACCENT_MAP[accent as keyof typeof ACCENT_MAP]
+    const { icon: iconColor, bg } = ACCENT_MAP[accent as keyof typeof ACCENT_MAP]
     const isEmpty = count === 0
 
     return (
         <div className={cn(
-            "flex flex-col rounded-2xl compact:rounded-xl border border-border/60 border-t-2 bg-card overflow-hidden min-w-0 h-full min-h-[300px] lg:min-h-[360px] max-h-[40vh] xl:max-h-none",
-            "shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elevated)] transition-shadow duration-300",
-            // Inner top glow via ring
-            "ring-1 ring-inset", ringColor,
-            border, className
+            "flex flex-col border border-border bg-card overflow-hidden min-w-0 h-full min-h-[300px] lg:min-h-[360px] max-h-[40vh] xl:max-h-none",
+            "rounded-sm",
+            className
         )}>
-            {/* Panel header with accent gradient */}
-            <div className={cn(
-                "flex-shrink-0 flex items-center justify-between px-4 py-3.5 compact:px-2 compact:py-1.5 border-b border-border/40",
-                "bg-gradient-to-r to-transparent", headerBg
-            )}>
-                <div className="flex items-center gap-3">
-                    <div className={cn(
-                        "p-2 rounded-xl border border-white/8 shadow-sm",
-                        bg
-                    )}>
-                        <Icon className={cn("h-4 w-4", iconColor)} />
+            {/* Panel header — flat, Notion database header style */}
+            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/60">
+                <div className="flex items-center gap-2.5">
+                    <div className={cn("p-1.5 rounded-sm shrink-0", bg)}>
+                        <Icon className={cn("h-3.5 w-3.5", iconColor)} />
                     </div>
                     <div>
-                        <h3 className="font-bold text-foreground text-sm lg:text-base leading-tight">{title}</h3>
-                        <p className="text-[10px] lg:text-xs text-muted-foreground/70 font-semibold uppercase tracking-widest">
+                        <h3 className="font-semibold text-foreground text-sm leading-tight">{title}</h3>
+                        <p className="text-[10px] text-muted-foreground/60 tabular-nums">
                             {count > 0 ? `${count} Einträge` : 'Leer'}
                         </p>
                     </div>
@@ -589,16 +579,16 @@ function CockpitPanel({ title, icon: Icon, accent, count, empty, children, class
                 {action}
             </div>
 
-            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative">
+            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
                 {isEmpty ? (
-                    <div className="flex flex-col items-center justify-center gap-3 h-full py-10 lg:py-20">
-                        <div className={cn("p-4 rounded-2xl opacity-25", bg)}>
-                            <Icon className={cn("h-7 w-7", iconColor)} />
+                    <div className="flex flex-col items-center justify-center gap-2 h-full py-10 lg:py-20">
+                        <div className={cn("p-3 rounded-sm opacity-20", bg)}>
+                            <Icon className={cn("h-6 w-6", iconColor)} />
                         </div>
-                        <p className="text-sm font-medium text-center px-8 text-muted-foreground/40">{empty}</p>
+                        <p className="text-sm text-center px-8 text-muted-foreground/40">{empty}</p>
                     </div>
                 ) : (
-                    <div className="p-2 lg:p-3 compact:p-1">
+                    <div className="divide-y divide-border/40">
                         {children}
                     </div>
                 )}
@@ -614,36 +604,36 @@ function OrderRow({ order, onClick, selfCheckWarning }: any) {
     return (
         <button
             onClick={onClick}
-            className="group w-full flex items-center gap-3 px-3 py-2.5 compact:px-2 compact:py-1.5 rounded-xl compact:rounded-lg hover:bg-muted/60 transition-all border border-transparent hover:border-border/60 mb-0.5"
+            className="group w-full flex items-center gap-3 px-4 py-2.5 compact:px-3 compact:py-1.5 hover:bg-muted/60 transition-colors text-left"
         >
             <div className={cn("shrink-0 transition-colors",
                 order.status === 'warten_auf_teile' ? "text-rose-400" :
                 order.status === 'in_bearbeitung'   ? "text-indigo-400" :
                 order.status === 'eingegangen'      ? "text-blue-400" :
                 order.status === 'kontrolle_offen'  ? "text-amber-400" :
-                urgency.isOverdue ? "text-red-400" : "text-muted-foreground/60 group-hover:text-primary")}>
-                <StatusIcon className="h-4 w-4" />
+                urgency.isOverdue ? "text-red-400" : "text-muted-foreground/40 group-hover:text-primary")}>
+                <StatusIcon className="h-3.5 w-3.5" />
             </div>
             <div className="flex-1 min-w-0 flex flex-col items-start">
                 <div className="flex items-center gap-2 w-full">
-                    <span className="font-semibold text-sm truncate text-foreground">{order.bike_brand} {order.bike_model}</span>
+                    <span className="font-medium text-sm truncate text-foreground">{order.bike_brand} {order.bike_model}</span>
                     {selfCheckWarning && <ShieldCheck className="h-3 w-3 text-amber-400 shrink-0" />}
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px] text-muted-foreground/70 font-semibold tracking-wider uppercase">{order.order_number}</span>
-                    {order.bike_color && <span className="text-[10px] text-muted-foreground/40 truncate">· {order.bike_color}</span>}
+                    <span className="text-[10px] text-muted-foreground/60 font-mono tracking-wide">{order.order_number}</span>
+                    {order.bike_color && <span className="text-[10px] text-muted-foreground/35 truncate">· {order.bike_color}</span>}
                 </div>
             </div>
             <div className="shrink-0 flex items-center gap-1.5">
                 {order.due_date ? (
-                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider",
-                        urgency.isOverdue ? "bg-red-500/15 text-red-400" : "bg-muted/80 text-muted-foreground")}>
+                    <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-[3px] uppercase tracking-wider",
+                        urgency.isOverdue ? "bg-red-500/10 text-red-400" : "text-muted-foreground/50")}>
                         {urgency.shortLabel}
                     </span>
                 ) : (
-                    <Calendar className="h-3 w-3 text-muted-foreground/30" />
+                    <Calendar className="h-3 w-3 text-muted-foreground/25" />
                 )}
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/25 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
             </div>
         </button>
     )
@@ -651,15 +641,15 @@ function OrderRow({ order, onClick, selfCheckWarning }: any) {
 
 function BuildRow({ build, onClick }: any) {
     return (
-        <button onClick={onClick} className="group w-full flex items-center gap-3 px-3 py-2.5 compact:px-2 compact:py-1.5 rounded-xl compact:rounded-lg hover:bg-muted/60 transition-all border border-transparent hover:border-border/60 mb-0.5">
-            <div className="shrink-0 text-amber-400 group-hover:text-amber-300 transition-all">
-                <Zap className="h-4 w-4" />
+        <button onClick={onClick} className="group w-full flex items-center gap-3 px-4 py-2.5 compact:px-3 compact:py-1.5 hover:bg-muted/60 transition-colors text-left">
+            <div className="shrink-0 text-amber-400 transition-all">
+                <Zap className="h-3.5 w-3.5" />
             </div>
             <div className="flex-1 min-w-0 flex flex-col items-start">
-                <span className="font-semibold text-sm truncate text-foreground">{build.brand} {build.model}</span>
-                <span className="text-[10px] text-muted-foreground/70 font-semibold tracking-wider uppercase mt-0.5">{build.internal_number}</span>
+                <span className="font-medium text-sm truncate text-foreground">{build.brand} {build.model}</span>
+                <span className="text-[10px] text-muted-foreground/60 font-mono tracking-wide mt-0.5">{build.internal_number}</span>
             </div>
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/25 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+            <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
         </button>
     )
 }
@@ -667,25 +657,25 @@ function BuildRow({ build, onClick }: any) {
 function TaskRow({ task, onToggle, onClick }: any) {
     const isOverdue = task.due_date && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date))
     return (
-        <div className="group flex items-start gap-3 compact:gap-2 px-3 py-2.5 compact:py-1.5 rounded-xl compact:rounded-lg hover:bg-muted/60 transition-all cursor-pointer mb-0.5 border border-transparent hover:border-border/60" onClick={onClick}>
+        <div className="group flex items-start gap-3 px-4 py-2.5 compact:py-1.5 hover:bg-muted/60 transition-colors cursor-pointer border-0" onClick={onClick}>
             <div className="pt-0.5 shrink-0" onClick={e => { e.stopPropagation(); onToggle() }}>
-                <Checkbox checked={task.status === 'done'} className="h-4.5 w-4.5 rounded-md" />
+                <Checkbox checked={task.status === 'done'} className="h-4 w-4 rounded-sm" />
             </div>
             <div className="flex-1 min-w-0">
-                <p className={cn("text-sm font-semibold leading-snug", task.status === 'done' ? "line-through text-muted-foreground/40" : "text-foreground")}>{task.title}</p>
+                <p className={cn("text-sm leading-snug", task.status === 'done' ? "line-through text-muted-foreground/40" : "text-foreground")}>{task.title}</p>
                 {task.due_date && task.status !== 'done' && (
-                    <div className="flex items-center gap-1 mt-1">
-                        <Calendar className={cn("h-3 w-3", isOverdue ? "text-red-400" : "text-muted-foreground/60")} />
-                        <span className={cn("text-[10px] font-semibold", isOverdue ? "text-red-400" : "text-muted-foreground/60")}>
+                    <div className="flex items-center gap-1 mt-0.5">
+                        <Calendar className={cn("h-3 w-3", isOverdue ? "text-red-400" : "text-muted-foreground/50")} />
+                        <span className={cn("text-[10px]", isOverdue ? "text-red-400" : "text-muted-foreground/50")}>
                             {format(new Date(task.due_date), "d. MMM", { locale: de })}
                         </span>
                     </div>
                 )}
             </div>
-            <div className={cn("mt-1.5 h-2 w-2 rounded-full shrink-0",
-                task.priority === 'high'   ? "bg-red-500 shadow-sm shadow-red-500/40" :
-                task.priority === 'medium' ? "bg-amber-400 shadow-sm shadow-amber-400/30" :
-                "bg-muted-foreground/30"
+            <div className={cn("mt-1.5 h-1.5 w-1.5 rounded-full shrink-0",
+                task.priority === 'high'   ? "bg-red-500" :
+                task.priority === 'medium' ? "bg-amber-400" :
+                "bg-muted-foreground/20"
             )} />
         </div>
     )

@@ -80,12 +80,8 @@ export default function OrderStatusPage() {
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        // Status page uses the app's native theme (light/dark via system)
-        // No forced dark class
-
         const fetchOrder = async () => {
             if (!orderId) return
-
             try {
                 const { data, error } = await supabase
                     .rpc('get_public_order_status', { p_order_id: orderId })
@@ -100,7 +96,6 @@ export default function OrderStatusPage() {
                             .select('customer_note, estimated_price, bike_brand, bike_color, workshop_id')
                             .eq('id', orderId)
                             .single()
-
                         if (directData) {
                             data.customer_note = directData.customer_note
                             data.estimated_price = directData.estimated_price
@@ -113,7 +108,6 @@ export default function OrderStatusPage() {
                     }
                 }
 
-                // Versuche zusätzliche Workshop-Daten zu fetchen (wie google_review_url)
                 const wsId = data.workshop_id || data.workshop?.id
                 if (wsId) {
                     try {
@@ -122,13 +116,12 @@ export default function OrderStatusPage() {
                             .select('google_review_url')
                             .eq('id', wsId)
                             .maybeSingle()
-                        
                         if (wsData) {
                             if (!data.workshop) data.workshop = {}
                             data.workshop.google_review_url = wsData.google_review_url
                         }
                     } catch (e) {
-                         console.warn("Could not fetch workshop google review url:", e)
+                        console.warn("Could not fetch workshop google review url:", e)
                     }
                 }
 
@@ -140,15 +133,18 @@ export default function OrderStatusPage() {
                 setLoading(false)
             }
         }
-
         fetchOrder()
     }, [orderId])
 
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="mt-5 text-muted-foreground text-sm tracking-wider uppercase">Lade Auftrag…</p>
+            <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
+                <div className="relative">
+                    <div className="w-14 h-14 rounded-full border-2 border-primary/20 flex items-center justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                </div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">Lade Auftrag…</p>
             </div>
         )
     }
@@ -156,10 +152,11 @@ export default function OrderStatusPage() {
     if (error || !order) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-background">
-                <AlertCircle className="h-14 w-14 text-destructive mb-5" />
-                <h1 className="text-3xl font-bold mb-2">Hoppla!</h1>
-                <p className="text-muted-foreground mb-2">{error || "Diesen Auftrag konnten wir leider nicht finden."}</p>
-                <p className="text-sm text-muted-foreground/60">Bitte überprüfen Sie den Link oder kontaktieren Sie uns.</p>
+                <div className="w-16 h-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center mb-5">
+                    <AlertCircle className="h-8 w-8 text-destructive" />
+                </div>
+                <h1 className="text-2xl font-extrabold mb-2">Auftrag nicht gefunden</h1>
+                <p className="text-sm text-muted-foreground max-w-xs">{error || "Bitte überprüfen Sie den Link oder kontaktieren Sie uns."}</p>
             </div>
         )
     }
@@ -174,6 +171,7 @@ export default function OrderStatusPage() {
     const currentStatusIndex = STATUS_STEPS.findIndex(s => s.value === effectiveStatus)
     const activeIndex = currentStatusIndex === -1 ? 0 : currentStatusIndex
     const activeStep = STATUS_STEPS[activeIndex]
+    const progressPct = activeIndex / (STATUS_STEPS.length - 1)
 
     const formatDate = (dateString: string) => {
         if (!dateString) return "Datum unbekannt"
@@ -181,24 +179,22 @@ export default function OrderStatusPage() {
             const date = new Date(dateString)
             if (isNaN(date.getTime())) return "Datum ungültig"
             return date.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' })
-        } catch {
-            return dateString
-        }
+        } catch { return dateString }
     }
-
-    const progressPct = activeIndex / (STATUS_STEPS.length - 1)
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Subtle top accent bar */}
-            <div className="h-1 w-full bg-gradient-to-r from-primary/60 via-primary to-primary/40" />
+            {/* Premium top accent */}
+            <div className="h-1 w-full bg-gradient-to-r from-transparent via-primary to-transparent" />
 
             <div className="max-w-lg mx-auto px-4 py-10 space-y-5">
 
                 {/* ── Header ── */}
-                <div className="text-center space-y-1 pb-1">
-                    <p className="text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground">Reparatur-Status</p>
-                    <h1 className="text-2xl font-extrabold">{order.workshop?.name || "VeloFix"}</h1>
+                <div className="text-center space-y-1.5 pb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground/60">
+                        Reparatur-Status
+                    </p>
+                    <h1 className="text-3xl font-extrabold tracking-tight">{order.workshop?.name || "VeloFix"}</h1>
                     <p className="text-sm text-muted-foreground">
                         Auftrag #{order.order_number} · {formatDate(order.created_at ?? order.created_date ?? '')}
                     </p>
@@ -206,42 +202,55 @@ export default function OrderStatusPage() {
 
                 {/* ── Active State Hero ── */}
                 <div className={cn(
-                    "relative overflow-hidden rounded-2xl p-6 text-center space-y-3 border",
+                    "relative overflow-hidden rounded-3xl p-7 text-center space-y-4 border-2",
                     activeStep.bgClass,
                     activeStep.borderClass,
                 )}>
-                    <div className="flex justify-center">
+                    {/* Subtle radial glow */}
+                    <div
+                        className="absolute inset-0 opacity-20 pointer-events-none"
+                        style={{ background: `radial-gradient(ellipse at 50% 0%, ${activeStep.dotColor}40 0%, transparent 70%)` }}
+                    />
+
+                    <div className="relative flex justify-center">
                         <div className={cn(
-                            "relative w-18 h-18 rounded-full flex items-center justify-center w-[72px] h-[72px] border-2",
+                            "relative w-[76px] h-[76px] rounded-full flex items-center justify-center border-2",
                             activeStep.bgClass,
                             activeStep.borderClass,
                         )}>
                             <activeStep.icon className={cn("h-8 w-8", activeStep.colorClass)} />
-                            <span className={cn(
-                                "absolute inset-0 rounded-full animate-ping opacity-15",
-                                activeStep.bgClass.replace('/10', '')
-                            )} style={{ background: activeStep.dotColor + '22' }} />
+                            <span
+                                className="absolute inset-0 rounded-full animate-ping opacity-20"
+                                style={{ background: activeStep.dotColor + '33' }}
+                            />
                         </div>
                     </div>
 
-                    <div>
-                        <p className={cn("text-xs font-bold uppercase tracking-[0.2em] mb-1", activeStep.colorClass)}>
+                    <div className="relative">
+                        <p className={cn("text-[10px] font-bold uppercase tracking-[0.22em] mb-1", activeStep.colorClass)}>
                             Aktueller Status
                         </p>
                         <h2 className="text-2xl font-extrabold">{activeStep.label}</h2>
-                        <p className="text-sm text-muted-foreground mt-1">{activeStep.sublabel}</p>
+                        <p className="text-sm text-muted-foreground mt-1.5">{activeStep.sublabel}</p>
                     </div>
                 </div>
 
-                {/* ── Feedback Section (Wird jetzt oben prominent angezeigt!) ── */}
+                {/* ── Feedback Section ── */}
                 {effectiveStatus === 'abgeholt' && (
-                    <div className="space-y-4 pt-2">
-                        <div className="flex items-center gap-2 px-1 text-primary">
-                            <Star className="h-4 w-4 fill-current" />
-                            <p className="text-xs font-bold uppercase tracking-[0.2em]">
-                                Wie war dein Erlebnis?
-                            </p>
+                    <div className="space-y-4 pt-1">
+                        {/* Section header */}
+                        <div className="flex items-center gap-3 px-1">
+                            <div className="flex-1 h-px bg-gradient-to-r from-border/0 via-border to-border/0" />
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+                                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary/80">
+                                    Dein Feedback
+                                </p>
+                                <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+                            </div>
+                            <div className="flex-1 h-px bg-gradient-to-r from-border/0 via-border to-border/0" />
                         </div>
+
                         <OrderFeedback
                             orderId={order.id}
                             workshopId={order.workshop_id || order.workshop?.id || ''}
@@ -254,7 +263,7 @@ export default function OrderStatusPage() {
                 {order.checklist && Array.isArray(order.checklist) && order.checklist.some((item: any) => item.warning) && (
                     <div className="space-y-2">
                         {order.checklist.filter((item: any) => item.warning).map((item: any, idx: number) => (
-                            <div key={idx} className="flex items-start gap-3 rounded-xl p-4 bg-destructive/10 border border-destructive/25">
+                            <div key={idx} className="flex items-start gap-3 rounded-2xl p-4 bg-destructive/8 border border-destructive/25">
                                 <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                                 <div>
                                     <p className="text-sm font-semibold text-destructive">Wichtige Information</p>
@@ -267,104 +276,102 @@ export default function OrderStatusPage() {
                 )}
 
                 {/* ── Progress Track ── */}
-                <div className="rounded-2xl p-5 space-y-0 bg-card border border-border/50 shadow-sm">
+                <div className="rounded-3xl overflow-hidden bg-card border border-border/50 shadow-sm">
                     {/* Progress bar */}
-                    <div className="mb-5 h-1.5 rounded-full overflow-hidden bg-muted">
+                    <div className="h-1 bg-muted/30">
                         <div
-                            className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-primary/60 to-primary"
+                            className="h-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-1000 ease-out"
                             style={{ width: `${progressPct * 100}%` }}
                         />
                     </div>
 
-                    {STATUS_STEPS.map((step, index) => {
-                        const isActive = index === activeIndex
-                        const isCompleted = index < activeIndex
-                        const isFuture = index > activeIndex
-                        const Icon = step.icon
+                    <div className="p-5 space-y-0">
+                        {STATUS_STEPS.map((step, index) => {
+                            const isActive = index === activeIndex
+                            const isCompleted = index < activeIndex
+                            const isFuture = index > activeIndex
+                            const Icon = step.icon
 
-                        return (
-                            <div key={step.value} className="flex items-start gap-4 group">
-                                {/* Timeline column */}
-                                <div className="flex flex-col items-center">
-                                    <div
-                                        className={cn(
+                            return (
+                                <div key={step.value} className="flex items-start gap-4 group">
+                                    <div className="flex flex-col items-center">
+                                        <div className={cn(
                                             "w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-500 border-2",
                                             isActive && cn(step.bgClass, step.borderClass, "scale-110 shadow-sm"),
                                             isCompleted && cn(step.bgClass, step.borderClass),
                                             isFuture && "bg-muted border-border",
-                                        )}
-                                    >
-                                        {isCompleted ? (
-                                            <CheckCircle2 className={cn("h-4 w-4", step.colorClass)} />
-                                        ) : (
-                                            <Icon className={cn("h-4 w-4", isActive ? step.colorClass : "text-muted-foreground/40", isActive && "animate-pulse")} />
+                                        )}>
+                                            {isCompleted ? (
+                                                <CheckCircle2 className={cn("h-4 w-4", step.colorClass)} />
+                                            ) : (
+                                                <Icon className={cn(
+                                                    "h-4 w-4",
+                                                    isActive ? step.colorClass : "text-muted-foreground/30",
+                                                    isActive && "animate-pulse"
+                                                )} />
+                                            )}
+                                        </div>
+                                        {index < STATUS_STEPS.length - 1 && (
+                                            <div className={cn(
+                                                "w-px flex-1 my-1 min-h-[20px]",
+                                                isCompleted ? "bg-border" : "bg-border/30"
+                                            )} />
                                         )}
                                     </div>
-                                    {/* Connector line */}
-                                    {index < STATUS_STEPS.length - 1 && (
-                                        <div className={cn(
-                                            "w-px flex-1 my-1 min-h-[20px]",
-                                            isCompleted ? "bg-border" : "bg-border/40"
-                                        )} />
-                                    )}
-                                </div>
 
-                                {/* Label column */}
-                                <div className={cn(
-                                    "pb-5 flex-1 transition-all duration-500 mt-1.5",
-                                    isFuture && "opacity-35"
-                                )}>
-                                    <p className={cn(
-                                        "font-semibold text-sm leading-tight",
-                                        isActive ? step.colorClass : isCompleted ? "text-foreground/70" : "text-muted-foreground/40"
+                                    <div className={cn(
+                                        "pb-5 flex-1 mt-1.5 transition-all duration-500",
+                                        isFuture && "opacity-30"
                                     )}>
-                                        {step.label}
-                                    </p>
-                                    {isActive && (
-                                        <p className="text-xs text-muted-foreground mt-0.5 animate-in fade-in duration-700">
-                                            {step.sublabel}
+                                        <p className={cn(
+                                            "font-semibold text-sm leading-tight",
+                                            isActive ? step.colorClass : isCompleted ? "text-foreground/70" : "text-muted-foreground/30"
+                                        )}>
+                                            {step.label}
                                         </p>
-                                    )}
+                                        {isActive && (
+                                            <p className="text-xs text-muted-foreground mt-0.5 animate-in fade-in duration-700">
+                                                {step.sublabel}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        )
-                    })}
+                            )
+                        })}
+                    </div>
                 </div>
 
                 {/* ── Details Cards ── */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                     {/* Bike card */}
-                    <div className="rounded-xl p-5 space-y-3 bg-card border border-border/50 shadow-sm">
+                    <div className="rounded-2xl p-5 space-y-3 bg-card border border-border/50 shadow-sm">
                         <div className="flex items-center gap-2 text-muted-foreground">
                             <Bike className="h-4 w-4" />
-                            <span className="text-xs font-bold uppercase tracking-widest">Ihr Fahrrad</span>
+                            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Ihr Fahrrad</span>
                         </div>
-
                         <div>
-                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-0.5">Fahrrad</p>
+                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-0.5">Modell</p>
                             <p className="text-sm font-semibold">
                                 {order.bike_brand && <span>{order.bike_brand} </span>}
                                 {order.bike_model || "Keine Angabe"}
                                 {order.bike_color && <span className="text-muted-foreground font-normal"> · {order.bike_color}</span>}
                             </p>
                         </div>
-
                         {order.customer_note && (
-                            <div className="pt-3 border-t border-border/50">
-                                <div className="flex items-center gap-1.5 mb-1">
-                                    <MessageSquare className="h-3 w-3 text-muted-foreground/60" />
-                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Ihr Wunsch</p>
+                            <div className="pt-3 border-t border-border/40">
+                                <div className="flex items-center gap-1.5 mb-1.5">
+                                    <MessageSquare className="h-3 w-3 text-muted-foreground/50" />
+                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Ihr Wunsch</p>
                                 </div>
                                 <p className="text-sm text-muted-foreground italic leading-relaxed">"{order.customer_note}"</p>
                             </div>
                         )}
-
                         {order.estimated_price !== undefined && order.estimated_price !== null && (
-                            <div className="pt-3 border-t border-border/50 flex justify-between items-center">
+                            <div className="pt-3 border-t border-border/40 flex justify-between items-center">
                                 <div className="flex items-center gap-1.5">
-                                    <CreditCard className="h-3 w-3 text-muted-foreground/60" />
-                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60">Geschätzt</p>
+                                    <CreditCard className="h-3 w-3 text-muted-foreground/50" />
+                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Geschätzt</p>
                                 </div>
                                 <p className="text-base font-extrabold">
                                     {typeof order.estimated_price === 'number'
@@ -376,12 +383,11 @@ export default function OrderStatusPage() {
                     </div>
 
                     {/* Contact card */}
-                    <div className="rounded-xl p-5 space-y-3 bg-card border border-border/50 shadow-sm">
+                    <div className="rounded-2xl p-5 space-y-3 bg-card border border-border/50 shadow-sm">
                         <div className="flex items-center gap-2 text-muted-foreground">
                             <MapPin className="h-4 w-4" />
-                            <span className="text-xs font-bold uppercase tracking-widest">Kontakt</span>
+                            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Kontakt</span>
                         </div>
-
                         <div>
                             <p className="text-sm font-semibold">{order.workshop?.name}</p>
                             {(order.workshop?.address || order.workshop?.city) && (
@@ -391,14 +397,13 @@ export default function OrderStatusPage() {
                                 </p>
                             )}
                         </div>
-
-                        <div className="space-y-2 pt-3 border-t border-border/50">
+                        <div className="space-y-2 pt-3 border-t border-border/40">
                             {order.workshop?.phone && (
                                 <a
                                     href={`tel:${order.workshop.phone}`}
-                                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+                                    className="flex items-center gap-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors group"
                                 >
-                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-muted group-hover:bg-muted/70 transition-colors">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-muted/60 group-hover:bg-muted transition-colors">
                                         <Phone className="h-3.5 w-3.5" />
                                     </div>
                                     {order.workshop.phone}
@@ -407,9 +412,9 @@ export default function OrderStatusPage() {
                             {order.workshop?.email && (
                                 <a
                                     href={`mailto:${order.workshop.email}`}
-                                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
+                                    className="flex items-center gap-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors group"
                                 >
-                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-muted group-hover:bg-muted/70 transition-colors">
+                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-muted/60 group-hover:bg-muted transition-colors">
                                         <Mail className="h-3.5 w-3.5" />
                                     </div>
                                     {order.workshop.email}
@@ -420,7 +425,7 @@ export default function OrderStatusPage() {
                 </div>
 
                 {/* ── Footer ── */}
-                <p className="text-center text-xs text-muted-foreground/40 pt-2">
+                <p className="text-center text-xs text-muted-foreground/30 pt-2">
                     © {new Date().getFullYear()} {order.workshop?.name || "VeloFix"}
                 </p>
             </div>

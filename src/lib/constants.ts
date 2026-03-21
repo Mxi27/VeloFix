@@ -1,63 +1,75 @@
+/**
+ * Todoist-style status tag colors.
+ */
 export const STATUS_COLORS: Record<string, string> = {
-    eingegangen: "bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/25",
-    warten_auf_teile: "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/25",
-    in_bearbeitung: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-500/25",
-    kontrolle_offen: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/25",
-    abholbereit: "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/25",
-    abgeholt: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/25",
-    abgeschlossen: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20",
+    eingegangen:     "bg-[#d3e5ef] text-[#2b6e99]            dark:bg-[#2a3d50] dark:text-[#6c8fff]",
+    warten_auf_teile:"bg-[#ffe2dd] text-[#c03e3e]            dark:bg-[#452a28] dark:text-[#de4c4a]",
+    in_bearbeitung:  "bg-[#e8deee] text-[#7c5baa]            dark:bg-[#352a45] dark:text-[#c77dff]",
+    kontrolle_offen: "bg-[#fdecc8] text-[#b08c00]            dark:bg-[#3d3520] dark:text-[#f0b429]",
+    abholbereit:     "bg-[#dbeddb] text-[#2a7a45]            dark:bg-[#243528] dark:text-[#4ab06c]",
+    abgeholt:        "bg-[#f5e0e9] text-[#a04070]            dark:bg-[#3d2535] dark:text-[#e07098]",
+    abgeschlossen:   "bg-[#e3e2e0] text-[#808080]            dark:bg-[#363330] dark:text-[#8a8580]",
+}
+
+export const STATUS_LABELS: Record<string, string> = {
+    eingegangen:     "Eingegangen",
+    warten_auf_teile:"Warten auf Teile",
+    in_bearbeitung:  "In Bearbeitung",
+    kontrolle_offen: "Kontrolle offen",
+    abholbereit:     "Abholbereit",
+    abgeholt:        "Abgeholt",
+    abgeschlossen:   "Abgeschlossen",
 }
 
 export const BUILD_STATUS_COLORS = STATUS_COLORS;
 
-// Neurad-specific status config
 export const NEURAD_STATUSES = [
     {
         value: 'offen',
         label: 'Offen',
-        color: 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/20',
-        dotColor: 'bg-rose-500',
+        color: 'bg-[#ffe2dd] text-[#c03e3e] dark:bg-[#452a28] dark:text-[#de4c4a]',
+        dotColor: 'bg-[#de4c4a]',
     },
     {
         value: 'in_progress',
         label: 'In Montage',
-        color: 'bg-orange-600/15 text-orange-700 dark:text-orange-400 border-orange-600/20',
-        dotColor: 'bg-orange-600',
+        color: 'bg-[#fdecc8] text-[#b08c00] dark:bg-[#3d3520] dark:text-[#f0b429]',
+        dotColor: 'bg-[#f0b429]',
     },
     {
         value: 'fertig',
         label: 'Montiert',
-        color: 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400 border-yellow-400/30',
-        dotColor: 'bg-yellow-400',
+        color: 'bg-[#d3e5ef] text-[#2b6e99] dark:bg-[#2a3d50] dark:text-[#6c8fff]',
+        dotColor: 'bg-[#6c8fff]',
     },
     {
         value: 'abgeschlossen',
         label: 'Kontrolliert',
-        color: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/20',
-        dotColor: 'bg-green-500',
+        color: 'bg-[#dbeddb] text-[#2a7a45] dark:bg-[#243528] dark:text-[#4ab06c]',
+        dotColor: 'bg-[#4ab06c]',
     },
 ]
 
 export const NEURAD_STATUS_MAP: Record<string, { label: string; color: string; dotColor: string }> = {
     offen: {
         label: 'Offen',
-        color: 'bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/20',
-        dotColor: 'bg-rose-500',
+        color: 'bg-[#ffe2dd] text-[#c03e3e] dark:bg-[#452a28] dark:text-[#de4c4a]',
+        dotColor: 'bg-[#de4c4a]',
     },
     in_progress: {
         label: 'In Montage',
-        color: 'bg-orange-600/15 text-orange-700 dark:text-orange-400 border-orange-600/20',
-        dotColor: 'bg-orange-600',
+        color: 'bg-[#fdecc8] text-[#b08c00] dark:bg-[#3d3520] dark:text-[#f0b429]',
+        dotColor: 'bg-[#f0b429]',
     },
     fertig: {
         label: 'Montiert',
-        color: 'bg-yellow-400/20 text-yellow-700 dark:text-yellow-400 border-yellow-400/30',
-        dotColor: 'bg-yellow-400',
+        color: 'bg-[#d3e5ef] text-[#2b6e99] dark:bg-[#2a3d50] dark:text-[#6c8fff]',
+        dotColor: 'bg-[#6c8fff]',
     },
     abgeschlossen: {
         label: 'Kontrolliert',
-        color: 'bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/20',
-        dotColor: 'bg-green-500',
+        color: 'bg-[#dbeddb] text-[#2a7a45] dark:bg-[#243528] dark:text-[#4ab06c]',
+        dotColor: 'bg-[#4ab06c]',
     },
 }
 

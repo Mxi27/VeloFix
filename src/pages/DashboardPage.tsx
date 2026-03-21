@@ -45,8 +45,9 @@ export default function DashboardPage() {
                             onOrderCreated={handleOrderCreated}
                         >
                             <Button
+                                variant="outline"
                                 size="sm"
-                                className="gap-1.5 h-9 font-medium"
+                                className="gap-1.5 h-8 text-sm font-normal"
                                 onClick={() => setIsNewOrderOpen(true)}
                             >
                                 <PlusCircle className="h-4 w-4" />

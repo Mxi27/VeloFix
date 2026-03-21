@@ -3,17 +3,9 @@ import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState, useMemo } from "react"
 import { useColumnVisibility } from "@/hooks/useColumnVisibility"
 import { useNavigate } from "react-router-dom"
-import { STATUS_COLORS } from "@/lib/constants"
+import { STATUS_COLORS, STATUS_LABELS } from "@/lib/constants"
 import type { DateRange } from "react-day-picker"
 import { DateRangePicker } from "@/components/DateRangePicker"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -24,12 +16,13 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Search, Filter, Eye, UserPlus, Users, X, Check, SlidersHorizontal, RotateCcw as Restore, Settings2 } from "lucide-react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+    Search, Users, X, Check,
+    SlidersHorizontal, RotateCcw as Restore, Settings2, Filter,
+    ArrowUpDown, ArrowUp, ArrowDown, MoreHorizontal, Trash2, ExternalLink,
+} from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
@@ -87,8 +80,6 @@ const AVAILABLE_COLUMNS = [
 ] as const
 
 type ColumnId = typeof AVAILABLE_COLUMNS[number]['id']
-
-
 type TableMode = 'active' | 'archived' | 'leasing_billing' | 'trash'
 
 interface OrdersTableProps {
@@ -96,19 +87,39 @@ interface OrdersTableProps {
     showArchived?: boolean
 }
 
+const STATUS_TABS = [
+    { value: 'all',             label: 'Alle' },
+    { value: 'eingegangen',     label: 'Eingegangen' },
+    { value: 'warten_auf_teile',label: 'Teile' },
+    { value: 'in_bearbeitung',  label: 'In Arbeit' },
+    { value: 'kontrolle_offen', label: 'Kontrolle' },
+    { value: 'abholbereit',     label: 'Abholbereit' },
+]
+
+const STATUS_DOT = {
+    eingegangen: "bg-[#6c8fff]",
+    warten_auf_teile: "bg-[#de4c4a]",
+    in_bearbeitung: "bg-[#c77dff]",
+    kontrolle_offen: "bg-[#f0b429]",
+    abholbereit: "bg-[#4ab06c]",
+    abgeholt: "bg-[#e07098]",
+    abgeschlossen: "bg-[#888888]",
+} as Record<string, string>
+
 export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps) {
     const { workshopId } = useAuth()
     const { employees } = useEmployee()
     const navigate = useNavigate()
+
     const [searchTerm, setSearchTerm] = useState("")
+    const [showSearch, setShowSearch] = useState(false)
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const [dateFilterType, setDateFilterType] = useState<"created" | "due">("created")
     const [filterStatus, setFilterStatus] = useState("all")
     const [filterEmployee, setFilterEmployee] = useState<string>("all")
     const [filterTags, setFilterTags] = useState<string[]>([])
     const [orderToDelete, setOrderToDelete] = useState<string | null>(null)
-    const [showFilters, setShowFilters] = useState(false)
-    const [sortField, setSortField] = useState<"created_at" | "due_date" | "none">("none")
+    const [sortField, setSortField] = useState<"created_at" | "due_date" | "customer_name" | "status" | "none">("none")
     const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
 
     const { visibleColumns, toggleColumn } = useColumnVisibility<ColumnId>(COLUMN_STORAGE_KEY, AVAILABLE_COLUMNS)
@@ -124,86 +135,10 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         fetchTags
     )
 
-
-
-    const handleDeleteOrder = async () => {
-        if (!orderToDelete) return
-
-        try {
-            if (effectiveMode === 'trash') {
-                const { error } = await supabase
-                    .from('orders')
-                    .delete()
-                    .eq('id', orderToDelete)
-
-                if (error) throw error
-            } else {
-                const { error } = await supabase
-                    .from('orders')
-                    .update({ status: 'trash', trash_date: new Date().toISOString() })
-                    .eq('id', orderToDelete)
-
-                if (error) throw error
-            }
-
-            mutate()
-            toastSuccess('Auftrag gelöscht', 'Der Auftrag wurde erfolgreich gelöscht.')
-        } catch (error) {
-            toastError('Fehler beim Löschen', 'Der Auftrag konnte nicht gelöscht werden.')
-        } finally {
-            setOrderToDelete(null)
-        }
-    }
-
-    const handleRestoreOrder = async (orderId: string) => {
-        try {
-            const { error } = await supabase
-                .from('orders')
-                .update({ status: 'eingegangen' }) // Defaulting to 'eingegangen' on restore
-                .eq('id', orderId)
-
-            if (error) throw error
-            mutate()
-            toastSuccess('Auftrag wiederhergestellt', 'Der Auftrag wurde aus dem Papierkorb wiederhergestellt.')
-        } catch (error) {
-            toastError('Fehler', 'Auftrag konnte nicht wiederhergestellt werden.')
-        }
-    }
-
-    const handleAssignEmployee = async (orderId: string, employeeId: string | null) => {
-        const order = orders.find(o => o.id === orderId)
-        if (!order) return
-
-        let newMechanicIds: string[] = []
-        if (employeeId) {
-            newMechanicIds = [employeeId]
-        } else {
-            newMechanicIds = []
-        }
-
-        const updatedOrders = orders.map(o => o.id === orderId ? { ...o, mechanic_ids: newMechanicIds } : o)
-        mutate(updatedOrders, false)
-
-        try {
-            const { error } = await supabase
-                .from('orders')
-                .update({ mechanic_ids: newMechanicIds })
-                .eq('id', orderId)
-
-            if (error) throw error
-            toastSuccess('Zuweisung aktualisiert', employeeId ? 'Mitarbeiter zugewiesen.' : 'Zuweisung aufgehoben.')
-            mutate()
-        } catch (error) {
-            toastError('Fehler', 'Mitarbeiter konnte nicht zugewiesen werden.')
-            mutate()
-        }
-    }
-
     const effectiveMode: TableMode = showArchived ? 'archived' : mode
 
     const fetchOrders = async () => {
         if (!workshopId) return []
-
         let query = supabase
             .from('orders')
             .select('*')
@@ -221,7 +156,6 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         }
 
         const { data, error } = await query
-
         if (error) throw error
         return data as Order[]
     }
@@ -229,66 +163,124 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     const { data: orders = [], isLoading, mutate } = useSWR(
         workshopId ? ['orders', workshopId, effectiveMode] : null,
         fetchOrders,
-        {
-            refreshInterval: 30000,
-            revalidateOnFocus: true
-        }
+        { refreshInterval: 30000, revalidateOnFocus: true }
     )
 
-    const statusCounts = useMemo(() => {
-        return {
-            all: orders.length,
-            eingegangen: orders.filter(o => o.status === 'eingegangen').length,
-            warten_auf_teile: orders.filter(o => o.status === 'warten_auf_teile').length,
-            in_bearbeitung: orders.filter(o => o.status === 'in_bearbeitung').length,
-            kontrolle_offen: orders.filter(o => o.status === 'kontrolle_offen').length,
-            abholbereit: orders.filter(o => o.status === 'abholbereit').length
-        }
-    }, [orders])
+    const statusCounts = useMemo(() => ({
+        all: orders.length,
+        eingegangen:      orders.filter(o => o.status === 'eingegangen').length,
+        warten_auf_teile: orders.filter(o => o.status === 'warten_auf_teile').length,
+        in_bearbeitung:   orders.filter(o => o.status === 'in_bearbeitung').length,
+        kontrolle_offen:  orders.filter(o => o.status === 'kontrolle_offen').length,
+        abholbereit:      orders.filter(o => o.status === 'abholbereit').length,
+    }), [orders])
 
-    const loading = isLoading
+    const handleDeleteOrder = async () => {
+        if (!orderToDelete) return
+        try {
+            if (effectiveMode === 'trash') {
+                const { error } = await supabase.from('orders').delete().eq('id', orderToDelete)
+                if (error) throw error
+            } else {
+                const { error } = await supabase
+                    .from('orders')
+                    .update({ status: 'trash', trash_date: new Date().toISOString() })
+                    .eq('id', orderToDelete)
+                if (error) throw error
+            }
+            mutate()
+            toastSuccess('Auftrag gelöscht', 'Der Auftrag wurde erfolgreich gelöscht.')
+        } catch {
+            toastError('Fehler beim Löschen', 'Der Auftrag konnte nicht gelöscht werden.')
+        } finally {
+            setOrderToDelete(null)
+        }
+    }
+
+    const handleRestoreOrder = async (orderId: string) => {
+        try {
+            const { error } = await supabase.from('orders').update({ status: 'eingegangen' }).eq('id', orderId)
+            if (error) throw error
+            mutate()
+            toastSuccess('Wiederhergestellt', 'Auftrag aus dem Papierkorb wiederhergestellt.')
+        } catch {
+            toastError('Fehler', 'Auftrag konnte nicht wiederhergestellt werden.')
+        }
+    }
+
+    const handleAssignEmployee = async (orderId: string, employeeId: string | null) => {
+        const order = orders.find(o => o.id === orderId)
+        if (!order) return
+        const newMechanicIds = employeeId ? [employeeId] : []
+        const updatedOrders = orders.map(o => o.id === orderId ? { ...o, mechanic_ids: newMechanicIds } : o)
+        mutate(updatedOrders, false)
+        try {
+            const { error } = await supabase.from('orders').update({ mechanic_ids: newMechanicIds }).eq('id', orderId)
+            if (error) throw error
+            toastSuccess('Zuweisung aktualisiert', employeeId ? 'Mitarbeiter zugewiesen.' : 'Zuweisung aufgehoben.')
+            mutate()
+        } catch {
+            toastError('Fehler', 'Mitarbeiter konnte nicht zugewiesen werden.')
+            mutate()
+        }
+    }
+
+    const handleViewOrder = (orderId: string) => {
+        let returnPath = '/dashboard'
+        if (effectiveMode === 'archived') returnPath = '/dashboard/archive'
+        if (effectiveMode === 'leasing_billing') returnPath = '/dashboard/leasing-billing'
+        navigate(`/dashboard/orders/${orderId}`, { state: { from: returnPath } })
+    }
+
+    const getEmployeeName = (id: string | null) => {
+        if (!id) return null
+        return employees.find(e => e.id === id)?.name || "Unbekannt"
+    }
+
+    const activeFilterCount = [
+        filterEmployee !== 'all',
+        dateRange?.from,
+        filterTags.length > 0,
+        sortField !== 'none',
+    ].filter(Boolean).length
 
     const filteredOrders = orders.filter(order => {
         const searchKeywords = searchTerm.toLowerCase().split(/\s+/).filter(Boolean)
         const matchesSearch = searchKeywords.length === 0 || searchKeywords.every(keyword => {
-            const inName = order.customer_name.toLowerCase().includes(keyword)
-            const inNumber = order.order_number.toLowerCase().includes(keyword)
-            const inBrand = order.bike_brand?.toLowerCase().includes(keyword)
-            const inModel = order.bike_model?.toLowerCase().includes(keyword)
-            const inColor = order.bike_color?.toLowerCase().includes(keyword)
-            const inTags = order.tags?.some(tagId => {
-                const tag = workshopTags.find((t: any) => t.id === tagId)
-                return tag?.name.toLowerCase().includes(keyword)
-            })
-            return inName || inNumber || inBrand || inModel || inColor || inTags
+            return (
+                order.customer_name.toLowerCase().includes(keyword) ||
+                order.order_number.toLowerCase().includes(keyword) ||
+                order.bike_brand?.toLowerCase().includes(keyword) ||
+                order.bike_model?.toLowerCase().includes(keyword) ||
+                order.bike_color?.toLowerCase().includes(keyword) ||
+                order.tags?.some(tagId => {
+                    const tag = workshopTags.find((t: any) => t.id === tagId)
+                    return tag?.name.toLowerCase().includes(keyword)
+                })
+            )
         })
 
-        const matchesStatus =
-            effectiveMode === 'active'
-                ? (filterStatus === 'all' ? true : order.status === filterStatus)
-                : true
+        const matchesStatus = effectiveMode === 'active'
+            ? (filterStatus === 'all' ? true : order.status === filterStatus)
+            : true
 
-        const matchesEmployee =
-            filterEmployee === 'all'
-                ? true
-                : filterEmployee === 'unassigned'
-                    ? (order.mechanic_ids === null || order.mechanic_ids.length === 0)
-                    : (order.mechanic_ids && order.mechanic_ids.includes(filterEmployee))
+        const matchesEmployee = filterEmployee === 'all'
+            ? true
+            : filterEmployee === 'unassigned'
+                ? (!order.mechanic_ids || order.mechanic_ids.length === 0)
+                : (order.mechanic_ids?.includes(filterEmployee) ?? false)
 
         let matchesDate = true
         if (dateRange?.from) {
             const dateToCompare = dateFilterType === 'created' ? order.created_at : order.due_date
-
             if (!dateToCompare && dateFilterType === 'due') {
                 matchesDate = false
             } else if (dateToCompare) {
                 const orderDate = new Date(dateToCompare)
                 const from = new Date(dateRange.from)
                 from.setHours(0, 0, 0, 0)
-
                 const to = dateRange.to ? new Date(dateRange.to) : new Date(from)
                 to.setHours(23, 59, 59, 999)
-
                 matchesDate = orderDate >= from && orderDate <= to
             }
         }
@@ -299,594 +291,570 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         return matchesSearch && matchesStatus && matchesEmployee && matchesDate && matchesTags
     }).sort((a, b) => {
         if (sortField === "none") return 0
-
-        // Assert field is one of the valid strings since we checked for none
-        const field = sortField as "created_at" | "due_date"
-        const aVal = a[field]
-        const bVal = b[field]
-
-        if (aVal === bVal) return 0
-        if (aVal === null) return 1 // nulls always at the bottom
-        if (bVal === null) return -1
-
-        const timeA = new Date(aVal).getTime()
-        const timeB = new Date(bVal).getTime()
-
-        if (sortDir === "asc") {
-            return timeA - timeB
-        } else {
-            return timeB - timeA
+        if (sortField === "customer_name") {
+            return sortDir === "asc"
+                ? a.customer_name.localeCompare(b.customer_name)
+                : b.customer_name.localeCompare(a.customer_name)
         }
+        if (sortField === "status") {
+            return sortDir === "asc"
+                ? a.status.localeCompare(b.status)
+                : b.status.localeCompare(a.status)
+        }
+        const aVal = a[sortField]
+        const bVal = b[sortField]
+        if (aVal === bVal) return 0
+        if (aVal === null) return 1
+        if (bVal === null) return -1
+        const diff = new Date(aVal).getTime() - new Date(bVal).getTime()
+        return sortDir === "asc" ? diff : -diff
     })
 
-    const handleViewOrder = (orderId: string) => {
-        let returnPath = '/dashboard'
-        if (effectiveMode === 'archived') returnPath = '/dashboard/archive'
-        if (effectiveMode === 'leasing_billing') returnPath = '/dashboard/leasing-billing'
-
-        navigate(`/dashboard/orders/${orderId}`, { state: { from: returnPath } })
-    }
-
-    const getEmployeeName = (id: string | null) => {
-        if (!id) return null
-        return employees.find(e => e.id === id)?.name || "Unbekannt"
-    }
-
-    const activeFilterCount = [
-        filterStatus !== 'all',
-        filterEmployee !== 'all',
-        dateRange?.from,
-        filterTags.length > 0
-    ].filter(Boolean).length
-
-    // Dynamic responsive logic: Determine visibility based on enabled columns
-    const enabledCount = Object.values(visibleColumns).filter(Boolean).length
-    const getResponsiveClass = (colId: ColumnId) => {
-        // High priority columns are always visible or show up early
-        if (colId === 'order_number' || colId === 'status' || colId === 'actions') return ""
-        
-        // If user disabled many columns, we can show more on smaller screens
-        if (enabledCount <= 4) {
-             if (colId === 'customer') return "table-cell" 
-             if (colId === 'due_date') return "sm:table-cell" 
-             if (colId === 'bike') return "md:table-cell" // Move bike to md for more space
-             return "lg:table-cell"
-        }
-
-        // Standard dynamic breakpoints (more conservative to prevent overlap)
-        switch (colId) {
-            case 'customer': return "sm:table-cell" // Hide on very small screens to favor Nr/Status/Actions
-            case 'due_date': return "md:table-cell" 
-            case 'bike': return "lg:table-cell"
-            case 'mechanic': return "xl:table-cell"
-            case 'created_at': return "2xl:table-cell"
-            default: return ""
+    const handleSort = (field: typeof sortField) => {
+        if (sortField === field) {
+            if (sortDir === "desc") setSortDir("asc")
+            else { setSortField("none"); setSortDir("desc") }
+        } else {
+            setSortField(field)
+            setSortDir("desc")
         }
     }
 
-    const renderTable = (ordersToRender: Order[]) => (
-        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-[var(--shadow-xs)]">
-            <Table className="w-full table-fixed">
-                <TableHeader>
-                    <TableRow className="hover:bg-transparent bg-muted/40">
-                        {visibleColumns.order_number && (
-                            <TableHead className="w-[50px] md:w-[80px] pl-3 md:pl-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Nr.</TableHead>
-                        )}
-                        {visibleColumns.customer && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>Kunde</TableHead>
-                        )}
-                        {visibleColumns.bike && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[160px] max-w-[30vw]", getResponsiveClass('bike'))}>Fahrrad</TableHead>
-                        )}
-                        {visibleColumns.mechanic && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[120px]", getResponsiveClass('mechanic'))}>Mitarbeiter</TableHead>
-                        )}
-                        {visibleColumns.due_date && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[100px]", getResponsiveClass('due_date'))}>Fällig</TableHead>
-                        )}
-                        {visibleColumns.status && (
-                            <TableHead className="px-2 md:px-3 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[90px] md:w-[100px] min-w-[90px]">Status</TableHead>
-                        )}
-                        {visibleColumns.created_at && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[100px]", getResponsiveClass('created_at'))}>Erstellt</TableHead>
-                        )}
-                        {visibleColumns.actions && (
-                            <TableHead className="text-right pr-3 md:pr-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[75px] md:w-[85px] min-w-[75px]">Aktion</TableHead>
-                        )}
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {ordersToRender.length === 0 ? (
-                        <TableRow>
-                            <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
-                                <div className="flex flex-col items-center justify-center gap-2">
-                                    <Search className="h-8 w-8 opacity-20" />
-                                    <p>Keine Aufträge gefunden</p>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ) : (
-                        ordersToRender.map((order) => (
-                            <TableRow
-                                key={order.id}
-                                className="hover:bg-muted/30 cursor-pointer transition-colors duration-150 border-b border-border/40 last:border-0"
-                                onClick={() => handleViewOrder(order.id)}
-                            >
-                                {visibleColumns.order_number && (
-                                    <TableCell className="w-[50px] md:w-[80px] pl-3 md:pl-4 py-4 font-mono text-[11px] font-bold text-primary truncate">
-                                        {order.order_number}
-                                    </TableCell>
-                                )}
-                                {visibleColumns.customer && (
-                                    <TableCell className={cn("hidden py-4 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="font-medium text-sm text-foreground truncate">{order.customer_name}</span>
-                                            <span className="text-xs text-muted-foreground/80 truncate customer-email">
-                                                {order.customer_email || '—'}
-                                            </span>
-                                        </div>
-                                    </TableCell>
-                                )}
-                                {visibleColumns.bike && (
-                                    <TableCell className={cn("hidden py-4 px-3 md:px-4 text-sm text-foreground min-w-[160px] max-w-[30vw]", getResponsiveClass('bike'))}>
-                                        <div className="flex flex-col gap-1 min-w-0">
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="font-semibold text-foreground truncate">
-                                                    {order.bike_brand && <span className="mr-1">{order.bike_brand}</span>}
-                                                    {order.bike_model || '—'}
-                                                </span>
-                                                {order.bike_color && (
-                                                    <span className="text-[11px] text-muted-foreground truncate">
-                                                        {order.bike_color}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {order.tags && order.tags.length > 0 && (
-                                                <div className="flex flex-wrap gap-1">
-                                                    {order.tags.map(tagId => {
-                                                        const tagInfo = workshopTags.find((t: any) => t.id === tagId)
-                                                        if (!tagInfo) return null
-                                                        return (
-                                                            <Badge
-                                                                key={tagId}
-                                                                className="px-1.5 py-0 text-[10px] font-medium text-white shadow-sm border-0 leading-tight h-4 flex items-center"
-                                                                style={{ backgroundColor: tagInfo.color }}
-                                                            >
-                                                                {tagInfo.name}
-                                                            </Badge>
-                                                        )
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                )}
-                                {visibleColumns.mechanic && (
-                                    <TableCell className={cn("hidden py-4 px-2 md:px-4", getResponsiveClass('mechanic'))} onClick={(e) => e.stopPropagation()}>
-                                        {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
-                                            <div className="flex flex-wrap gap-1">
-                                                {order.mechanic_ids.map(mid => (
-                                                    <Badge key={mid} variant="outline" className="bg-background">
-                                                        {getEmployeeName(mid)}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <span className="text-xs text-muted-foreground italic">—</span>
-                                        )}
-                                    </TableCell>
-                                )}
-                                {visibleColumns.due_date && (
-                                    <TableCell className={cn("hidden py-4 px-2 md:px-4 text-xs font-medium", getResponsiveClass('due_date'))}>
-                                        {order.due_date ? (
-                                            <span className={new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' ? "text-red-500 font-bold" : "text-foreground"}>
-                                                {new Date(order.due_date).toLocaleDateString('de-DE')}
-                                            </span>
-                                        ) : (
-                                            <span className="text-muted-foreground/50">—</span>
-                                        )}
-                                    </TableCell>
-                                )}
-                                {visibleColumns.status && (
-                                    <TableCell className="py-4 px-1 md:px-2 w-[85px] md:w-[100px]">
-                                        <Badge
-                                            variant="secondary"
-                                            className={`capitalize font-normal border text-[10px] px-1 h-5 flex items-center justify-center ${STATUS_COLORS[order.status] || "bg-muted text-foreground border-border/60"}`}
-                                        >
-                                            <span className="truncate">{order.status.replace(/_/g, ' ')}</span>
-                                        </Badge>
-                                    </TableCell>
-                                )}
-                                {visibleColumns.created_at && (
-                                    <TableCell className={cn("hidden py-4 text-xs text-muted-foreground font-mono", getResponsiveClass('created_at'))}>
-                                        {new Date(order.created_at).toLocaleDateString('de-DE')}
-                                    </TableCell>
-                                )}
-                                {visibleColumns.actions && (
-                                    <TableCell className="text-right pr-4 py-4 w-[80px]">
-                                        <div className="flex justify-end gap-1">
-                                            {effectiveMode === 'trash' ? (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0 text-primary hover:bg-primary/10 rounded-full"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        handleRestoreOrder(order.id)
-                                                    }}
-                                                    title="Wiederherstellen"
-                                                >
-                                                    <Restore className="h-4 w-4" />
-                                                </Button>
-                                            ) : (
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        >
-                                                            <UserPlus className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-56">
-                                                        <DropdownMenuLabel>Mitarbeiter zuweisen</DropdownMenuLabel>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            handleAssignEmployee(order.id, null)
-                                                        }}>
-                                                            <X className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                            <span>Keine Zuweisung</span>
-                                                        </DropdownMenuItem>
-                                                        {employees.map(emp => (
-                                                            <DropdownMenuItem
-                                                                key={emp.id}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    handleAssignEmployee(order.id, emp.id)
-                                                                }}
-                                                            >
-                                                                <Users className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
-                                                                <span className="truncate flex-1">{emp.name}</span>
-                                                                {order.mechanic_ids && order.mechanic_ids.includes(emp.id) && <Check className="ml-auto h-4 w-4 shrink-0" />}
-                                                            </DropdownMenuItem>
-                                                        ))}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            )}
-
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    handleViewOrder(order.id)
-                                                }}
-                                            >
-                                                <Eye className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </TableCell>
-                                )}
-                            </TableRow>
-                        ))
-                    )}
-                </TableBody>
-            </Table>
-        </div>
-    )
-
-    const getTitle = () => {
-        switch (effectiveMode) {
-            case 'archived': return "Archivierte Aufträge"
-            case 'leasing_billing': return "Leasing Abrechnung (Abgeholt)"
-            case 'trash': return "Papierkorb"
-            default: return "Aktive Aufträge"
-        }
+    const SortIcon = ({ field }: { field: typeof sortField }) => {
+        if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-0 group-hover/th:opacity-40 transition-opacity" />
+        return sortDir === "desc"
+            ? <ArrowDown className="h-3 w-3 text-primary" />
+            : <ArrowUp className="h-3 w-3 text-primary" />
     }
 
     return (
         <>
-            <Card className="border border-border/70 shadow-[var(--shadow-card)] bg-card">
-                <CardHeader className="pb-4">
-                    <div className="flex flex-col gap-4">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <CardTitle className="text-xl font-bold tracking-tight">
-                                {getTitle()}
-                            </CardTitle>
+            <div className="space-y-0">
 
-                            <div className="flex items-center gap-2">
-
-                            {/* Filter Toggle Button */}
-                            <Popover open={showFilters} onOpenChange={setShowFilters}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="gap-2 bg-background"
-                                    >
-                                        <SlidersHorizontal className="h-4 w-4" />
-                                        Filter
-                                        {activeFilterCount > 0 && (
-                                            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                                                {activeFilterCount}
-                                            </Badge>
+                {/* ── Toolbar ── */}
+                <div className="flex items-center justify-between gap-4 mb-1">
+                    {/* Status tabs */}
+                    {effectiveMode === 'active' && (
+                        <div className="flex items-center gap-0 overflow-x-auto -mb-px">
+                            {STATUS_TABS.map(tab => {
+                                const count = statusCounts[tab.value as keyof typeof statusCounts] ?? 0
+                                const isActive = filterStatus === tab.value
+                                return (
+                                    <button
+                                        key={tab.value}
+                                        onClick={() => setFilterStatus(tab.value)}
+                                        className={cn(
+                                            "relative flex items-center gap-1.5 px-3 py-2 text-[13px] whitespace-nowrap transition-colors",
+                                            "border-b-2",
+                                            isActive
+                                                ? "border-primary text-foreground font-medium"
+                                                : "border-transparent text-muted-foreground hover:text-foreground/80"
                                         )}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80" align="end">
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-sm font-semibold">Filter & Optionen</p>
-                                            {(filterStatus !== 'all' || filterEmployee !== 'all' || dateRange || sortField !== 'none') && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 text-xs"
-                                                    onClick={() => {
-                                                        setFilterStatus('all')
-                                                        setFilterEmployee('all')
-                                                        setDateRange(undefined)
-                                                        setFilterTags([])
-                                                        setSortField('none')
-                                                        setSortDir('desc')
-                                                    }}
-                                                >
-                                                    Alle zurücksetzen
-                                                </Button>
-                                            )}
-                                        </div>
+                                    >
+                                        {tab.label}
+                                        {count > 0 && (
+                                            <span className={cn(
+                                                "text-[10px] font-semibold tabular-nums px-1.5 py-px rounded-full",
+                                                isActive
+                                                    ? "bg-primary/15 text-primary"
+                                                    : "bg-accent text-muted-foreground"
+                                            )}>
+                                                {count}
+                                            </span>
+                                        )}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    )}
 
-                                        {/* Sortierung */}
-                                        <div className="space-y-2">
-                                            <label className="text-xs text-muted-foreground">Sortierung</label>
-                                            <div className="flex items-center gap-2">
-                                                <Select value={sortField} onValueChange={(v: "created_at" | "due_date" | "none") => setSortField(v)}>
-                                                    <SelectTrigger className="h-9 flex-1">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="none">Standard</SelectItem>
-                                                        <SelectItem value="created_at">Erstellt</SelectItem>
-                                                        {(effectiveMode === 'active' || effectiveMode === 'trash') && (
-                                                            <SelectItem value="due_date">Fällig bis</SelectItem>
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
-                                                <Select value={sortDir} onValueChange={(v: "asc" | "desc") => setSortDir(v)} disabled={sortField === "none"}>
-                                                    <SelectTrigger className="h-9 w-[110px]">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="desc">Absteigend</SelectItem>
-                                                        <SelectItem value="asc">Aufsteigend</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                        </div>
+                    {/* Right: Controls */}
+                    <div className="flex items-center gap-1 ml-auto shrink-0">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className={cn(
+                                "h-7 gap-1.5 text-xs px-2 rounded-lg text-muted-foreground hover:text-foreground",
+                                showSearch && "text-foreground bg-accent"
+                            )}
+                            onClick={() => setShowSearch(s => !s)}
+                        >
+                            <Search className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Suche</span>
+                        </Button>
 
-                                        {/* Employee Filter */}
-                                        <div className="space-y-2">
-                                            <label className="text-xs text-muted-foreground">Mitarbeiter</label>
-                                            <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-                                                <SelectTrigger className="h-9">
-                                                    <SelectValue placeholder="Alle Mitarbeiter" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="all">Alle Mitarbeiter</SelectItem>
-                                                    <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                                                    {employees.map(emp => (
-                                                        <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn(
+                                        "h-7 gap-1.5 text-xs px-2 rounded-lg text-muted-foreground hover:text-foreground",
+                                        activeFilterCount > 0 && "text-foreground bg-accent"
+                                    )}
+                                >
+                                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                                    <span className="hidden sm:inline">Filter</span>
+                                    {activeFilterCount > 0 && (
+                                        <span className="bg-primary/15 text-primary text-[10px] font-bold px-1.5 py-px rounded-full">
+                                            {activeFilterCount}
+                                        </span>
+                                    )}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-76 p-4" align="end">
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm font-medium">Filter & Sortierung</p>
+                                        {activeFilterCount > 0 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 text-xs px-2"
+                                                onClick={() => {
+                                                    setFilterEmployee('all')
+                                                    setDateRange(undefined)
+                                                    setFilterTags([])
+                                                    setSortField('none')
+                                                    setSortDir('desc')
+                                                }}
+                                            >
+                                                Zurücksetzen
+                                            </Button>
+                                        )}
+                                    </div>
 
-                                        {/* Tag Filter */}
-                                        <div className="space-y-2">
-                                            <label className="text-xs text-muted-foreground">Tags</label>
-                                            <div className="flex flex-wrap gap-1.5">
+                                    <div className="space-y-1.5">
+                                        <label className="text-[11px] font-medium text-muted-foreground">Mitarbeiter</label>
+                                        <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                                            <SelectTrigger className="h-8 text-xs">
+                                                <SelectValue placeholder="Alle" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">Alle Mitarbeiter</SelectItem>
+                                                <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
+                                                {employees.map(emp => (
+                                                    <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {workshopTags.length > 0 && (
+                                        <div className="space-y-1.5">
+                                            <label className="text-[11px] font-medium text-muted-foreground">Tags</label>
+                                            <div className="flex flex-wrap gap-1">
                                                 {workshopTags.map((tag: any) => {
                                                     const isSelected = filterTags.includes(tag.id)
                                                     return (
-                                                        <Badge
+                                                        <button
                                                             key={tag.id}
-                                                            variant="outline"
-                                                            className={cn("cursor-pointer border-transparent transition-all", !isSelected && "bg-muted text-muted-foreground opacity-60")}
-                                                            style={isSelected ? { backgroundColor: tag.color, color: '#fff' } : undefined}
-                                                            onClick={() => {
-                                                                setFilterTags(prev => prev.includes(tag.id) ? prev.filter(id => id !== tag.id) : [...prev, tag.id])
-                                                            }}
+                                                            onClick={() => setFilterTags(prev =>
+                                                                prev.includes(tag.id)
+                                                                    ? prev.filter(id => id !== tag.id)
+                                                                    : [...prev, tag.id]
+                                                            )}
+                                                            className={cn(
+                                                                "inline-flex items-center rounded-md px-2 py-px text-xs font-medium transition-opacity",
+                                                                !isSelected && "opacity-40"
+                                                            )}
+                                                            style={{ backgroundColor: tag.color, color: '#fff' }}
                                                         >
                                                             {tag.name}
-                                                        </Badge>
+                                                        </button>
                                                     )
                                                 })}
-                                                {workshopTags.length === 0 && <span className="text-xs text-muted-foreground italic">Keine Tags</span>}
                                             </div>
                                         </div>
+                                    )}
 
-                                        {/* Date Range Filter */}
-                                        <div className="space-y-2">
-                                            <label className="text-xs text-muted-foreground">Zeitraum</label>
-                                            <div className="flex items-center gap-2">
-                                                <Select value={dateFilterType} onValueChange={(v: "created" | "due") => setDateFilterType(v)}>
-                                                    <SelectTrigger className="h-9 flex-1">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="created">Eingang</SelectItem>
-                                                        <SelectItem value="due">Fällig</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                <DateRangePicker
-                                                    date={dateRange}
-                                                    setDate={setDateRange}
-                                                    className="flex-1"
-                                                />
-                                            </div>
+                                    <div className="space-y-1.5">
+                                        <label className="text-[11px] font-medium text-muted-foreground">Zeitraum</label>
+                                        <div className="flex gap-2">
+                                            <Select value={dateFilterType} onValueChange={(v: "created" | "due") => setDateFilterType(v)}>
+                                                <SelectTrigger className="h-8 flex-1 text-xs">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="created">Eingang</SelectItem>
+                                                    <SelectItem value="due">Fällig</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <DateRangePicker date={dateRange} setDate={setDateRange} className="flex-1" />
                                         </div>
-
-                                        {/* Refresh Button */}
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => mutate()}
-                                            disabled={loading}
-                                            className="w-full justify-start"
-                                        >
-                                            <Filter className="mr-2 h-4 w-4" />
-                                            {loading ? "Lädt..." : "Aktualisieren"}
-                                        </Button>
                                     </div>
-                                </PopoverContent>
-                            </Popover>
 
-                            {/* View Options Dropdown */}
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="gap-2 bg-background"
-                                    >
-                                        <Settings2 className="h-4 w-4" />
-                                        Ansicht
+                                    <Button variant="ghost" size="sm" className="w-full h-8 text-xs justify-start gap-2" onClick={() => mutate()}>
+                                        <Filter className="h-3.5 w-3.5" />
+                                        {isLoading ? "Lädt…" : "Aktualisieren"}
                                     </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56">
-                                    <DropdownMenuLabel>Sichtbare Spalten</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    {AVAILABLE_COLUMNS.map(col => (
-                                        <DropdownMenuCheckboxItem
-                                            key={col.id}
-                                            checked={visibleColumns[col.id]}
-                                            onCheckedChange={() => toggleColumn(col.id)}
-                                            onSelect={(e) => e.preventDefault()}
-                                        >
-                                            {col.label}
-                                        </DropdownMenuCheckboxItem>
-                                    ))}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    </div>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
 
-                        {/* Search Bar */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Suche nach Kunde, Auftragsnummer oder Modell..."
-                                className="pl-10 bg-background"
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs px-2 rounded-lg text-muted-foreground hover:text-foreground">
+                                    <Settings2 className="h-3.5 w-3.5" />
+                                    <span className="hidden sm:inline">Ansicht</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuLabel className="text-xs">Sichtbare Spalten</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {AVAILABLE_COLUMNS.map(col => (
+                                    <DropdownMenuCheckboxItem
+                                        key={col.id}
+                                        checked={visibleColumns[col.id]}
+                                        onCheckedChange={() => toggleColumn(col.id)}
+                                        onSelect={(e) => e.preventDefault()}
+                                        className="text-xs"
+                                    >
+                                        {col.label}
+                                    </DropdownMenuCheckboxItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
-                </CardHeader>
-                <CardContent>
-                    {effectiveMode === 'active' ? (
-                        <Tabs defaultValue="all" className="space-y-6" onValueChange={setFilterStatus}>
-                            <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1 border-b-0 gap-6">
-                                <TabsTrigger value="all" className="whitespace-nowrap gap-2 pb-2">
-                                    Alle
-                                    <span className="text-[10px] bg-muted-foreground/10 text-muted-foreground px-1.5 py-0.5 rounded-full font-bold">
-                                        {statusCounts.all}
-                                    </span>
-                                </TabsTrigger>
-                                <TabsTrigger value="eingegangen" className="whitespace-nowrap gap-2 pb-2">
-                                    Eingegangen
-                                    {statusCounts.eingegangen > 0 && (
-                                        <span className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-bold">
-                                            {statusCounts.eingegangen}
-                                        </span>
-                                    )}
-                                </TabsTrigger>
-                                <TabsTrigger value="warten_auf_teile" className="whitespace-nowrap gap-2 pb-2">
-                                    Warten auf Teile
-                                    {statusCounts.warten_auf_teile > 0 && (
-                                        <span className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded-full font-bold">
-                                            {statusCounts.warten_auf_teile}
-                                        </span>
-                                    )}
-                                </TabsTrigger>
-                                <TabsTrigger value="in_bearbeitung" className="whitespace-nowrap gap-2 pb-2">
-                                    In Bearbeitung
-                                    {statusCounts.in_bearbeitung > 0 && (
-                                        <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">
-                                            {statusCounts.in_bearbeitung}
-                                        </span>
-                                    )}
-                                </TabsTrigger>
-                                <TabsTrigger value="kontrolle_offen" className="whitespace-nowrap gap-2 pb-2">
-                                    Kontrolle offen
-                                    {statusCounts.kontrolle_offen > 0 && (
-                                        <span className="text-[10px] bg-purple-500/10 text-purple-600 dark:text-purple-400 px-1.5 py-0.5 rounded-full font-bold">
-                                            {statusCounts.kontrolle_offen}
-                                        </span>
-                                    )}
-                                </TabsTrigger>
-                                <TabsTrigger value="abholbereit" className="whitespace-nowrap gap-2 pb-2">
-                                    Abholbereit
-                                    {statusCounts.abholbereit > 0 && (
-                                        <span className="text-[10px] bg-success/10 text-success-foreground px-1.5 py-0.5 rounded-full font-bold">
-                                            {statusCounts.abholbereit}
-                                        </span>
-                                    )}
-                                </TabsTrigger>
-                            </TabsList>
+                </div>
 
-                            <TabsContent value="all" className="mt-0">
-                                {renderTable(filteredOrders)}
-                            </TabsContent>
-                            <TabsContent value="eingegangen" className="mt-0">
-                                {renderTable(filteredOrders)}
-                            </TabsContent>
-                            <TabsContent value="warten_auf_teile" className="mt-0">
-                                {renderTable(filteredOrders)}
-                            </TabsContent>
-                            <TabsContent value="in_bearbeitung" className="mt-0">
-                                {renderTable(filteredOrders)}
-                            </TabsContent>
-                            <TabsContent value="kontrolle_offen" className="mt-0">
-                                {renderTable(filteredOrders)}
-                            </TabsContent>
-                            <TabsContent value="abholbereit" className="mt-0">
-                                {renderTable(filteredOrders)}
-                            </TabsContent>
-                        </Tabs>
-                    ) : (
-                        <div className="space-y-6">
-                            {renderTable(filteredOrders)}
+                {/* Search bar */}
+                {showSearch && (
+                    <div className="relative mb-2">
+                        <Search className="absolute left-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+                        <Input
+                            autoFocus
+                            placeholder="Suche nach Kunde, Nr. oder Modell…"
+                            className="pl-6 border-0 border-b border-border/40 rounded-none shadow-none bg-transparent text-sm h-9 focus-visible:ring-0 focus-visible:border-primary/40 px-0"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                )}
+
+                {/* ── Table ── */}
+                <div className="rounded-lg border border-border overflow-hidden">
+                    <table className="w-full text-[13px]">
+                        {/* Header */}
+                        <thead>
+                            <tr className="border-b border-border bg-muted/30">
+                                {/* Status dot column — always visible */}
+                                <th className="w-10 px-3 py-2.5" />
+
+                                {visibleColumns.order_number && (
+                                    <th
+                                        className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider cursor-pointer group/th select-none"
+                                        onClick={() => handleSort("created_at")}
+                                    >
+                                        <span className="inline-flex items-center gap-1">
+                                            Nr.
+                                            <SortIcon field="created_at" />
+                                        </span>
+                                    </th>
+                                )}
+
+                                {visibleColumns.customer && (
+                                    <th
+                                        className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider cursor-pointer group/th select-none"
+                                        onClick={() => handleSort("customer_name")}
+                                    >
+                                        <span className="inline-flex items-center gap-1">
+                                            Kunde
+                                            <SortIcon field="customer_name" />
+                                        </span>
+                                    </th>
+                                )}
+
+                                {visibleColumns.bike && (
+                                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider hidden md:table-cell">
+                                        Fahrrad
+                                    </th>
+                                )}
+
+                                {visibleColumns.mechanic && (
+                                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider hidden lg:table-cell">
+                                        Mechaniker
+                                    </th>
+                                )}
+
+                                {visibleColumns.due_date && (
+                                    <th
+                                        className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider cursor-pointer group/th select-none hidden sm:table-cell"
+                                        onClick={() => handleSort("due_date")}
+                                    >
+                                        <span className="inline-flex items-center gap-1">
+                                            Fällig
+                                            <SortIcon field="due_date" />
+                                        </span>
+                                    </th>
+                                )}
+
+                                {visibleColumns.status && (
+                                    <th
+                                        className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider cursor-pointer group/th select-none"
+                                        onClick={() => handleSort("status")}
+                                    >
+                                        <span className="inline-flex items-center gap-1">
+                                            Status
+                                            <SortIcon field="status" />
+                                        </span>
+                                    </th>
+                                )}
+
+                                {visibleColumns.created_at && (
+                                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider hidden xl:table-cell">
+                                        Erstellt
+                                    </th>
+                                )}
+
+                                {visibleColumns.actions && (
+                                    <th className="w-12 px-3 py-2.5" />
+                                )}
+                            </tr>
+                        </thead>
+
+                        {/* Body */}
+                        <tbody>
+                            {filteredOrders.length === 0 ? (
+                                <tr>
+                                    <td colSpan={10} className="py-16 text-center text-muted-foreground text-sm">
+                                        {isLoading ? "Lädt…" : "Keine Aufträge gefunden"}
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredOrders.map(order => (
+                                    <tr
+                                        key={order.id}
+                                        className="group border-b border-border/40 last:border-0 hover:bg-accent/40 transition-colors duration-75 cursor-pointer"
+                                        onClick={() => handleViewOrder(order.id)}
+                                    >
+                                        {/* Status dot */}
+                                        <td className="px-3 py-2.5">
+                                            <div className={cn(
+                                                "h-2.5 w-2.5 rounded-full mx-auto",
+                                                STATUS_DOT[order.status] || "bg-muted-foreground/40"
+                                            )} />
+                                        </td>
+
+                                        {/* Order number */}
+                                        {visibleColumns.order_number && (
+                                            <td className="px-3 py-2.5">
+                                                <span className="font-mono text-muted-foreground text-[12px]">
+                                                    {order.order_number}
+                                                </span>
+                                            </td>
+                                        )}
+
+                                        {/* Customer */}
+                                        {visibleColumns.customer && (
+                                            <td className="px-3 py-2.5">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="font-medium text-foreground truncate">
+                                                        {order.customer_name}
+                                                    </span>
+                                                    {order.is_leasing && (
+                                                        <span className="text-[10px] font-medium px-1.5 py-px rounded bg-primary/10 text-primary shrink-0">
+                                                            Leasing
+                                                        </span>
+                                                    )}
+                                                    {order.tags && order.tags.length > 0 && (
+                                                        <div className="flex gap-1 shrink-0">
+                                                            {order.tags.slice(0, 2).map(tagId => {
+                                                                const tagInfo = workshopTags.find((t: any) => t.id === tagId)
+                                                                if (!tagInfo) return null
+                                                                return (
+                                                                    <span
+                                                                        key={tagId}
+                                                                        className="inline-flex rounded px-1.5 py-px text-[10px] font-medium text-white"
+                                                                        style={{ backgroundColor: tagInfo.color }}
+                                                                    >
+                                                                        {tagInfo.name}
+                                                                    </span>
+                                                                )
+                                                            })}
+                                                            {order.tags.length > 2 && (
+                                                                <span className="text-[10px] text-muted-foreground">+{order.tags.length - 2}</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        )}
+
+                                        {/* Bike */}
+                                        {visibleColumns.bike && (
+                                            <td className="px-3 py-2.5 hidden md:table-cell">
+                                                <span className="text-muted-foreground truncate block max-w-[180px]">
+                                                    {[order.bike_brand, order.bike_model].filter(Boolean).join(' ') || '—'}
+                                                </span>
+                                            </td>
+                                        )}
+
+                                        {/* Mechanic */}
+                                        {visibleColumns.mechanic && (
+                                            <td className="px-3 py-2.5 hidden lg:table-cell">
+                                                {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
+                                                    <div className="flex items-center gap-1">
+                                                        {order.mechanic_ids.slice(0, 2).map(mid => (
+                                                            <span key={mid} className="inline-flex items-center rounded-md bg-accent px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                                                {getEmployeeName(mid)}
+                                                            </span>
+                                                        ))}
+                                                        {order.mechanic_ids.length > 2 && (
+                                                            <span className="text-[10px] text-muted-foreground">+{order.mechanic_ids.length - 2}</span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted-foreground/40">—</span>
+                                                )}
+                                            </td>
+                                        )}
+
+                                        {/* Due date */}
+                                        {visibleColumns.due_date && (
+                                            <td className="px-3 py-2.5 hidden sm:table-cell">
+                                                {order.due_date ? (
+                                                    <span className={cn(
+                                                        "text-[12px] tabular-nums",
+                                                        new Date(order.due_date) < new Date() &&
+                                                        !['abgeholt', 'abgeschlossen'].includes(order.status)
+                                                            ? "text-[#de4c4a] font-medium"
+                                                            : "text-muted-foreground"
+                                                    )}>
+                                                        {new Date(order.due_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted-foreground/40">—</span>
+                                                )}
+                                            </td>
+                                        )}
+
+                                        {/* Status badge */}
+                                        {visibleColumns.status && (
+                                            <td className="px-3 py-2.5">
+                                                <span className={cn(
+                                                    "inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-medium",
+                                                    STATUS_COLORS[order.status] || "bg-accent text-muted-foreground"
+                                                )}>
+                                                    {STATUS_LABELS[order.status] || order.status.replace(/_/g, ' ')}
+                                                </span>
+                                            </td>
+                                        )}
+
+                                        {/* Created at */}
+                                        {visibleColumns.created_at && (
+                                            <td className="px-3 py-2.5 hidden xl:table-cell">
+                                                <span className="text-[12px] text-muted-foreground tabular-nums">
+                                                    {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                                </span>
+                                            </td>
+                                        )}
+
+                                        {/* Actions */}
+                                        {visibleColumns.actions && (
+                                            <td className="px-3 py-2.5">
+                                                <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {effectiveMode === 'trash' ? (
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-lg"
+                                                            onClick={(e) => { e.stopPropagation(); handleRestoreOrder(order.id) }}
+                                                            title="Wiederherstellen"
+                                                        >
+                                                            <Restore className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    ) : (
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-lg"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" className="w-52">
+                                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewOrder(order.id) }}>
+                                                                    <ExternalLink className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                                                                    Öffnen
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Zuweisen an</DropdownMenuLabel>
+                                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleAssignEmployee(order.id, null) }}>
+                                                                    <X className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                                                                    Keine Zuweisung
+                                                                </DropdownMenuItem>
+                                                                {employees.map(emp => (
+                                                                    <DropdownMenuItem
+                                                                        key={emp.id}
+                                                                        onClick={(e) => { e.stopPropagation(); handleAssignEmployee(order.id, emp.id) }}
+                                                                    >
+                                                                        <Users className="mr-2 h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                                                        <span className="truncate flex-1">{emp.name}</span>
+                                                                        {order.mechanic_ids?.includes(emp.id) && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
+                                                                    </DropdownMenuItem>
+                                                                ))}
+                                                                <DropdownMenuSeparator />
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => { e.stopPropagation(); setOrderToDelete(order.id) }}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                                                    Löschen
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+
+                    {/* Footer */}
+                    {filteredOrders.length > 0 && (
+                        <div className="border-t border-border bg-muted/20 px-4 py-2 flex items-center justify-between">
+                            <span className="text-[12px] text-muted-foreground">
+                                {filteredOrders.length} {filteredOrders.length === 1 ? 'Auftrag' : 'Aufträge'}
+                                {filteredOrders.length !== orders.length && (
+                                    <span> von {orders.length}</span>
+                                )}
+                            </span>
+                            <Button variant="ghost" size="sm" className="h-6 text-[11px] px-2 text-muted-foreground" onClick={() => mutate()}>
+                                {isLoading ? "Lädt…" : "Aktualisieren"}
+                            </Button>
                         </div>
                     )}
-                </CardContent>
+                </div>
+            </div>
 
-                <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Auftrag wirklich löschen?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                {effectiveMode === 'trash'
-                                    ? "Diese Aktion kann nicht rückgängig gemacht werden. Der Auftrag wird dauerhaft aus der Datenbank entfernt."
-                                    : "Der Auftrag wird in den Papierkorb verschoben und nach 30 Tagen automatisch endgültig gelöscht."}
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={handleDeleteOrder}
-                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                            >
-                                {effectiveMode === 'trash' ? "Endgültig löschen" : "Verschieben"}
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            </Card>
+            <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Auftrag wirklich löschen?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {effectiveMode === 'trash'
+                                ? "Diese Aktion kann nicht rückgängig gemacht werden."
+                                : "Der Auftrag wird in den Papierkorb verschoben."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteOrder}
+                            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                        >
+                            {effectiveMode === 'trash' ? "Endgültig löschen" : "In Papierkorb"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     )
 }

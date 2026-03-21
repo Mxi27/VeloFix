@@ -1,30 +1,27 @@
 import { LoginForm } from "@/components/login-form"
-
 import { Bike } from "lucide-react"
 
 export default function LoginPage() {
     return (
         <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10 bg-background">
-            <div className="w-full max-w-sm space-y-8">
+            <div className="w-full max-w-[360px] space-y-6">
                 {/* Logo */}
-                <div className="flex flex-col items-center gap-4">
-                    <div className="bg-muted p-4 rounded-2xl border border-border">
-                        <Bike className="h-10 w-10 text-foreground" />
+                <div className="flex items-center gap-2.5 mb-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+                        <Bike className="h-4 w-4 text-primary" />
                     </div>
-                    <div className="text-center">
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">VeloFix</h1>
-                        <p className="text-muted-foreground text-sm mt-1">
-                            Werkstatt-Management
-                        </p>
-                    </div>
+                    <span className="font-bold text-[18px] text-foreground">VeloFix</span>
                 </div>
 
-                {/* Form */}
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight mb-1">Einloggen</h1>
+                    <p className="text-sm text-muted-foreground">Gib deine E-Mail und dein Passwort ein.</p>
+                </div>
+
                 <LoginForm />
 
-                {/* Footer */}
-                <p className="text-center text-xs text-muted-foreground">
-                    © {new Date().getFullYear()} VeloFix
+                <p className="text-xs text-muted-foreground/60">
+                    &copy; {new Date().getFullYear()} VeloFix
                 </p>
             </div>
         </div>

@@ -79,14 +79,14 @@ import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 
-const STATUS_SOLID_COLORS: Record<string, string> = {
-    eingegangen: "bg-blue-500 shadow-blue-500/40",
-    warten_auf_teile: "bg-rose-500 shadow-rose-500/40",
-    in_bearbeitung: "bg-indigo-500 shadow-indigo-500/40",
-    kontrolle_offen: "bg-amber-500 shadow-amber-500/40",
-    abholbereit: "bg-sky-500 shadow-sky-500/40",
-    abgeholt: "bg-emerald-500 shadow-emerald-500/40",
-    abgeschlossen: "bg-slate-500 shadow-slate-500/40",
+const STATUS_DOT_COLORS: Record<string, string> = {
+    eingegangen: "bg-[#6c8fff]",
+    warten_auf_teile: "bg-[#de4c4a]",
+    in_bearbeitung: "bg-[#c77dff]",
+    kontrolle_offen: "bg-[#f0b429]",
+    abholbereit: "bg-[#4ab06c]",
+    abgeholt: "bg-[#e07098]",
+    abgeschlossen: "bg-[#8a8580]",
 }
 
 import { ChecklistTemplateSelector } from "@/components/ChecklistTemplateSelector"
@@ -283,12 +283,8 @@ export default function OrderDetailPage() {
                 <div className="space-y-6 pb-8">
 
                     {/* ── Hero Header ─────────────────────────────────────────── */}
-                    <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card">
-                        {/* Ambient background glow */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-primary/3 pointer-events-none" />
-                        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-primary/12 blur-3xl pointer-events-none" />
-
-                        <div className="relative px-6 py-5">
+                    <div className="rounded-lg border border-border bg-card">
+                        <div className="px-6 py-5">
                             {/* ── Row 1: Navigation ── */}
                             <div className="mb-4">
                                 <Button
@@ -523,7 +519,7 @@ export default function OrderDetailPage() {
                                         <Button
                                             size="lg"
                                             onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
-                                            className="flex-1 h-10 gap-2 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20 rounded-xl transition-all active:scale-[0.98]"
+                                            className="flex-1 h-10 gap-2 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
                                         >
                                             <Wrench className="h-4 w-4" />
                                             {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
@@ -534,7 +530,7 @@ export default function OrderDetailPage() {
                                             size="lg"
                                             variant="outline"
                                             onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
-                                            className="flex-1 h-10 gap-2 text-sm font-semibold bg-green-500/8 text-green-600 border-green-200/60 hover:bg-green-500/15 hover:border-green-300 dark:bg-green-500/10 dark:hover:bg-green-500/20 dark:border-green-500/30 rounded-xl transition-all active:scale-[0.98]"
+                                            className="flex-1 h-10 gap-2 text-sm font-semibold bg-[#4ab06c]/10 text-[#4ab06c] border-[#4ab06c]/20 hover:bg-[#4ab06c]/15 rounded-lg transition-colors"
                                         >
                                             <ShieldCheck className="h-4 w-4" />
                                             Kontrolle
@@ -544,7 +540,7 @@ export default function OrderDetailPage() {
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        className="h-10 gap-1.5 text-xs rounded-xl sm:shrink-0"
+                                        className="h-10 gap-1.5 text-xs rounded-lg sm:shrink-0"
                                         onClick={() => {
                                             const url = `${window.location.origin}/status/${order.id}`
                                             navigator.clipboard.writeText(url)
@@ -572,16 +568,16 @@ export default function OrderDetailPage() {
                                                     onClick={() => !saving && !isReadOnly && handleStatusChange(step.value)}
                                                     disabled={saving || isReadOnly || isActive}
                                                     className={cn(
-                                                        "flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 cursor-pointer select-none group",
+                                                        "flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all duration-200 cursor-pointer select-none group",
                                                         "disabled:cursor-default",
                                                         isActive && "cursor-default"
                                                     )}
                                                 >
                                                     <div className={cn(
-                                                        "relative h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
-                                                        isDone && "bg-primary/12 border border-primary/35",
-                                                        isActive && cn(STATUS_SOLID_COLORS[step.value], "text-primary-foreground shadow-sm scale-110 border-transparent"),
-                                                        !isDone && !isActive && "bg-transparent border border-border/70 text-muted-foreground group-hover:border-primary/40 group-hover:bg-primary/8"
+                                                        "relative h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 shrink-0",
+                                                        isDone && "bg-primary/10 border border-primary/30",
+                                                        isActive && cn(STATUS_DOT_COLORS[step.value], "text-white border-transparent"),
+                                                        !isDone && !isActive && "bg-transparent border border-border text-muted-foreground group-hover:border-muted-foreground/40"
                                                     )}>
                                                         {isDone
                                                             ? <Check className="h-4 w-4 text-primary" />
@@ -590,8 +586,8 @@ export default function OrderDetailPage() {
                                                     </div>
                                                     <span className={cn(
                                                         "text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1",
-                                                        isActive && "text-primary font-semibold",
-                                                        isDone && "text-primary/70",
+                                                        isActive && "text-foreground font-semibold",
+                                                        isDone && "text-muted-foreground",
                                                         !isDone && !isActive && "text-muted-foreground"
                                                     )}>
                                                         {step.label}
@@ -616,16 +612,16 @@ export default function OrderDetailPage() {
                                             <button
                                                 onClick={() => !saving && !isReadOnly && handleStatusChange(LEASING_STATUS.value)}
                                                 disabled={saving || isReadOnly || order.status === LEASING_STATUS.value || order.status === COMPLETED_STATUS.value}
-                                                className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 cursor-pointer select-none group disabled:cursor-default"
+                                                className="flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all duration-200 cursor-pointer select-none group disabled:cursor-default"
                                             >
                                                 <div className={cn(
                                                     "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
-                                                    order.status === LEASING_STATUS.value && cn(STATUS_SOLID_COLORS.abgeholt, "text-white shadow-sm scale-110"),
-                                                    order.status !== LEASING_STATUS.value && "bg-transparent border border-border/70 text-muted-foreground group-hover:border-emerald-500/50 group-hover:bg-emerald-500/8"
+                                                    order.status === LEASING_STATUS.value && cn(STATUS_DOT_COLORS.abgeholt, "text-white"),
+                                                    order.status !== LEASING_STATUS.value && "bg-transparent border border-border text-muted-foreground group-hover:border-muted-foreground/40"
                                                 )}>
                                                     <LEASING_STATUS.icon className={cn("h-4 w-4", order.status === LEASING_STATUS.value ? "text-white" : "text-muted-foreground")} />
                                                 </div>
-                                                <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1", order.status === LEASING_STATUS.value ? "text-emerald-600 font-semibold" : "text-muted-foreground")}>
+                                                <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1", order.status === LEASING_STATUS.value ? "text-foreground font-semibold" : "text-muted-foreground")}>
                                                     {LEASING_STATUS.label}
                                                 </span>
                                             </button>
@@ -637,16 +633,16 @@ export default function OrderDetailPage() {
                                     <button
                                         onClick={() => !saving && !isReadOnly && handleStatusChange(COMPLETED_STATUS.value)}
                                         disabled={saving || isReadOnly || order.status === COMPLETED_STATUS.value}
-                                        className="flex flex-col items-center gap-1 px-2 py-1 rounded-xl transition-all duration-200 cursor-pointer select-none group disabled:cursor-default"
+                                        className="flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all duration-200 cursor-pointer select-none group disabled:cursor-default"
                                     >
                                         <div className={cn(
                                             "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
-                                            order.status === COMPLETED_STATUS.value && cn(STATUS_SOLID_COLORS.abgeschlossen, "text-white shadow-sm scale-110"),
-                                            order.status !== COMPLETED_STATUS.value && "bg-transparent border border-border/70 text-muted-foreground group-hover:border-slate-500/50 group-hover:bg-slate-500/8"
+                                            order.status === COMPLETED_STATUS.value && cn(STATUS_DOT_COLORS.abgeschlossen, "text-white"),
+                                            order.status !== COMPLETED_STATUS.value && "bg-transparent border border-border text-muted-foreground group-hover:border-muted-foreground/40"
                                         )}>
                                             <COMPLETED_STATUS.icon className={cn("h-4 w-4", order.status === COMPLETED_STATUS.value ? "text-white" : "text-muted-foreground")} />
                                         </div>
-                                        <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1", order.status === COMPLETED_STATUS.value ? "text-slate-600 font-semibold" : "text-muted-foreground")}>
+                                        <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1", order.status === COMPLETED_STATUS.value ? "text-foreground font-semibold" : "text-muted-foreground")}>
                                             {COMPLETED_STATUS.label}
                                         </span>
                                     </button>
@@ -667,12 +663,12 @@ export default function OrderDetailPage() {
                             <Collapsible
                                 open={isKundenwunschOpen}
                                 onOpenChange={setIsKundenwunschOpen}
-                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                                className="rounded-lg border border-border bg-card overflow-hidden"
                             >
                                 <CollapsibleTrigger asChild>
                                     <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border/40 cursor-pointer hover:bg-muted/30 transition-colors group">
-                                        <div className="h-7 w-7 rounded-lg bg-violet-500/12 flex items-center justify-center">
-                                            <AlertCircle className="h-3.5 w-3.5 text-violet-500" />
+                                        <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center">
+                                            <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
                                         </div>
                                         <span className="text-sm font-semibold">Kundenwunsch</span>
                                         <ChevronDown className={cn(
@@ -697,7 +693,7 @@ export default function OrderDetailPage() {
                             <Collapsible
                                 open={isInternalNotesOpen}
                                 onOpenChange={setIsInternalNotesOpen}
-                                className="rounded-xl border border-border/60 bg-card overflow-hidden flex flex-col"
+                                className="rounded-lg border border-border bg-card overflow-hidden flex flex-col"
                             >
                                 <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
                                     <CollapsibleTrigger asChild>
@@ -752,14 +748,14 @@ export default function OrderDetailPage() {
                             <Collapsible
                                 open={isChecklistOpen}
                                 onOpenChange={setIsChecklistOpen}
-                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                                className="rounded-lg border border-border bg-card overflow-hidden"
                             >
                                 <div className="px-4 py-3.5 border-b border-border/40">
                                     <div className="flex items-center justify-between mb-3">
                                         <CollapsibleTrigger asChild>
                                             <div className="flex items-center gap-2.5 cursor-pointer flex-1">
-                                                <div className="h-7 w-7 rounded-lg bg-violet-500/12 flex items-center justify-center">
-                                                    <PackageCheck className="h-3.5 w-3.5 text-violet-500" />
+                                                <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center">
+                                                    <PackageCheck className="h-3.5 w-3.5 text-muted-foreground" />
                                                 </div>
                                                 <span className="text-sm font-semibold">Checkliste</span>
                                                 <ChevronDown className={cn(
@@ -1003,7 +999,7 @@ export default function OrderDetailPage() {
                                                 ))}
                                             </div>
                                         ) : (
-                                            <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border-2 border-dashed rounded-xl border-muted/40 bg-muted/5">
+                                            <div className="flex flex-col items-center justify-center py-10 text-center text-muted-foreground border-2 border-dashed rounded-lg border-muted/40 bg-muted/5">
                                                 <PackageCheck className="h-9 w-9 mb-3 opacity-20" />
                                                 <p className="text-sm font-medium mb-0.5">Keine Checkliste</p>
                                                 <p className="text-xs max-w-[180px]">Wähle oben eine Vorlage aus, um zu starten.</p>
@@ -1023,13 +1019,13 @@ export default function OrderDetailPage() {
                             <Collapsible
                                 open={isCustomerDataOpen}
                                 onOpenChange={setIsCustomerDataOpen}
-                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                                className="rounded-lg border border-border bg-card overflow-hidden"
                             >
                                 <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
                                     <CollapsibleTrigger asChild>
                                         <div className="flex items-center gap-2.5 cursor-pointer flex-1">
-                                            <div className="h-7 w-7 rounded-lg bg-blue-500/12 flex items-center justify-center">
-                                                <User className="h-3.5 w-3.5 text-blue-500" />
+                                            <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center">
+                                                <User className="h-3.5 w-3.5 text-muted-foreground" />
                                             </div>
                                             <span className="text-sm font-semibold">Kundendaten</span>
                                             <ChevronDown className={cn(
@@ -1094,13 +1090,13 @@ export default function OrderDetailPage() {
                             <Collapsible
                                 open={isBikeDataOpen}
                                 onOpenChange={setIsBikeDataOpen}
-                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                                className="rounded-lg border border-border bg-card overflow-hidden"
                             >
                                 <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
                                     <CollapsibleTrigger asChild>
                                         <div className="flex items-center gap-2.5 cursor-pointer flex-1">
-                                            <div className="h-7 w-7 rounded-lg bg-orange-500/12 flex items-center justify-center">
-                                                <Bike className="h-3.5 w-3.5 text-orange-500" />
+                                            <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center">
+                                                <Bike className="h-3.5 w-3.5 text-muted-foreground" />
                                             </div>
                                             <span className="text-sm font-semibold">Fahrrad</span>
                                             <ChevronDown className={cn(
@@ -1169,13 +1165,13 @@ export default function OrderDetailPage() {
                             <Collapsible
                                 open={isPriceOpen}
                                 onOpenChange={setIsPriceOpen}
-                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                                className="rounded-lg border border-border bg-card overflow-hidden"
                             >
                                 <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/40">
                                     <CollapsibleTrigger asChild>
                                         <div className="flex items-center gap-2.5 cursor-pointer flex-1">
-                                            <div className="h-7 w-7 rounded-lg bg-emerald-500/12 flex items-center justify-center">
-                                                <Euro className="h-3.5 w-3.5 text-emerald-500" />
+                                            <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center">
+                                                <Euro className="h-3.5 w-3.5 text-muted-foreground" />
                                             </div>
                                             <span className="text-sm font-semibold">Preisübersicht</span>
                                             <ChevronDown className={cn(
@@ -1243,7 +1239,7 @@ export default function OrderDetailPage() {
                                 <Collapsible
                                     open={isLeasingOpen}
                                     onOpenChange={setIsLeasingOpen}
-                                    className="rounded-xl border border-primary/20 bg-primary/3 overflow-hidden"
+                                    className="rounded-lg border border-primary/20 bg-primary/3 overflow-hidden"
                                 >
                                     <div className="flex items-center justify-between px-4 py-3.5 border-b border-primary/15">
                                         <CollapsibleTrigger asChild>
@@ -1331,7 +1327,7 @@ export default function OrderDetailPage() {
                             <Collapsible
                                 open={isAssignmentsOpen}
                                 onOpenChange={setIsAssignmentsOpen}
-                                className="rounded-xl border border-border/60 bg-card overflow-hidden"
+                                className="rounded-lg border border-border bg-card overflow-hidden"
                             >
                                 <div className="px-4 py-3.5 border-b border-border/40">
                                     <CollapsibleTrigger asChild>
@@ -1416,8 +1412,8 @@ export default function OrderDetailPage() {
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-2 bg-muted/30 px-3 py-2 rounded-lg">
-                                                <div className="h-5 w-5 rounded-full bg-green-500/15 flex items-center justify-center">
-                                                    <ShieldCheck className="h-3 w-3 text-green-600" />
+                                                <div className="h-5 w-5 rounded-full bg-[#4ab06c]/15 flex items-center justify-center">
+                                                    <ShieldCheck className="h-3 w-3 text-[#4ab06c]" />
                                                 </div>
                                                 <span className="text-sm font-medium">
                                                     {order.qc_mechanic_id
@@ -1435,7 +1431,7 @@ export default function OrderDetailPage() {
                             <div className="mt-4">
                                 <div
                                     onClick={() => setIsHistoryModalOpen(true)}
-                                    className="rounded-xl border border-border/60 bg-card overflow-hidden cursor-pointer hover:bg-muted/30 transition-colors"
+                                    className="rounded-lg border border-border bg-card overflow-hidden cursor-pointer hover:bg-muted/30 transition-colors"
                                 >
                                     <div className="px-5 py-3.5 flex items-center justify-between group">
                                         <div className="flex items-center gap-2.5">

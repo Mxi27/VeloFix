@@ -1,6 +1,5 @@
-import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar"
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
-
 import { cn } from "@/lib/utils"
 
 export function DashboardLayout({
@@ -16,14 +15,12 @@ export function DashboardLayout({
         <SidebarProvider>
             <AppSidebar onOrderCreated={onOrderCreated} />
             <SidebarInset className={cn("min-w-0 bg-background", fullWidth && "h-svh overflow-hidden")}>
-                <header className="flex h-14 items-center gap-4 border-b bg-background px-6 flex-shrink-0">
-                    <SidebarTrigger />
-                    <div className="w-[1px] h-4 bg-border" />
-                    <span className="font-medium text-sm">Werkstatt</span>
-                </header>
+                {/* Notion document layout — generous padding, no arbitrary max-width */}
                 <div className={cn(
                     "flex-1 min-h-0 min-w-0 w-full overflow-x-hidden",
-                    fullWidth ? "flex flex-col overflow-hidden" : "p-4 md:p-10 space-y-8 overflow-y-auto"
+                    fullWidth
+                        ? "flex flex-col overflow-hidden"
+                        : "py-12 px-6 sm:px-10 xl:px-16 overflow-y-auto"
                 )}>
                     {children}
                 </div>
@@ -31,3 +28,4 @@ export function DashboardLayout({
         </SidebarProvider>
     )
 }
+

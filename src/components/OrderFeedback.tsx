@@ -17,9 +17,9 @@ import {
     MessageCircle,
     Sparkles,
     Heart,
+    ArrowLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 
 interface OrderFeedbackProps {
@@ -49,9 +49,60 @@ const NEGATIVE_ASPECTS = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const TOTAL_STEPS = 4 // 1: Rating, 2: Price, 3: Aspects, 4: Comment
-
+const TOTAL_STEPS = 4
 const STAR_LABELS = ["", "Nicht so toll", "Ausbaufähig", "In Ordnung", "War gut!", "Perfekt! 🎉"]
+const STAR_EMOJIS = ["", "😔", "😕", "😐", "😊", "🤩"]
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+function StarRow({
+    count = 5,
+    value,
+    hover,
+    onHover,
+    onLeave,
+    onSelect,
+    color = "amber",
+}: {
+    count?: number
+    value: number
+    hover: number
+    onHover: (v: number) => void
+    onLeave: () => void
+    onSelect: (v: number) => void
+    color?: "amber" | "emerald"
+}) {
+    const display = hover || value
+    const glowColor = color === "amber"
+        ? "drop-shadow-[0_0_12px_rgba(251,191,36,0.75)]"
+        : "drop-shadow-[0_0_12px_rgba(52,211,153,0.75)]"
+    const fillClass = color === "amber" ? "fill-amber-400 text-amber-400" : "fill-emerald-400 text-emerald-400"
+    const hoverClass = color === "amber" ? "text-amber-300/50" : "text-emerald-300/50"
+
+    return (
+        <div className="flex justify-center gap-2.5">
+            {Array.from({ length: count }, (_, i) => i + 1).map((s) => (
+                <button
+                    key={s}
+                    onMouseEnter={() => onHover(s)}
+                    onMouseLeave={onLeave}
+                    onClick={() => onSelect(s)}
+                    className="focus:outline-none transition-transform duration-150 active:scale-90 hover:scale-110"
+                    aria-label={`${s} Stern${s !== 1 ? "e" : ""}`}
+                >
+                    <Star
+                        className={cn(
+                            "h-12 w-12 transition-all duration-200",
+                            display >= s
+                                ? cn(fillClass, glowColor, "scale-110")
+                                : cn("text-muted-foreground/20 hover:scale-105", hover >= s && hoverClass)
+                        )}
+                    />
+                </button>
+            ))}
+        </div>
+    )
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -71,23 +122,16 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
 
     const isHappy = rating >= 4
 
-    // Check on mount if feedback was already submitted for this order
     useEffect(() => {
         const checkExisting = async () => {
-            if (!orderId) {
-                setChecking(false)
-                return
-            }
+            if (!orderId) { setChecking(false); return }
             try {
                 const { data, error } = await supabase
                     .from('order_feedback')
                     .select('id')
                     .eq('order_id', orderId)
                     .maybeSingle()
-
-                if (!error && data) {
-                    setAlreadySubmitted(true)
-                }
+                if (!error && data) setAlreadySubmitted(true)
             } catch (err) {
                 console.warn("Could not check existing feedback:", err)
             } finally {
@@ -101,7 +145,6 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
         if (!workshopId || !orderId) return
         setErrorMsg(null)
         setIsSubmitting(true)
-
         try {
             const { error } = await supabase
                 .from('order_feedback')
@@ -113,12 +156,8 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
                     main_value: selectedAspects.length > 0 ? selectedAspects.join(',') : null,
                     comment,
                 })
-
             if (error) {
-                if (error.code === '23505') {
-                    setAlreadySubmitted(true)
-                    return
-                }
+                if (error.code === '23505') { setAlreadySubmitted(true); return }
                 throw error
             }
             setIsSubmitted(true)
@@ -130,11 +169,16 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
         }
     }
 
+    const displayRating = hoverRating || rating
+    const step2Valid = priceRating > 0
+    const step3Valid = selectedAspects.length > 0
+    const progressPct = ((step - 1) / (TOTAL_STEPS - 1)) * 100
+
     // ── Loading ──────────────────────────────────────────────────────────────
     if (checking) {
         return (
-            <div className="flex justify-center py-10">
-                <Loader2 className="h-6 w-6 animate-spin text-primary opacity-60" />
+            <div className="flex justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" />
             </div>
         )
     }
@@ -145,17 +189,18 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
             <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl p-8 text-center bg-card border border-border/50 shadow-sm"
+                className="rounded-3xl overflow-hidden bg-card border border-border/60 shadow-lg text-center"
             >
-                <div className="flex justify-center mb-4">
-                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                        <CheckCircle2 className="h-7 w-7 text-primary" />
+                <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
+                <div className="p-10 space-y-4">
+                    <div className="flex justify-center">
+                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center ring-1 ring-primary/20">
+                            <CheckCircle2 className="h-8 w-8 text-primary" />
+                        </div>
                     </div>
+                    <h3 className="text-xl font-bold">Feedback bereits abgegeben</h3>
+                    <p className="text-sm text-muted-foreground">Vielen Dank! Deine Meinung wurde bereits erfasst.</p>
                 </div>
-                <h3 className="text-lg font-bold mb-2">Feedback bereits abgegeben</h3>
-                <p className="text-sm text-muted-foreground">
-                    Vielen Dank! Deine Meinung wurde bereits erfasst.
-                </p>
             </motion.div>
         )
     }
@@ -164,150 +209,157 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
     if (isSubmitted) {
         return (
             <motion.div
-                initial={{ opacity: 0, scale: 0.97 }}
+                initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className="rounded-2xl p-8 text-center bg-card border border-border/50 shadow-sm space-y-5"
+                transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="rounded-3xl overflow-hidden shadow-xl"
             >
-                <div className="flex justify-center">
-                    <div className={cn(
-                        "w-16 h-16 rounded-full flex items-center justify-center border-2",
-                        isHappy
-                            ? "bg-emerald-500/10 border-emerald-500/25"
-                            : "bg-primary/10 border-primary/20"
-                    )}>
-                        {isHappy
-                            ? <Sparkles className="h-7 w-7 text-emerald-500" />
-                            : <Heart className="h-7 w-7 text-primary" />
-                        }
-                    </div>
-                </div>
+                {/* Premium gradient header */}
+                <div className={cn(
+                    "px-8 pt-10 pb-8 text-center space-y-5",
+                    isHappy
+                        ? "bg-gradient-to-b from-emerald-500/10 to-background"
+                        : "bg-gradient-to-b from-primary/10 to-background"
+                )}>
+                    <motion.div
+                        initial={{ scale: 0, rotate: -10 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ delay: 0.15, type: "spring", stiffness: 240, damping: 18 }}
+                        className="flex justify-center"
+                    >
+                        <div className={cn(
+                            "w-20 h-20 rounded-full flex items-center justify-center border-2 shadow-lg",
+                            isHappy
+                                ? "bg-emerald-500/15 border-emerald-500/30 shadow-emerald-500/20"
+                                : "bg-primary/15 border-primary/30 shadow-primary/20"
+                        )}>
+                            {isHappy
+                                ? <Sparkles className="h-9 w-9 text-emerald-500" />
+                                : <Heart className="h-9 w-9 text-primary" />
+                            }
+                        </div>
+                    </motion.div>
 
-                <div>
-                    <h3 className="text-xl font-bold mb-2">
-                        {isHappy ? "Danke – du machst uns happy! 🎉" : "Danke für deine Ehrlichkeit"}
-                    </h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                        {isHappy
-                            ? "Schön, dass du zufrieden warst! Wenn du magst, hinterlasse uns eine kurze Google-Bewertung – das hilft uns enorm."
-                            : "Wir nehmen dein Feedback ernst und arbeiten stets daran, besser zu werden."
-                        }
-                    </p>
+                    <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="space-y-2"
+                    >
+                        <h3 className="text-2xl font-extrabold tracking-tight">
+                            {isHappy ? "Du machst uns glücklich! 🎉" : "Danke für deine Ehrlichkeit"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
+                            {isHappy
+                                ? "Schön, dass du zufrieden warst! Hinterlasse uns gerne eine Google-Bewertung – das hilft uns enorm."
+                                : "Wir nehmen dein Feedback ernst und arbeiten stets daran, besser zu werden."
+                            }
+                        </p>
+                    </motion.div>
                 </div>
 
                 {isHappy && googleReviewUrl && (
-                    <a
-                        href={googleReviewUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full rounded-xl h-12 bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+                    <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.45 }}
+                        className="px-8 pb-8 bg-card border-t border-border/40"
                     >
-                        <ExternalLink className="h-4 w-4" />
-                        Google-Bewertung schreiben
-                    </a>
+                        <a
+                            href={googleReviewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-6 flex items-center justify-center gap-2.5 w-full rounded-2xl h-13 py-3.5 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground font-bold text-sm hover:opacity-90 active:scale-98 transition-all shadow-lg shadow-primary/25"
+                        >
+                            <ExternalLink className="h-4 w-4" />
+                            Google-Bewertung schreiben
+                        </a>
+                    </motion.div>
                 )}
             </motion.div>
         )
     }
 
     // ── Main Form ────────────────────────────────────────────────────────────
-
-    const totalSteps = TOTAL_STEPS
-    const displayRating = hoverRating || rating
-
-    // Form verification
-    const step2Valid = priceRating > 0
-    const step3Valid = selectedAspects.length > 0
-
     return (
         <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm"
+            className="rounded-3xl overflow-hidden bg-card border border-border/60 shadow-xl"
         >
-            {/* ── Header / Progress ── */}
-            <div className="px-6 pt-5 pb-3 flex items-center justify-between border-b border-border/40">
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-                    Deine Erfahrung
-                </span>
-                {/* Show progress only after step 1 is done */}
-                <div className="flex gap-1.5">
-                    {Array.from({ length: totalSteps }).map((_, i) => (
-                        <div
-                            key={i}
-                            className={cn(
-                                "h-1 rounded-full transition-all duration-500",
-                                i < step
-                                    ? "w-6 bg-primary"
-                                    : "w-4 bg-muted"
-                            )}
-                        />
-                    ))}
-                </div>
+            {/* ── Progress bar ── */}
+            <div className="h-1 bg-muted/40 relative">
+                <motion.div
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary/70 to-primary rounded-full"
+                    initial={false}
+                    animate={{ width: `${progressPct}%` }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                />
             </div>
 
-            <div className="p-6">
+            {/* ── Step label ── */}
+            <div className="px-7 pt-5 pb-0 flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary/80">
+                    Deine Erfahrung
+                </span>
+                <span className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-widest">
+                    {step} / {TOTAL_STEPS}
+                </span>
+            </div>
+
+            <div className="px-7 pb-8 pt-5">
                 <AnimatePresence mode="wait">
 
                     {/* ── Step 1: Star Rating ── */}
                     {step === 1 && (
                         <motion.div
                             key="step1"
-                            initial={{ opacity: 0, x: 16 }}
+                            initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -16 }}
-                            className="space-y-6"
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.28 }}
+                            className="space-y-7"
                         >
-                            <div className="text-center space-y-5">
-                                <div>
-                                    <h3 className="text-xl font-bold mb-1">Wie war dein Erlebnis?</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Tippe auf einen Stern – das genügt schon.
-                                    </p>
-                                </div>
+                            <div className="text-center space-y-1.5">
+                                <h3 className="text-2xl font-extrabold tracking-tight">Wie war dein Erlebnis?</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Tippe auf einen Stern – das genügt schon.
+                                </p>
+                            </div>
 
-                                {/* Stars */}
-                                <div className="flex justify-center gap-3">
-                                    {[1, 2, 3, 4, 5].map((s) => (
-                                        <button
-                                            key={s}
-                                            onMouseEnter={() => setHoverRating(s)}
-                                            onMouseLeave={() => setHoverRating(0)}
-                                            onClick={() => {
-                                                setRating(s)
-                                                setTimeout(() => setStep(2), 380)
-                                            }}
-                                            className="focus:outline-none transition-transform active:scale-90 hover:scale-115"
-                                        >
-                                            <Star
-                                                className={cn(
-                                                    "h-11 w-11 transition-all duration-200",
-                                                    displayRating >= s
-                                                        ? "fill-amber-400 text-amber-400 drop-shadow-sm"
-                                                        : "text-muted-foreground/20 hover:text-amber-300/60"
-                                                )}
-                                            />
-                                        </button>
-                                    ))}
-                                </div>
+                            <div className="flex flex-col items-center gap-5">
+                                <StarRow
+                                    value={rating}
+                                    hover={hoverRating}
+                                    onHover={setHoverRating}
+                                    onLeave={() => setHoverRating(0)}
+                                    onSelect={(s) => { setRating(s); setTimeout(() => setStep(2), 350) }}
+                                    color="amber"
+                                />
 
-                                {/* Dynamic label */}
-                                <div className="h-5 flex items-center justify-center">
+                                {/* Emoji + label */}
+                                <div className="h-10 flex flex-col items-center justify-center">
                                     <AnimatePresence mode="wait">
                                         {displayRating > 0 && (
-                                            <motion.p
+                                            <motion.div
                                                 key={displayRating}
-                                                initial={{ opacity: 0, y: 6 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: -4 }}
-                                                className={cn(
-                                                    "text-sm font-semibold",
-                                                    displayRating >= 4 ? "text-emerald-500" : displayRating === 3 ? "text-amber-500" : "text-destructive"
-                                                )}
+                                                initial={{ opacity: 0, scale: 0.7, y: 6 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.8, y: -4 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="flex items-center gap-2"
                                             >
-                                                {STAR_LABELS[displayRating]}
-                                            </motion.p>
+                                                <span className="text-2xl leading-none">{STAR_EMOJIS[displayRating]}</span>
+                                                <span className={cn(
+                                                    "text-sm font-bold",
+                                                    displayRating >= 4 ? "text-emerald-500"
+                                                        : displayRating === 3 ? "text-amber-500"
+                                                        : "text-destructive"
+                                                )}>
+                                                    {STAR_LABELS[displayRating]}
+                                                </span>
+                                            </motion.div>
                                         )}
                                     </AnimatePresence>
                                 </div>
@@ -319,56 +371,43 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
                     {step === 2 && rating > 0 && (
                         <motion.div
                             key="step2"
-                            initial={{ opacity: 0, x: 16 }}
+                            initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -16 }}
-                            className="space-y-6"
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.28 }}
+                            className="space-y-7"
                         >
-                            <div className="text-center space-y-5">
-                                <div>
-                                    <h3 className="text-xl font-bold mb-1">War unser Preis fair?</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Wie bewertest du das Preis-Leistungs-Verhältnis?
-                                    </p>
-                                </div>
+                            <div className="text-center space-y-1.5">
+                                <h3 className="text-2xl font-extrabold tracking-tight">War unser Preis fair?</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Wie bewertest du das Preis-Leistungs-Verhältnis?
+                                </p>
+                            </div>
 
-                                {/* Stars */}
-                                <div className="flex justify-center gap-3">
-                                    {[1, 2, 3, 4, 5].map((s) => (
-                                        <button
-                                            key={s}
-                                            onMouseEnter={() => setHoverPriceRating(s)}
-                                            onMouseLeave={() => setHoverPriceRating(0)}
-                                            onClick={() => {
-                                                setPriceRating(s)
-                                                setTimeout(() => setStep(3), 380)
-                                            }}
-                                            className="focus:outline-none transition-transform active:scale-90 hover:scale-115"
-                                        >
-                                            <Star
-                                                className={cn(
-                                                    "h-11 w-11 transition-all duration-200",
-                                                    (hoverPriceRating || priceRating) >= s
-                                                        ? "fill-emerald-400 text-emerald-400 drop-shadow-sm"
-                                                        : "text-muted-foreground/20 hover:text-emerald-300/60"
-                                                )}
-                                            />
-                                        </button>
-                                    ))}
-                                </div>
+                            <div className="flex flex-col items-center gap-5">
+                                <StarRow
+                                    value={priceRating}
+                                    hover={hoverPriceRating}
+                                    onHover={setHoverPriceRating}
+                                    onLeave={() => setHoverPriceRating(0)}
+                                    onSelect={(s) => { setPriceRating(s); setTimeout(() => setStep(3), 350) }}
+                                    color="emerald"
+                                />
 
-                                {/* Dynamic label */}
-                                <div className="h-5 flex items-center justify-center">
+                                <div className="h-10 flex flex-col items-center justify-center">
                                     <AnimatePresence mode="wait">
                                         {(hoverPriceRating || priceRating) > 0 && (
                                             <motion.p
                                                 key={hoverPriceRating || priceRating}
-                                                initial={{ opacity: 0, y: 6 }}
-                                                animate={{ opacity: 1, y: 0 }}
+                                                initial={{ opacity: 0, scale: 0.8, y: 6 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
                                                 exit={{ opacity: 0, y: -4 }}
+                                                transition={{ duration: 0.2 }}
                                                 className={cn(
-                                                    "text-sm font-semibold",
-                                                    (hoverPriceRating || priceRating) >= 4 ? "text-emerald-500" : (hoverPriceRating || priceRating) === 3 ? "text-amber-500" : "text-destructive"
+                                                    "text-sm font-bold",
+                                                    (hoverPriceRating || priceRating) >= 4 ? "text-emerald-500"
+                                                        : (hoverPriceRating || priceRating) === 3 ? "text-amber-500"
+                                                        : "text-destructive"
                                                 )}
                                             >
                                                 {PRICE_STAR_LABELS[hoverPriceRating || priceRating]}
@@ -378,21 +417,21 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
                                 </div>
                             </div>
 
-                            <div className="flex gap-2 pt-2">
-                                <Button
-                                    variant="ghost"
+                            <div className="flex gap-3 pt-1">
+                                <button
                                     onClick={() => setStep(1)}
-                                    className="flex-1 rounded-xl"
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
                                 >
+                                    <ArrowLeft className="h-4 w-4" />
                                     Zurück
-                                </Button>
-                                <Button
+                                </button>
+                                <button
                                     disabled={!step2Valid}
                                     onClick={() => setStep(3)}
-                                    className="flex-[2] font-bold rounded-xl h-11"
+                                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-md shadow-primary/20 hover:opacity-90 active:scale-98 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
                                     Weiter
-                                </Button>
+                                </button>
                             </div>
                         </motion.div>
                     )}
@@ -401,74 +440,80 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
                     {step === 3 && rating > 0 && (
                         <motion.div
                             key="step3"
-                            initial={{ opacity: 0, x: 16 }}
+                            initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -16 }}
-                            className="space-y-4"
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.28 }}
+                            className="space-y-6"
                         >
-                            <div className="text-center mb-6">
-                                <h3 className="text-xl font-bold mb-1">
-                                    {isHappy
-                                        ? "Was hat besonders überzeugt?"
-                                        : "Was hat nicht so gut gepasst?"
-                                    }
+                            <div className="text-center space-y-1.5">
+                                <h3 className="text-2xl font-extrabold tracking-tight">
+                                    {isHappy ? "Was hat überzeugt?" : "Was hat nicht gepasst?"}
                                 </h3>
-                                <p className="text-sm text-muted-foreground">
-                                    (Mehrere Antworten möglich)
-                                </p>
+                                <p className="text-sm text-muted-foreground">Mehrere Antworten möglich</p>
                             </div>
 
-                            <div className="grid grid-cols-1 gap-2.5">
+                            <div className="grid grid-cols-2 gap-2.5">
                                 {(isHappy ? POSITIVE_ASPECTS : NEGATIVE_ASPECTS).map((opt) => {
                                     const selected = selectedAspects.includes(opt.value)
                                     return (
                                         <button
                                             key={opt.value}
-                                            onClick={() => {
-                                                setSelectedAspects(prev => 
-                                                    prev.includes(opt.value) ? prev.filter(v => v !== opt.value) : [...prev, opt.value]
-                                                )
-                                            }}
+                                            onClick={() => setSelectedAspects(prev =>
+                                                prev.includes(opt.value) ? prev.filter(v => v !== opt.value) : [...prev, opt.value]
+                                            )}
                                             className={cn(
-                                                "flex items-center gap-3 p-4 rounded-xl border transition-all text-left group",
+                                                "relative flex flex-col items-center gap-2.5 p-4 rounded-2xl border-2 transition-all duration-200 text-center group",
                                                 selected
-                                                    ? "bg-primary/10 border-primary/40 text-foreground ring-1 ring-primary/20 shadow-sm"
-                                                    : "bg-muted/30 border-border/40 text-muted-foreground hover:bg-muted/60 hover:border-border/60 hover:text-foreground"
+                                                    ? "bg-primary/8 border-primary/50 shadow-md shadow-primary/10"
+                                                    : "bg-muted/20 border-border/40 hover:bg-muted/40 hover:border-border/70"
                                             )}
                                         >
+                                            {/* Selection indicator */}
+                                            {selected && (
+                                                <motion.div
+                                                    initial={{ scale: 0 }}
+                                                    animate={{ scale: 1 }}
+                                                    className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center"
+                                                >
+                                                    <CheckCircle2 className="h-3 w-3 text-primary-foreground" />
+                                                </motion.div>
+                                            )}
                                             <div className={cn(
-                                                "w-5 h-5 rounded flex items-center justify-center shrink-0 transition-all border",
-                                                selected 
-                                                    ? "bg-primary border-primary text-primary-foreground" 
-                                                    : "border-muted-foreground/30 bg-transparent group-hover:border-muted-foreground/50"
+                                                "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                                                selected ? "bg-primary/15" : "bg-muted/50 group-hover:bg-muted/80"
                                             )}>
-                                                {selected && <CheckCircle2 className="h-3.5 w-3.5" />}
+                                                <opt.icon className={cn(
+                                                    "h-5 w-5 transition-colors",
+                                                    selected ? "text-primary" : "text-muted-foreground/60"
+                                                )} />
                                             </div>
-                                            <opt.icon className={cn(
-                                                "h-5 w-5 shrink-0 ml-1/2",
-                                                selected ? "text-primary hidden" : "text-muted-foreground/50 group-hover:text-muted-foreground/80"
-                                            )} />
-                                            <span className="font-medium text-sm pl-1">{opt.label}</span>
+                                            <span className={cn(
+                                                "text-xs font-semibold leading-tight transition-colors",
+                                                selected ? "text-foreground" : "text-muted-foreground"
+                                            )}>
+                                                {opt.label}
+                                            </span>
                                         </button>
                                     )
                                 })}
                             </div>
 
-                            <div className="flex gap-2 pt-2">
-                                <Button
-                                    variant="ghost"
+                            <div className="flex gap-3 pt-1">
+                                <button
                                     onClick={() => setStep(2)}
-                                    className="flex-1 rounded-xl"
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
                                 >
+                                    <ArrowLeft className="h-4 w-4" />
                                     Zurück
-                                </Button>
-                                <Button
+                                </button>
+                                <button
                                     disabled={!step3Valid}
                                     onClick={() => setStep(4)}
-                                    className="flex-[2] font-bold rounded-xl h-11"
+                                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-md shadow-primary/20 hover:opacity-90 active:scale-98 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                                 >
                                     Weiter
-                                </Button>
+                                </button>
                             </div>
                         </motion.div>
                     )}
@@ -477,19 +522,17 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
                     {step === 4 && (
                         <motion.div
                             key="step4"
-                            initial={{ opacity: 0, x: 16 }}
+                            initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -16 }}
-                            className="space-y-4"
+                            exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.28 }}
+                            className="space-y-5"
                         >
-                            <div className="text-center">
-                                <h3 className="text-xl font-bold mb-1">
-                                    {isHappy
-                                        ? "Noch etwas auf dem Herzen?"
-                                        : "Was können wir besser machen?"
-                                    }
+                            <div className="text-center space-y-1.5">
+                                <h3 className="text-2xl font-extrabold tracking-tight">
+                                    {isHappy ? "Noch etwas auf dem Herzen?" : "Was können wir besser machen?"}
                                 </h3>
-                                <p className="text-xs text-muted-foreground">
+                                <p className="text-sm text-muted-foreground">
                                     {isHappy
                                         ? "Optional – wir freuen uns über jede Nachricht."
                                         : "Bitte schildere uns kurz, was nicht gepasst hat."
@@ -497,50 +540,47 @@ export function OrderFeedback({ orderId, workshopId, googleReviewUrl }: OrderFee
                                 </p>
                             </div>
 
-                            <div className="relative">
-                                <Textarea
-                                    value={comment}
-                                    onChange={(e) => setComment(e.target.value)}
-                                    placeholder={
-                                        isHappy
-                                            ? "War alles super, nichts zu meckern..."
-                                            : "Z. B.: Die Wartezeit war sehr lang und ich wurde nicht informiert..."
-                                    }
-                                    className="min-h-[120px] rounded-xl resize-none"
-                                />
-                            </div>
+                            <Textarea
+                                value={comment}
+                                onChange={(e) => setComment(e.target.value)}
+                                placeholder={
+                                    isHappy
+                                        ? "War alles super, nichts zu meckern..."
+                                        : "Z. B.: Die Wartezeit war sehr lang..."
+                                }
+                                className="min-h-[120px] rounded-2xl resize-none border-border/60 bg-muted/20 focus-visible:bg-background transition-colors text-sm"
+                            />
 
-                            {/* Inline Error Banner */}
                             {errorMsg && (
                                 <motion.div
                                     initial={{ opacity: 0, y: -8 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    className="flex items-start gap-3 rounded-xl p-4 bg-destructive/10 border border-destructive/25"
+                                    className="flex items-start gap-3 rounded-2xl p-4 bg-destructive/8 border border-destructive/25"
                                 >
                                     <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                                     <p className="text-sm text-destructive leading-snug">{errorMsg}</p>
                                 </motion.div>
                             )}
 
-                            <div className="flex gap-2 pt-1">
-                                <Button
-                                    variant="ghost"
+                            <div className="flex gap-3 pt-1">
+                                <button
                                     onClick={() => setStep(3)}
-                                    className="flex-1 rounded-xl"
+                                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
                                 >
+                                    <ArrowLeft className="h-4 w-4" />
                                     Zurück
-                                </Button>
-                                <Button
+                                </button>
+                                <button
                                     onClick={handleSubmit}
                                     disabled={isSubmitting}
-                                    className="flex-[2] font-bold rounded-xl h-11"
+                                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground font-bold text-sm shadow-md shadow-primary/20 hover:opacity-90 active:scale-98 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
                                 >
                                     {isSubmitting ? (
-                                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Wird gesendet…</>
+                                        <><Loader2 className="h-4 w-4 animate-spin" /> Wird gesendet…</>
                                     ) : (
-                                        <><Send className="mr-2 h-4 w-4" /> Absenden</>
+                                        <><Send className="h-4 w-4" /> Absenden</>
                                     )}
-                                </Button>
+                                </button>
                             </div>
                         </motion.div>
                     )}
