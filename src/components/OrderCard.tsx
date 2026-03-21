@@ -1,9 +1,9 @@
 import { motion } from "framer-motion"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { Badge } from "@/components/ui/badge"
 import { Eye, Calendar, Bike } from "lucide-react"
-import { STATUS_COLORS } from "@/lib/constants"
 
 interface Order {
     id: string
@@ -84,12 +84,7 @@ export function OrderCard({ order, onViewOrder }: OrderCardProps) {
                         >
                             {order.is_leasing ? "Leasing" : "Standard"}
                         </Badge>
-                        <Badge
-                            variant="secondary"
-                            className={`capitalize ${STATUS_COLORS[order.status] || "bg-muted text-foreground"}`}
-                        >
-                            {order.status.replace(/_/g, ' ')}
-                        </Badge>
+                        <StatusBadge status={order.status} />
                     </div>
 
                     {/* Date */}

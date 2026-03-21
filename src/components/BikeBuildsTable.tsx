@@ -184,17 +184,17 @@ export function BikeBuildsTable({ mode = 'active' }: { mode?: 'active' | 'trash'
                     </div>
 
                     {/* Desktop View */}
-                    <div className="hidden md:block w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-sm">
+                    <div className="hidden md:block w-full min-w-0 overflow-x-auto rounded-xl border border-border/40 bg-background">
                         <Table className="w-full min-w-[600px] md:min-w-full table-fixed">
                             <TableHeader>
-                                <TableRow className="hover:bg-transparent bg-muted/40">
-                                    <TableHead className="pl-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Datum</TableHead>
-                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground w-[100px]">Nr.</TableHead>
-                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell">Marke & Modell</TableHead>
-                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden xl:table-cell">Eigenschaften</TableHead>
-                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden xl:table-cell">Akku Nr.</TableHead>
-                                    <TableHead className="font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Mechaniker</TableHead>
-                                    <TableHead className="text-right pr-4 font-semibold text-xs uppercase tracking-wider text-muted-foreground">Aktion</TableHead>
+                                <TableRow className="hover:bg-transparent border-b border-border/30">
+                                    <TableHead className="pl-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium hidden lg:table-cell">Datum</TableHead>
+                                    <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[100px]">Nr.</TableHead>
+                                    <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium hidden md:table-cell">Marke & Modell</TableHead>
+                                    <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium hidden xl:table-cell">Eigenschaften</TableHead>
+                                    <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium hidden xl:table-cell">Akku Nr.</TableHead>
+                                    <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium hidden lg:table-cell">Mechaniker</TableHead>
+                                    <TableHead className="text-right pr-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">Aktion</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -211,7 +211,7 @@ export function BikeBuildsTable({ mode = 'active' }: { mode?: 'active' | 'trash'
                                     filteredBuilds.map((build) => (
                                         <TableRow
                                             key={build.id}
-                                            className="hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
+                                            className="group hover:bg-muted/25 cursor-pointer transition-colors border-b border-border/25 last:border-0"
                                             onClick={() => navigate(`/dashboard/bike-builds/${build.id}`)}
                                         >
                                             <TableCell className="pl-4 py-4 text-xs text-muted-foreground font-mono hidden lg:table-cell">

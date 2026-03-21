@@ -2,8 +2,8 @@ import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { Eye, Calendar, Bike, Euro } from "lucide-react"
-import { BUILD_STATUS_COLORS } from "@/lib/constants"
 
 interface BikeBuild {
     id: string
@@ -89,12 +89,7 @@ export function BikeBuildCard({ build, onViewBuild }: BikeBuildCardProps) {
                         >
                             {build.build_type === 'custom' ? "Custom" : "Produktion"}
                         </Badge>
-                        <Badge
-                            variant="secondary"
-                            className={`capitalize ${BUILD_STATUS_COLORS[build.status] || "bg-muted text-foreground"}`}
-                        >
-                            {build.status.replace(/_/g, ' ')}
-                        </Badge>
+                        <StatusBadge status={build.status} />
                     </div>
 
                     {/* Budget & Date */}

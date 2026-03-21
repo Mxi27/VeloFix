@@ -1,8 +1,11 @@
 import { Badge } from "@/components/ui/badge"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { AlertTriangle, Calendar, ArrowRight } from "lucide-react"
 import { format, isToday, isPast } from "date-fns"
 import { de } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+// Re-export from the single source of truth so existing consumers keep working
+export { STATUS_COLORS, STATUS_LABELS } from "@/lib/constants"
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
@@ -22,32 +25,6 @@ export interface OrderItem {
         completed_by?: string | null
         completed_at?: string | null
     }[] | null
-}
-
-export const STATUS_LABELS: Record<string, string> = {
-    eingegangen: "Eingegangen",
-    in_bearbeitung: "In Bearbeitung",
-    kontrolle_offen: "Kontrolle offen",
-    warten_auf_teile: "Warten auf Teile",
-    abholbereit: "Abholbereit",
-    abgeschlossen: "Abgeschlossen",
-    abgeholt: "Abgeholt",
-    todo: "Offen",
-    in_progress: "In Arbeit",
-    done: "Erledigt",
-}
-
-export const STATUS_COLORS: Record<string, string> = {
-    eingegangen:      "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    warten_auf_teile: "bg-orange-500/10 text-orange-600 dark:text-orange-400",
-    in_bearbeitung:   "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-    kontrolle_offen:  "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-    abholbereit:      "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-    abgeholt:         "bg-teal-500/10 text-teal-600 dark:text-teal-400",
-    abgeschlossen:    "bg-neutral-500/10 text-neutral-500 dark:text-neutral-400",
-    todo:             "bg-neutral-500/10 text-neutral-500 dark:text-neutral-400",
-    in_progress:      "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-    done:             "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
 }
 
 // ─── Components ───────────────────────────────────────────────────────────────
@@ -111,9 +88,7 @@ export const OrderCard = ({ order, onClick, showMechanics = false, employees = [
                 <div className="space-y-1.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono text-xs font-semibold text-muted-foreground">{order.order_number}</span>
-                        <Badge variant="secondary" className={cn("text-[10px] h-5 px-1.5 font-normal border", STATUS_COLORS[order.status] || "bg-muted")}>
-                            {STATUS_LABELS[order.status] || order.status}
-                        </Badge>
+                        <StatusBadge status={order.status} className="text-[10px] h-5 px-1.5" />
                         {isUnassigned && (
                             <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-dashed border-amber-500/40 text-amber-700 bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/35 dark:bg-amber-500/12">
                                 Frei

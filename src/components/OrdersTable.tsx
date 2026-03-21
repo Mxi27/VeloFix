@@ -3,7 +3,6 @@ import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState, useMemo } from "react"
 import { useColumnVisibility } from "@/hooks/useColumnVisibility"
 import { useNavigate } from "react-router-dom"
-import { STATUS_COLORS, STATUS_LABELS, STATUS_DOT_COLORS_MAP } from "@/lib/constants"
 import type { DateRange } from "react-day-picker"
 import { DateRangePicker } from "@/components/DateRangePicker"
 import {
@@ -15,6 +14,7 @@ import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
 
+import { StatusBadge } from "@/components/ui/status-badge"
 import { Button } from "@/components/ui/button"
 import { 
     Search, Users, X, Check, SlidersHorizontal, RotateCcw as Restore, 
@@ -86,15 +86,6 @@ const STATUS_TABS = [
     { value: 'kontrolle_offen', label: 'Kontrolle' },
     { value: 'abholbereit',     label: 'Abholbereit' },
 ]
-
-const STATUS_DOT = STATUS_DOT_COLORS_MAP
-
-function getOrderStatusInfo(status: string) {
-    const label = STATUS_LABELS[status] || status.replace(/_/g, ' ')
-    const color = STATUS_COLORS[status] || "bg-neutral-500/10 text-neutral-500"
-    const dotColor = STATUS_DOT[status] || "bg-neutral-400"
-    return { label, color, dotColor }
-}
 
 export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps) {
     const { workshopId } = useAuth()
@@ -384,7 +375,6 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                         </TableRow>
                     ) : (
                         ordersToRender.map(order => {
-                            const statusInfo = getOrderStatusInfo(order.status)
                             const isOverdue = order.due_date &&
                                 new Date(order.due_date) < new Date() &&
                                 !['abgeholt', 'abgeschlossen'].includes(order.status)
@@ -505,15 +495,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     {/* Status */}
                                     {visibleColumns.status && (
                                         <TableCell className="py-3 px-3 w-[135px]">
-                                            <span
-                                                className={cn(
-                                                    "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap",
-                                                    statusInfo.color
-                                                )}
-                                            >
-                                                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusInfo.dotColor)} />
-                                                {statusInfo.label}
-                                            </span>
+                                            <StatusBadge status={order.status} />
                                         </TableCell>
                                     )}
 

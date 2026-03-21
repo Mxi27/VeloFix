@@ -3,7 +3,7 @@ import { Bike, CheckCircle2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import type { OrderItem } from "./OrderCard"
-import { STATUS_COLORS, STATUS_LABELS } from "./OrderCard"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { cn } from "@/lib/utils"
 import { getUrgencyInfo, sortByUrgency } from "@/lib/urgency"
 
@@ -85,9 +85,7 @@ export const MyBikesSection = ({ orders }: MyBikesSectionProps) => {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-0.5">
                                             <span className="font-mono text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors">{order.order_number}</span>
-                                            <Badge variant="secondary" className={cn("text-[10px] h-5 px-1.5 font-normal border", STATUS_COLORS[order.status])}>
-                                                {STATUS_LABELS[order.status]}
-                                            </Badge>
+                                            <StatusBadge status={order.status} className="text-[10px] h-5 px-1.5" />
                                         </div>
                                         <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">{order.bike_model}</p>
                                         <p className="text-xs text-muted-foreground truncate">{order.customer_name}</p>

@@ -4,7 +4,6 @@ import { useState, useMemo } from "react"
 import { useColumnVisibility } from "@/hooks/useColumnVisibility"
 import type { AssemblyProgress, ControlData } from "@/types/index"
 import { useNavigate } from "react-router-dom"
-import { NEURAD_STATUS_MAP } from "@/lib/constants"
 import {
     Table,
     TableBody,
@@ -16,6 +15,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { Search, Eye, UserPlus, Users, X, Check, Zap, SlidersHorizontal, Settings2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -63,10 +63,6 @@ interface BikeBuild {
     control_data: ControlData | null
     is_ebike?: boolean
     checklist_template?: string | null
-}
-
-function getNeuradStatus(status: string) {
-    return NEURAD_STATUS_MAP[status] || { label: status, color: 'bg-muted text-muted-foreground border-border/60', dotColor: 'bg-muted-foreground' }
 }
 
 function getAssemblyProgress(build: BikeBuild, fallbackTotal?: number): { pct: number; done: number; total: number } {
@@ -292,7 +288,6 @@ export function BikeAssemblyTable() {
                         </TableRow>
                     ) : (
                         buildsToRender.map(build => {
-                            const statusInfo = getNeuradStatus(build.status)
                             const fallbackTotal = templateCounts[build.checklist_template || 'default']
                             const progress = getAssemblyProgress(build, fallbackTotal)
 
@@ -383,15 +378,7 @@ export function BikeAssemblyTable() {
                                     {/* Status */}
                                     {visibleColumns.status && (
                                         <TableCell className="py-2.5 px-1 md:px-2 w-[85px] md:w-[100px]">
-                                            <span
-                                                className={cn(
-                                                    "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium max-w-full overflow-hidden",
-                                                    statusInfo.color
-                                                )}
-                                            >
-                                                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusInfo.dotColor)} />
-                                                <span className="truncate">{statusInfo.label}</span>
-                                            </span>
+                                            <StatusBadge status={build.status} variant="neurad" />
                                         </TableCell>
                                     )}
 

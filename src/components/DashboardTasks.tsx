@@ -19,6 +19,7 @@ import {
 import { useNavigate } from "react-router-dom"
 import { format, isToday, isPast } from "date-fns"
 import { de } from "date-fns/locale"
+import { StatusBadge } from "@/components/ui/status-badge"
 import {
     Collapsible,
     CollapsibleContent,
@@ -136,21 +137,6 @@ export function DashboardTasks() {
         fetchTasks()
     }, [workshopId, user, activeEmployee])
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'abholbereit': return 'text-emerald-700 bg-emerald-500/12 border-emerald-500/25 dark:text-emerald-400 dark:bg-emerald-500/15 dark:border-emerald-500/25'
-            case 'in_bearbeitung': return 'text-blue-700 bg-blue-500/12 border-blue-500/25 dark:text-blue-400 dark:bg-blue-500/15 dark:border-blue-500/25'
-            case 'warten_auf_teile': return 'text-amber-700 bg-amber-500/12 border-amber-500/25 dark:text-amber-400 dark:bg-amber-500/15 dark:border-amber-500/25'
-            case 'kontrolle_offen': return 'text-yellow-700 bg-yellow-500/12 border-yellow-500/25 dark:text-yellow-400 dark:bg-yellow-500/15 dark:border-yellow-500/25'
-            case 'eingegangen': return 'text-slate-700 bg-slate-500/10 border-slate-500/20 dark:text-slate-400 dark:bg-slate-500/15 dark:border-slate-500/20'
-            default: return 'text-slate-700 bg-slate-500/10 border-slate-500/20 dark:text-slate-400 dark:bg-slate-500/15 dark:border-slate-500/20'
-        }
-    }
-
-    const getStatusLabel = (status: string) => {
-        return status.replace(/_/g, ' ')
-    }
-
     const processTasks = (tasks: TaskOrder[]) => {
         let processed = [...tasks]
 
@@ -214,9 +200,7 @@ export function DashboardTasks() {
                     <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm truncate">{order.order_number}</span>
-                            <Badge variant="secondary" className={`text-[10px] h-5 px-1.5 font-normal capitalize border ${getStatusColor(order.status)}`}>
-                                {getStatusLabel(order.status)}
-                            </Badge>
+                            <StatusBadge status={order.status} className="text-[10px] h-5 px-1.5" />
                         </div>
                         <p className="text-sm font-medium truncate">{order.bike_model} <span className="text-muted-foreground font-normal">• {order.customer_name}</span></p>
 

@@ -11,7 +11,8 @@ import {
     ArrowRight,
 } from "lucide-react"
 import type { OrderItem } from "./OrderCard"
-import { STATUS_COLORS, STATUS_LABELS, DueDateBadge } from "./OrderCard"
+import { DueDateBadge } from "./OrderCard"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { cn } from "@/lib/utils"
 import { isPast, isToday } from "date-fns"
 
@@ -155,9 +156,7 @@ export const WorkshopQueue = ({ orders, employees }: WorkshopQueueProps) => {
                                         <div className="flex items-center justify-between md:justify-start">
                                             <span className="font-mono text-sm font-semibold text-primary/80">{order.order_number}</span>
                                             {/* Mobile Status Badge override */}
-                                            <Badge variant="secondary" className={cn("md:hidden text-[10px] h-5 px-1.5 font-normal border", STATUS_COLORS[order.status])}>
-                                                {STATUS_LABELS[order.status] || order.status}
-                                            </Badge>
+                                            <StatusBadge status={order.status} className="md:hidden text-[10px] h-5 px-1.5" />
                                         </div>
 
                                         {/* Info */}
@@ -191,9 +190,7 @@ export const WorkshopQueue = ({ orders, employees }: WorkshopQueueProps) => {
 
                                         {/* Status (Desktop) */}
                                         <div className="hidden md:flex items-center">
-                                            <Badge variant="secondary" className={cn("text-[10px] h-5 px-1.5 font-normal border", STATUS_COLORS[order.status])}>
-                                                {STATUS_LABELS[order.status] || order.status}
-                                            </Badge>
+                                            <StatusBadge status={order.status} className="text-[10px] h-5 px-1.5" />
                                         </div>
 
                                         {/* Chevron */}

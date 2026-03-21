@@ -3,7 +3,7 @@ import { Bike, CheckCircle2, AlertTriangle, ChevronRight, Wrench } from "lucide-
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import type { OrderItem } from "./OrderCard"
-import { STATUS_COLORS, STATUS_LABELS } from "./OrderCard"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { cn } from "@/lib/utils"
 import { getUrgencyInfo } from "@/lib/urgency"
 import { motion } from "framer-motion"
@@ -125,15 +125,7 @@ export const OptimizedMyBikesSection = ({ orders, showEmpty = true }: OptimizedM
                       <span className="font-mono text-[10px] font-semibold text-muted-foreground bg-muted/50 px-1.5 rounded">
                         {order.order_number}
                       </span>
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          "text-[9px] h-4 px-1 font-medium border shrink-0",
-                          STATUS_COLORS[order.status]
-                        )}
-                      >
-                        {STATUS_LABELS[order.status]}
-                      </Badge>
+                      <StatusBadge status={order.status} className="text-[9px] h-4 px-1 shrink-0" />
                     </div>
 
                     {/* Main Info */}

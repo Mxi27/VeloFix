@@ -14,7 +14,7 @@ import {
     User,
 } from "lucide-react"
 import type { OrderItem } from "./OrderCard"
-import { STATUS_COLORS, STATUS_LABELS } from "./OrderCard"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { cn } from "@/lib/utils"
 import { isPast, isToday, differenceInHours, differenceInDays } from "date-fns"
 import {
@@ -318,12 +318,7 @@ export const AllRepairsList = ({ orders, employees }: AllRepairsListProps) => {
                                             {order.order_number}
                                         </span>
                                         {/* Mobile: Show status here */}
-                                        <Badge variant="secondary" className={cn(
-                                            "md:hidden text-[10px] h-5 px-1.5 font-normal border",
-                                            STATUS_COLORS[order.status]
-                                        )}>
-                                            {STATUS_LABELS[order.status]}
-                                        </Badge>
+                                        <StatusBadge status={order.status} className="md:hidden text-[10px] h-5 px-1.5" />
                                     </div>
 
                                     {/* Info */}
@@ -379,9 +374,7 @@ export const AllRepairsList = ({ orders, employees }: AllRepairsListProps) => {
 
                                     {/* Status (Desktop) */}
                                     <div className="hidden md:flex items-center">
-                                        <Badge variant="secondary" className={cn("text-[10px] h-5 px-1.5 font-normal border", STATUS_COLORS[order.status])}>
-                                            {STATUS_LABELS[order.status]}
-                                        </Badge>
+                                        <StatusBadge status={order.status} className="text-[10px] h-5 px-1.5" />
                                     </div>
 
                                     {/* Chevron */}

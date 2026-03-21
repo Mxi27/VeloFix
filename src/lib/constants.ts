@@ -1,5 +1,6 @@
 /**
  * Todoist-style status tag colors — clean pill badges with subtle tints.
+ * Single source of truth for all status colors across the app.
  */
 export const STATUS_COLORS: Record<string, string> = {
     eingegangen:      "bg-blue-500/10 text-blue-600 dark:text-blue-400",
@@ -9,6 +10,10 @@ export const STATUS_COLORS: Record<string, string> = {
     abholbereit:      "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
     abgeholt:         "bg-teal-500/10 text-teal-600 dark:text-teal-400",
     abgeschlossen:    "bg-neutral-500/10 text-neutral-500 dark:text-neutral-400",
+    // Generic task statuses (used by dashboard cards)
+    todo:             "bg-neutral-500/10 text-neutral-500 dark:text-neutral-400",
+    in_progress:      "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+    done:             "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
 }
 
 /** Dot indicator colors for each order status — used as `bg-*` in the table. */
@@ -30,6 +35,9 @@ export const STATUS_LABELS: Record<string, string> = {
     abholbereit:      "Abholbereit",
     abgeholt:         "Abgeholt",
     abgeschlossen:    "Abgeschlossen",
+    todo:             "Offen",
+    in_progress:      "In Arbeit",
+    done:             "Erledigt",
 }
 
 export const BUILD_STATUS_COLORS = STATUS_COLORS;
@@ -82,6 +90,19 @@ export const NEURAD_STATUS_MAP: Record<string, { label: string; color: string; d
         color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
         dotColor: 'bg-emerald-500',
     },
+}
+
+/** Resolve order status info (label, badge color, dot color) from any status string. */
+export function getOrderStatusInfo(status: string) {
+    const label = STATUS_LABELS[status] || status.replace(/_/g, ' ')
+    const color = STATUS_COLORS[status] || "bg-neutral-500/10 text-neutral-500"
+    const dotColor = STATUS_DOT_COLORS_MAP[status] || "bg-neutral-400"
+    return { label, color, dotColor }
+}
+
+/** Resolve Neurad status info from any status string. */
+export function getNeuradStatusInfo(status: string) {
+    return NEURAD_STATUS_MAP[status] || { label: status, color: 'bg-muted text-muted-foreground border-border/60', dotColor: 'bg-muted-foreground' }
 }
 
 export const BIKE_TYPE_LABELS: Record<string, string> = {
