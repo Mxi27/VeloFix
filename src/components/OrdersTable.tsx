@@ -7,45 +7,39 @@ import { STATUS_COLORS, STATUS_LABELS } from "@/lib/constants"
 import type { DateRange } from "react-day-picker"
 import { DateRangePicker } from "@/components/DateRangePicker"
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
+    AlertDialog, AlertDialogAction, AlertDialogCancel,
+    AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+    AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import {
-    Search, Users, X, Check,
-    SlidersHorizontal, RotateCcw as Restore, Settings2, Filter,
-    ArrowUpDown, ArrowUp, ArrowDown, MoreHorizontal, Trash2, ExternalLink,
+import { Badge } from "@/components/ui/badge"
+import { 
+    Search, Users, X, Check, SlidersHorizontal, RotateCcw as Restore, 
+    Settings2, MoreHorizontal, 
+    Trash2, ExternalLink, Eye
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
+import { OrdersTableSkeleton } from "@/components/skeletons/OrdersTableSkeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuCheckboxItem,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
+    DropdownMenu, DropdownMenuContent, DropdownMenuCheckboxItem,
+    DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+    Card, CardContent, CardHeader, CardTitle,
+} from "@/components/ui/card"
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+    Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
@@ -106,13 +100,20 @@ const STATUS_DOT = {
     abgeschlossen: "bg-[#888888]",
 } as Record<string, string>
 
+function getOrderStatusInfo(status: string) {
+    const label = STATUS_LABELS[status] || status.replace(/_/g, ' ')
+    const color = STATUS_COLORS[status] || "bg-muted text-muted-foreground border-border/60"
+    const dotColor = STATUS_DOT[status] || "bg-muted-foreground"
+    return { label, color, dotColor }
+}
+
 export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps) {
     const { workshopId } = useAuth()
     const { employees } = useEmployee()
     const navigate = useNavigate()
 
     const [searchTerm, setSearchTerm] = useState("")
-    const [showSearch, setShowSearch] = useState(false)
+    const [showFilters, setShowFilters] = useState(false)
     const [dateRange, setDateRange] = useState<DateRange | undefined>()
     const [dateFilterType, setDateFilterType] = useState<"created" | "due">("created")
     const [filterStatus, setFilterStatus] = useState("all")
@@ -242,7 +243,10 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         dateRange?.from,
         filterTags.length > 0,
         sortField !== 'none',
+        filterStatus !== 'all' && effectiveMode === 'active',
     ].filter(Boolean).length
+
+    const hasActiveFilters = searchTerm || activeFilterCount > 0
 
     const filteredOrders = orders.filter(order => {
         const searchKeywords = searchTerm.toLowerCase().split(/\s+/).filter(Boolean)
@@ -310,353 +314,124 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         return sortDir === "asc" ? diff : -diff
     })
 
-    const handleSort = (field: typeof sortField) => {
-        if (sortField === field) {
-            if (sortDir === "desc") setSortDir("asc")
-            else { setSortField("none"); setSortDir("desc") }
-        } else {
-            setSortField(field)
-            setSortDir("desc")
+    const titleMap: Record<TableMode, string> = {
+        active: "Aktive Aufträge",
+        archived: "Archivierte Aufträge",
+        leasing_billing: "Leasing Abrechnung",
+        trash: "Papierkorb"
+    }
+
+    // Dynamic responsive logic matching BikeAssemblyTable
+    const enabledCount = Object.values(visibleColumns).filter(Boolean).length
+    const getResponsiveClass = (colId: ColumnId) => {
+        if (colId === 'order_number' || colId === 'status' || colId === 'actions') return ""
+
+        if (enabledCount <= 4) {
+            if (colId === 'customer') return "sm:table-cell"
+            if (colId === 'due_date') return "md:table-cell"
+            return "lg:table-cell"
+        }
+
+        switch (colId) {
+            case 'customer': return "sm:table-cell"
+            case 'bike': return "lg:table-cell"
+            case 'mechanic': return "xl:table-cell"
+            case 'due_date': return "md:table-cell"
+            case 'created_at': return "xl:table-cell"
+            default: return ""
         }
     }
 
-    const SortIcon = ({ field }: { field: typeof sortField }) => {
-        if (sortField !== field) return <ArrowUpDown className="h-3 w-3 opacity-0 group-hover/th:opacity-40 transition-opacity" />
-        return sortDir === "desc"
-            ? <ArrowDown className="h-3 w-3 text-primary" />
-            : <ArrowUp className="h-3 w-3 text-primary" />
-    }
+    if (isLoading) return <OrdersTableSkeleton />
 
-    return (
-        <>
-            <div className="space-y-0">
-
-                {/* ── Toolbar ── */}
-                <div className="flex items-center justify-between gap-4 mb-1">
-                    {/* Status tabs */}
-                    {effectiveMode === 'active' && (
-                        <div className="flex items-center gap-0 overflow-x-auto -mb-px">
-                            {STATUS_TABS.map(tab => {
-                                const count = statusCounts[tab.value as keyof typeof statusCounts] ?? 0
-                                const isActive = filterStatus === tab.value
-                                return (
-                                    <button
-                                        key={tab.value}
-                                        onClick={() => setFilterStatus(tab.value)}
-                                        className={cn(
-                                            "relative flex items-center gap-1.5 px-3 py-2 text-[13px] whitespace-nowrap transition-colors",
-                                            "border-b-2",
-                                            isActive
-                                                ? "border-primary text-foreground font-medium"
-                                                : "border-transparent text-muted-foreground hover:text-foreground/80"
-                                        )}
-                                    >
-                                        {tab.label}
-                                        {count > 0 && (
-                                            <span className={cn(
-                                                "text-[10px] font-semibold tabular-nums px-1.5 py-px rounded-full",
-                                                isActive
-                                                    ? "bg-primary/15 text-primary"
-                                                    : "bg-accent text-muted-foreground"
-                                            )}>
-                                                {count}
-                                            </span>
-                                        )}
-                                    </button>
-                                )
-                            })}
-                        </div>
-                    )}
-
-                    {/* Right: Controls */}
-                    <div className="flex items-center gap-1 ml-auto shrink-0">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className={cn(
-                                "h-7 gap-1.5 text-xs px-2 rounded-lg text-muted-foreground hover:text-foreground",
-                                showSearch && "text-foreground bg-accent"
-                            )}
-                            onClick={() => setShowSearch(s => !s)}
-                        >
-                            <Search className="h-3.5 w-3.5" />
-                            <span className="hidden sm:inline">Suche</span>
-                        </Button>
-
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className={cn(
-                                        "h-7 gap-1.5 text-xs px-2 rounded-lg text-muted-foreground hover:text-foreground",
-                                        activeFilterCount > 0 && "text-foreground bg-accent"
-                                    )}
-                                >
-                                    <SlidersHorizontal className="h-3.5 w-3.5" />
-                                    <span className="hidden sm:inline">Filter</span>
-                                    {activeFilterCount > 0 && (
-                                        <span className="bg-primary/15 text-primary text-[10px] font-bold px-1.5 py-px rounded-full">
-                                            {activeFilterCount}
-                                        </span>
-                                    )}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-76 p-4" align="end">
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-sm font-medium">Filter & Sortierung</p>
-                                        {activeFilterCount > 0 && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 text-xs px-2"
-                                                onClick={() => {
-                                                    setFilterEmployee('all')
-                                                    setDateRange(undefined)
-                                                    setFilterTags([])
-                                                    setSortField('none')
-                                                    setSortDir('desc')
-                                                }}
-                                            >
-                                                Zurücksetzen
-                                            </Button>
-                                        )}
-                                    </div>
-
-                                    <div className="space-y-1.5">
-                                        <label className="text-[11px] font-medium text-muted-foreground">Mitarbeiter</label>
-                                        <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-                                            <SelectTrigger className="h-8 text-xs">
-                                                <SelectValue placeholder="Alle" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">Alle Mitarbeiter</SelectItem>
-                                                <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
-                                                {employees.map(emp => (
-                                                    <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    {workshopTags.length > 0 && (
-                                        <div className="space-y-1.5">
-                                            <label className="text-[11px] font-medium text-muted-foreground">Tags</label>
-                                            <div className="flex flex-wrap gap-1">
-                                                {workshopTags.map((tag: any) => {
-                                                    const isSelected = filterTags.includes(tag.id)
-                                                    return (
-                                                        <button
-                                                            key={tag.id}
-                                                            onClick={() => setFilterTags(prev =>
-                                                                prev.includes(tag.id)
-                                                                    ? prev.filter(id => id !== tag.id)
-                                                                    : [...prev, tag.id]
-                                                            )}
-                                                            className={cn(
-                                                                "inline-flex items-center rounded-md px-2 py-px text-xs font-medium transition-opacity",
-                                                                !isSelected && "opacity-40"
-                                                            )}
-                                                            style={{ backgroundColor: tag.color, color: '#fff' }}
-                                                        >
-                                                            {tag.name}
-                                                        </button>
-                                                    )
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="space-y-1.5">
-                                        <label className="text-[11px] font-medium text-muted-foreground">Zeitraum</label>
-                                        <div className="flex gap-2">
-                                            <Select value={dateFilterType} onValueChange={(v: "created" | "due") => setDateFilterType(v)}>
-                                                <SelectTrigger className="h-8 flex-1 text-xs">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="created">Eingang</SelectItem>
-                                                    <SelectItem value="due">Fällig</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                            <DateRangePicker date={dateRange} setDate={setDateRange} className="flex-1" />
-                                        </div>
-                                    </div>
-
-                                    <Button variant="ghost" size="sm" className="w-full h-8 text-xs justify-start gap-2" onClick={() => mutate()}>
-                                        <Filter className="h-3.5 w-3.5" />
-                                        {isLoading ? "Lädt…" : "Aktualisieren"}
-                                    </Button>
+    const renderTable = (ordersToRender: Order[]) => (
+        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-sm">
+            <Table className="w-full table-fixed">
+                <TableHeader>
+                    <TableRow className="hover:bg-transparent bg-muted/40">
+                        {visibleColumns.order_number && (
+                            <TableHead className="w-[80px] md:w-[120px] pl-3 md:pl-5 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">
+                                Nr.
+                            </TableHead>
+                        )}
+                        {visibleColumns.customer && (
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                                Kunde
+                            </TableHead>
+                        )}
+                        {visibleColumns.bike && (
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[140px]", getResponsiveClass('bike'))}>
+                                Fahrrad
+                            </TableHead>
+                        )}
+                        {visibleColumns.mechanic && (
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[120px]", getResponsiveClass('mechanic'))}>
+                                Mitarbeiter
+                            </TableHead>
+                        )}
+                        {visibleColumns.due_date && (
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[100px]", getResponsiveClass('due_date'))}>
+                                Fällig
+                            </TableHead>
+                        )}
+                        {visibleColumns.status && (
+                            <TableHead className="px-2 md:px-3 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[100px] md:w-[110px] min-w-[100px]">
+                                Status
+                            </TableHead>
+                        )}
+                        {visibleColumns.created_at && (
+                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[100px]", getResponsiveClass('created_at'))}>
+                                Erstellt
+                            </TableHead>
+                        )}
+                        {visibleColumns.actions && (
+                            <TableHead className="text-right pr-3 md:pr-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[75px] md:w-[85px] min-w-[75px]">
+                                Aktion
+                            </TableHead>
+                        )}
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {ordersToRender.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                                <div className="flex flex-col items-center justify-center gap-2">
+                                    <Search className="h-8 w-8 opacity-20" />
+                                    <p>Keine Aufträge gefunden</p>
                                 </div>
-                            </PopoverContent>
-                        </Popover>
+                            </TableCell>
+                        </TableRow>
+                    ) : (
+                        ordersToRender.map(order => {
+                            const statusInfo = getOrderStatusInfo(order.status)
+                            return (
+                                <TableRow
+                                    key={order.id}
+                                    className="group hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
+                                    onClick={() => handleViewOrder(order.id)}
+                                >
+                                    {/* Nr. */}
+                                    {visibleColumns.order_number && (
+                                        <TableCell className="w-[80px] md:w-[120px] pl-3 md:pl-5 py-3.5">
+                                            <span className="font-mono text-[11px] font-bold text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded">
+                                                {order.order_number}
+                                            </span>
+                                        </TableCell>
+                                    )}
 
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs px-2 rounded-lg text-muted-foreground hover:text-foreground">
-                                    <Settings2 className="h-3.5 w-3.5" />
-                                    <span className="hidden sm:inline">Ansicht</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuLabel className="text-xs">Sichtbare Spalten</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {AVAILABLE_COLUMNS.map(col => (
-                                    <DropdownMenuCheckboxItem
-                                        key={col.id}
-                                        checked={visibleColumns[col.id]}
-                                        onCheckedChange={() => toggleColumn(col.id)}
-                                        onSelect={(e) => e.preventDefault()}
-                                        className="text-xs"
-                                    >
-                                        {col.label}
-                                    </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                </div>
-
-                {/* Search bar */}
-                {showSearch && (
-                    <div className="relative mb-2">
-                        <Search className="absolute left-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
-                        <Input
-                            autoFocus
-                            placeholder="Suche nach Kunde, Nr. oder Modell…"
-                            className="pl-6 border-0 border-b border-border/40 rounded-none shadow-none bg-transparent text-sm h-9 focus-visible:ring-0 focus-visible:border-primary/40 px-0"
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                )}
-
-                {/* ── Table ── */}
-                <div className="rounded-lg border border-border overflow-hidden">
-                    <table className="w-full text-[13px]">
-                        {/* Header */}
-                        <thead>
-                            <tr className="border-b border-border bg-muted/30">
-                                {/* Status dot column — always visible */}
-                                <th className="w-10 px-3 py-2.5" />
-
-                                {visibleColumns.order_number && (
-                                    <th
-                                        className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider cursor-pointer group/th select-none"
-                                        onClick={() => handleSort("created_at")}
-                                    >
-                                        <span className="inline-flex items-center gap-1">
-                                            Nr.
-                                            <SortIcon field="created_at" />
-                                        </span>
-                                    </th>
-                                )}
-
-                                {visibleColumns.customer && (
-                                    <th
-                                        className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider cursor-pointer group/th select-none"
-                                        onClick={() => handleSort("customer_name")}
-                                    >
-                                        <span className="inline-flex items-center gap-1">
-                                            Kunde
-                                            <SortIcon field="customer_name" />
-                                        </span>
-                                    </th>
-                                )}
-
-                                {visibleColumns.bike && (
-                                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider hidden md:table-cell">
-                                        Fahrrad
-                                    </th>
-                                )}
-
-                                {visibleColumns.mechanic && (
-                                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider hidden lg:table-cell">
-                                        Mechaniker
-                                    </th>
-                                )}
-
-                                {visibleColumns.due_date && (
-                                    <th
-                                        className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider cursor-pointer group/th select-none hidden sm:table-cell"
-                                        onClick={() => handleSort("due_date")}
-                                    >
-                                        <span className="inline-flex items-center gap-1">
-                                            Fällig
-                                            <SortIcon field="due_date" />
-                                        </span>
-                                    </th>
-                                )}
-
-                                {visibleColumns.status && (
-                                    <th
-                                        className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider cursor-pointer group/th select-none"
-                                        onClick={() => handleSort("status")}
-                                    >
-                                        <span className="inline-flex items-center gap-1">
-                                            Status
-                                            <SortIcon field="status" />
-                                        </span>
-                                    </th>
-                                )}
-
-                                {visibleColumns.created_at && (
-                                    <th className="text-left px-3 py-2.5 font-medium text-muted-foreground text-[11px] uppercase tracking-wider hidden xl:table-cell">
-                                        Erstellt
-                                    </th>
-                                )}
-
-                                {visibleColumns.actions && (
-                                    <th className="w-12 px-3 py-2.5" />
-                                )}
-                            </tr>
-                        </thead>
-
-                        {/* Body */}
-                        <tbody>
-                            {filteredOrders.length === 0 ? (
-                                <tr>
-                                    <td colSpan={10} className="py-16 text-center text-muted-foreground text-sm">
-                                        {isLoading ? "Lädt…" : "Keine Aufträge gefunden"}
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredOrders.map(order => (
-                                    <tr
-                                        key={order.id}
-                                        className="group border-b border-border/40 last:border-0 hover:bg-accent/40 transition-colors duration-75 cursor-pointer"
-                                        onClick={() => handleViewOrder(order.id)}
-                                    >
-                                        {/* Status dot */}
-                                        <td className="px-3 py-2.5">
-                                            <div className={cn(
-                                                "h-2.5 w-2.5 rounded-full mx-auto",
-                                                STATUS_DOT[order.status] || "bg-muted-foreground/40"
-                                            )} />
-                                        </td>
-
-                                        {/* Order number */}
-                                        {visibleColumns.order_number && (
-                                            <td className="px-3 py-2.5">
-                                                <span className="font-mono text-muted-foreground text-[12px]">
-                                                    {order.order_number}
-                                                </span>
-                                            </td>
-                                        )}
-
-                                        {/* Customer */}
-                                        {visibleColumns.customer && (
-                                            <td className="px-3 py-2.5">
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <span className="font-medium text-foreground truncate">
-                                                        {order.customer_name}
-                                                    </span>
+                                    {/* Kunde */}
+                                    {visibleColumns.customer && (
+                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                                            <div className="flex flex-col text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-semibold text-foreground/80">{order.customer_name}</span>
                                                     {order.is_leasing && (
-                                                        <span className="text-[10px] font-medium px-1.5 py-px rounded bg-primary/10 text-primary shrink-0">
+                                                        <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary shrink-0 uppercase tracking-wider">
                                                             Leasing
                                                         </span>
                                                     )}
+                                                </div>
+                                                <div className="flex items-center gap-1 mt-0.5">
                                                     {order.tags && order.tags.length > 0 && (
                                                         <div className="flex gap-1 shrink-0">
                                                             {order.tags.slice(0, 2).map(tagId => {
@@ -665,7 +440,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                                 return (
                                                                     <span
                                                                         key={tagId}
-                                                                        className="inline-flex rounded px-1.5 py-px text-[10px] font-medium text-white"
+                                                                        className="inline-flex rounded px-1.5 py-px text-[9px] font-bold text-white uppercase tracking-wider"
                                                                         style={{ backgroundColor: tagInfo.color }}
                                                                     >
                                                                         {tagInfo.name}
@@ -673,128 +448,141 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                                 )
                                                             })}
                                                             {order.tags.length > 2 && (
-                                                                <span className="text-[10px] text-muted-foreground">+{order.tags.length - 2}</span>
+                                                                <span className="text-[9px] text-muted-foreground font-medium">+{order.tags.length - 2}</span>
                                                             )}
                                                         </div>
                                                     )}
                                                 </div>
-                                            </td>
-                                        )}
+                                            </div>
+                                        </TableCell>
+                                    )}
 
-                                        {/* Bike */}
-                                        {visibleColumns.bike && (
-                                            <td className="px-3 py-2.5 hidden md:table-cell">
-                                                <span className="text-muted-foreground truncate block max-w-[180px]">
+                                    {/* Fahrrad */}
+                                    {visibleColumns.bike && (
+                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('bike'))}>
+                                            <div className="flex flex-col text-sm">
+                                                <span className="text-foreground/80 font-medium truncate max-w-[180px]">
                                                     {[order.bike_brand, order.bike_model].filter(Boolean).join(' ') || '—'}
                                                 </span>
-                                            </td>
-                                        )}
-
-                                        {/* Mechanic */}
-                                        {visibleColumns.mechanic && (
-                                            <td className="px-3 py-2.5 hidden lg:table-cell">
-                                                {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
-                                                    <div className="flex items-center gap-1">
-                                                        {order.mechanic_ids.slice(0, 2).map(mid => (
-                                                            <span key={mid} className="inline-flex items-center rounded-md bg-accent px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                                                                {getEmployeeName(mid)}
-                                                            </span>
-                                                        ))}
-                                                        {order.mechanic_ids.length > 2 && (
-                                                            <span className="text-[10px] text-muted-foreground">+{order.mechanic_ids.length - 2}</span>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-muted-foreground/40">—</span>
-                                                )}
-                                            </td>
-                                        )}
-
-                                        {/* Due date */}
-                                        {visibleColumns.due_date && (
-                                            <td className="px-3 py-2.5 hidden sm:table-cell">
-                                                {order.due_date ? (
-                                                    <span className={cn(
-                                                        "text-[12px] tabular-nums",
-                                                        new Date(order.due_date) < new Date() &&
-                                                        !['abgeholt', 'abgeschlossen'].includes(order.status)
-                                                            ? "text-[#de4c4a] font-medium"
-                                                            : "text-muted-foreground"
-                                                    )}>
-                                                        {new Date(order.due_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                                {order.bike_color && (
+                                                    <span className="text-[11px] text-muted-foreground leading-tight tracking-tight mt-0.5 truncate max-w-[180px]">
+                                                        {order.bike_color}
                                                     </span>
-                                                ) : (
-                                                    <span className="text-muted-foreground/40">—</span>
                                                 )}
-                                            </td>
-                                        )}
+                                            </div>
+                                        </TableCell>
+                                    )}
 
-                                        {/* Status badge */}
-                                        {visibleColumns.status && (
-                                            <td className="px-3 py-2.5">
+                                    {/* Mitarbeiter */}
+                                    {visibleColumns.mechanic && (
+                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
+                                            {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
+                                                <div className="flex items-center gap-1 flex-wrap">
+                                                    {order.mechanic_ids.slice(0, 2).map(mid => (
+                                                        <Badge key={mid} variant="outline" className="bg-background/40 hover:bg-background/60 shadow-xs border-border/40 text-[11px] font-medium py-0 px-2 h-5 transition-colors">
+                                                            {getEmployeeName(mid)}
+                                                        </Badge>
+                                                    ))}
+                                                    {order.mechanic_ids.length > 2 && (
+                                                        <span className="text-[10px] text-muted-foreground font-medium">+{order.mechanic_ids.length - 2}</span>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-[11px] text-muted-foreground/30 italic font-medium">—</span>
+                                            )}
+                                        </TableCell>
+                                    )}
+
+                                    {/* Fällig */}
+                                    {visibleColumns.due_date && (
+                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('due_date'))}>
+                                            {order.due_date ? (
                                                 <span className={cn(
-                                                    "inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-medium",
-                                                    STATUS_COLORS[order.status] || "bg-accent text-muted-foreground"
+                                                    "text-[11px] font-medium font-mono border border-border/20 px-1.5 py-0.5 rounded shadow-sm bg-muted/30",
+                                                    new Date(order.due_date) < new Date() &&
+                                                    !['abgeholt', 'abgeschlossen'].includes(order.status)
+                                                        ? "text-[#de4c4a] border-[#de4c4a]/20 bg-[#de4c4a]/5"
+                                                        : "text-muted-foreground"
                                                 )}>
-                                                    {STATUS_LABELS[order.status] || order.status.replace(/_/g, ' ')}
+                                                    {new Date(order.due_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                                 </span>
-                                            </td>
-                                        )}
+                                            ) : (
+                                                <span className="text-muted-foreground/40">—</span>
+                                            )}
+                                        </TableCell>
+                                    )}
 
-                                        {/* Created at */}
-                                        {visibleColumns.created_at && (
-                                            <td className="px-3 py-2.5 hidden xl:table-cell">
-                                                <span className="text-[12px] text-muted-foreground tabular-nums">
-                                                    {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                                                </span>
-                                            </td>
-                                        )}
+                                    {/* Status */}
+                                    {visibleColumns.status && (
+                                        <TableCell className="py-3.5 px-1 md:px-2 w-[100px] md:w-[110px]">
+                                            <Badge
+                                                variant="secondary"
+                                                className={cn(
+                                                    "font-medium border shadow-xs text-[9px] uppercase tracking-wider py-0 px-1.5 h-5 flex items-center justify-center max-w-full overflow-hidden",
+                                                    statusInfo.color
+                                                )}
+                                            >
+                                                <div className={cn("h-1 w-1 rounded-full mr-1.5 shadow-sm shrink-0", statusInfo.dotColor)} />
+                                                <span className="truncate">{statusInfo.label}</span>
+                                            </Badge>
+                                        </TableCell>
+                                    )}
 
-                                        {/* Actions */}
-                                        {visibleColumns.actions && (
-                                            <td className="px-3 py-2.5">
-                                                <div className="flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {effectiveMode === 'trash' ? (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-lg"
-                                                            onClick={(e) => { e.stopPropagation(); handleRestoreOrder(order.id) }}
-                                                            title="Wiederherstellen"
-                                                        >
-                                                            <Restore className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    ) : (
+                                    {/* Erstellt */}
+                                    {visibleColumns.created_at && (
+                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('created_at'))}>
+                                            <span className="text-[11px] text-muted-foreground font-mono">
+                                                {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                            </span>
+                                        </TableCell>
+                                    )}
+
+                                    {/* Aktionen */}
+                                    {visibleColumns.actions && (
+                                        <TableCell className="text-right pr-4 py-3.5 w-[80px]">
+                                            <div className="flex justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                                {effectiveMode === 'trash' ? (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
+                                                        onClick={(e) => { e.stopPropagation(); handleRestoreOrder(order.id) }}
+                                                        title="Wiederherstellen"
+                                                    >
+                                                        <Restore className="h-4 w-4" />
+                                                    </Button>
+                                                ) : (
+                                                    <>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                                 <Button
                                                                     variant="ghost"
-                                                                    size="icon"
-                                                                    className="h-7 w-7 text-muted-foreground hover:text-foreground rounded-lg"
-                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    size="sm"
+                                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
+                                                                    onClick={e => e.stopPropagation()}
                                                                 >
                                                                     <MoreHorizontal className="h-4 w-4" />
                                                                 </Button>
                                                             </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="w-52">
+                                                            <DropdownMenuContent align="end" className="w-56">
                                                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewOrder(order.id) }}>
-                                                                    <ExternalLink className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+                                                                    <ExternalLink className="mr-2 h-4 w-4 text-muted-foreground" />
                                                                     Öffnen
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
-                                                                <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">Zuweisen an</DropdownMenuLabel>
-                                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleAssignEmployee(order.id, null) }}>
-                                                                    <X className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                                                                    Keine Zuweisung
+                                                                <DropdownMenuLabel>Zuweisen an</DropdownMenuLabel>
+                                                                <DropdownMenuItem onClick={e => { e.stopPropagation(); handleAssignEmployee(order.id, null) }}>
+                                                                    <X className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                                    <span>Keine Zuweisung</span>
                                                                 </DropdownMenuItem>
                                                                 {employees.map(emp => (
                                                                     <DropdownMenuItem
                                                                         key={emp.id}
-                                                                        onClick={(e) => { e.stopPropagation(); handleAssignEmployee(order.id, emp.id) }}
+                                                                        onClick={e => { e.stopPropagation(); handleAssignEmployee(order.id, emp.id) }}
                                                                     >
-                                                                        <Users className="mr-2 h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                                                        <Users className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
                                                                         <span className="truncate flex-1">{emp.name}</span>
-                                                                        {order.mechanic_ids?.includes(emp.id) && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
+                                                                        {order.mechanic_ids?.includes(emp.id) && <Check className="ml-auto h-4 w-4 shrink-0" />}
                                                                     </DropdownMenuItem>
                                                                 ))}
                                                                 <DropdownMenuSeparator />
@@ -802,37 +590,304 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                                                     onClick={(e) => { e.stopPropagation(); setOrderToDelete(order.id) }}
                                                                     className="text-destructive focus:text-destructive"
                                                                 >
-                                                                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                                                                    <Trash2 className="mr-2 h-4 w-4 shrink-0" />
                                                                     Löschen
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        )}
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
 
-                    {/* Footer */}
-                    {filteredOrders.length > 0 && (
-                        <div className="border-t border-border bg-muted/20 px-4 py-2 flex items-center justify-between">
-                            <span className="text-[12px] text-muted-foreground">
-                                {filteredOrders.length} {filteredOrders.length === 1 ? 'Auftrag' : 'Aufträge'}
-                                {filteredOrders.length !== orders.length && (
-                                    <span> von {orders.length}</span>
-                                )}
-                            </span>
-                            <Button variant="ghost" size="sm" className="h-6 text-[11px] px-2 text-muted-foreground" onClick={() => mutate()}>
-                                {isLoading ? "Lädt…" : "Aktualisieren"}
-                            </Button>
-                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                                                            onClick={e => { e.stopPropagation(); handleViewOrder(order.id) }}
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                    )}
+                                </TableRow>
+                            )
+                        })
                     )}
-                </div>
-            </div>
+                </TableBody>
+            </Table>
+        </div>
+    )
+
+    return (
+        <>
+            <Card className="border-none shadow-sm bg-card/50">
+                <CardHeader className="pb-4">
+                    <div className="flex flex-col gap-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <CardTitle className="text-xl font-bold tracking-tight">
+                                {titleMap[effectiveMode] || "Aufträge"}
+                            </CardTitle>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                                {/* Filter Toggle */}
+                                <Popover open={showFilters} onOpenChange={setShowFilters}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="gap-2 bg-background"
+                                        >
+                                            <SlidersHorizontal className="h-4 w-4" />
+                                            Filter
+                                            {activeFilterCount > 0 && (
+                                                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                                                    {activeFilterCount}
+                                                </Badge>
+                                            )}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-80" align="end">
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-sm font-semibold">Filter & Optionen</p>
+                                                {activeFilterCount > 0 && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 text-xs"
+                                                        onClick={() => {
+                                                            setFilterEmployee('all')
+                                                            setDateRange(undefined)
+                                                            setFilterTags([])
+                                                            setSortField('none')
+                                                            setSortDir('desc')
+                                                            if (effectiveMode === 'active') setFilterStatus('all')
+                                                        }}
+                                                    >
+                                                        Alle zurücksetzen
+                                                    </Button>
+                                                )}
+                                            </div>
+
+                                            {/* Sortierung */}
+                                            <div className="space-y-2">
+                                                <label className="text-xs text-muted-foreground">Sortierung</label>
+                                                <div className="flex items-center gap-2">
+                                                    <Select value={sortField} onValueChange={(v: any) => setSortField(v)}>
+                                                        <SelectTrigger className="h-9 flex-1">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="none">Standard</SelectItem>
+                                                            <SelectItem value="customer_name">Kunde (A-Z)</SelectItem>
+                                                            <SelectItem value="created_at">Erstellt am</SelectItem>
+                                                            <SelectItem value="due_date">Fällig am</SelectItem>
+                                                            <SelectItem value="status">Status</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <Select value={sortDir} onValueChange={(v: "asc" | "desc") => setSortDir(v)} disabled={sortField === "none"}>
+                                                        <SelectTrigger className="h-9 w-[110px]">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="desc">Absteigend</SelectItem>
+                                                            <SelectItem value="asc">Aufsteigend</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+
+                                            {/* Employee Filter */}
+                                            <div className="space-y-2">
+                                                <label className="text-xs text-muted-foreground">Mitarbeiter</label>
+                                                <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                                                    <SelectTrigger className="h-9">
+                                                        <SelectValue placeholder="Alle Mitarbeiter" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="all">Alle Mitarbeiter</SelectItem>
+                                                        <SelectItem value="unassigned">Nicht zugewiesen</SelectItem>
+                                                        {employees.map(emp => (
+                                                            <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+
+                                            {/* Date Range Filter */}
+                                            <div className="space-y-2">
+                                                <label className="text-xs text-muted-foreground">Zeitraum</label>
+                                                <div className="flex gap-2">
+                                                    <Select value={dateFilterType} onValueChange={(v: "created" | "due") => setDateFilterType(v)}>
+                                                        <SelectTrigger className="h-9 flex-1">
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="created">Eingang</SelectItem>
+                                                            <SelectItem value="due">Fällig</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <DateRangePicker date={dateRange} setDate={setDateRange} className="flex-1" />
+                                                </div>
+                                            </div>
+
+                                            {/* Tags Filter */}
+                                            {workshopTags.length > 0 && (
+                                                <div className="space-y-2">
+                                                    <label className="text-xs text-muted-foreground">Tags</label>
+                                                    <div className="flex flex-wrap gap-1.5 p-1">
+                                                        {workshopTags.map((tag: any) => {
+                                                            const isSelected = filterTags.includes(tag.id)
+                                                            return (
+                                                                <button
+                                                                    key={tag.id}
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault()
+                                                                        setFilterTags(prev =>
+                                                                            prev.includes(tag.id)
+                                                                                ? prev.filter(id => id !== tag.id)
+                                                                                : [...prev, tag.id]
+                                                                        )
+                                                                    }}
+                                                                    className={cn(
+                                                                        "inline-flex items-center rounded px-2 py-1 text-[10px] font-bold uppercase tracking-wider transition-all",
+                                                                        isSelected ? "shadow-sm ring-1 ring-offset-1 ring-offset-background" : "opacity-50 hover:opacity-100"
+                                                                    )}
+                                                                    style={{ 
+                                                                        backgroundColor: tag.color, 
+                                                                        color: '#fff',
+                                                                        borderColor: tag.color 
+                                                                    }}
+                                                                >
+                                                                    {tag.name}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Refresh Button */}
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => { mutate(); setShowFilters(false); }}
+                                                disabled={isLoading}
+                                                className="w-full justify-start mt-2"
+                                            >
+                                                <Search className="mr-2 h-4 w-4" />
+                                                {isLoading ? "Lädt..." : "Aktualisieren"}
+                                            </Button>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+
+                                {/* Column Visibility Toggle */}
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="gap-2 bg-background"
+                                        >
+                                            <Settings2 className="h-4 w-4" />
+                                            Ansicht
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-56">
+                                        <DropdownMenuLabel>Sichtbare Spalten</DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        {AVAILABLE_COLUMNS.map(col => (
+                                            <DropdownMenuCheckboxItem
+                                                key={col.id}
+                                                checked={visibleColumns[col.id]}
+                                                onCheckedChange={() => toggleColumn(col.id)}
+                                                onSelect={(e) => e.preventDefault()}
+                                            >
+                                                {col.label}
+                                            </DropdownMenuCheckboxItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                {hasActiveFilters && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-9 px-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                                        onClick={() => {
+                                            setSearchTerm("")
+                                            setFilterEmployee("all")
+                                            setDateRange(undefined)
+                                            setFilterTags([])
+                                            setSortField("none")
+                                            setSortDir("desc")
+                                            if (effectiveMode === 'active') setFilterStatus('all')
+                                        }}
+                                    >
+                                        <X className="h-3.5 w-3.5 mr-1" />
+                                        Reset
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Search Bar */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Suche nach Kunde, Nr., Modell, Marke oder Tag..."
+                                className="pl-10 bg-background"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {/* Status Tabs */}
+                    {effectiveMode === 'active' ? (
+                        <Tabs defaultValue="all" value={filterStatus} onValueChange={setFilterStatus} className="space-y-6">
+                            <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1 border-b-0 gap-6">
+                                {STATUS_TABS.map(tab => {
+                                    const count = statusCounts[tab.value as keyof typeof statusCounts] ?? 0
+                                    
+                                    // Make counts colorful based on status like Neurad Aufbau
+                                    let badgeClass = "bg-muted-foreground/10 text-muted-foreground"
+                                    if (count > 0) {
+                                        if (tab.value === 'eingegangen') badgeClass = "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                        else if (tab.value === 'warten_auf_teile') badgeClass = "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                                        else if (tab.value === 'in_bearbeitung') badgeClass = "bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                                        else if (tab.value === 'kontrolle_offen') badgeClass = "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
+                                        else if (tab.value === 'abholbereit') badgeClass = "bg-green-500/10 text-green-600 dark:text-green-400"
+                                    }
+
+                                    return (
+                                        <TabsTrigger key={tab.value} value={tab.value} className="whitespace-nowrap gap-2 pb-2">
+                                            {tab.label}
+                                            {count > 0 ? (
+                                                <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-bold", badgeClass)}>
+                                                    {count}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] bg-muted-foreground/10 text-muted-foreground px-1.5 py-0.5 rounded-full font-bold">
+                                                    0
+                                                </span>
+                                            )}
+                                        </TabsTrigger>
+                                    )
+                                })}
+                            </TabsList>
+
+                            <TabsContent value={filterStatus} className="mt-0">
+                                {renderTable(filteredOrders)}
+                            </TabsContent>
+                        </Tabs>
+                    ) : (
+                        renderTable(filteredOrders)
+                    )}
+                </CardContent>
+            </Card>
 
             <AlertDialog open={!!orderToDelete} onOpenChange={(open) => !open && setOrderToDelete(null)}>
                 <AlertDialogContent>

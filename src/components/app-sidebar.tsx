@@ -11,7 +11,7 @@ import {
     ListTodo,
     ChevronDown,
     HelpCircle,
-    PanelLeftClose,
+    PanelLeft,
     Plus,
 } from "lucide-react"
 import {
@@ -186,10 +186,14 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        {/* Top Row: Bell + Toggle (right aligned) */}
+                        {/* Top Row: Toggle (right aligned) */}
                         <div className="flex items-center shrink-0">
-                            <button onClick={toggleSidebar} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors">
-                                <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.5} />
+                            <button 
+                                onClick={toggleSidebar} 
+                                className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors"
+                                title="Menü ein/ausklappen"
+                            >
+                                <PanelLeft className="h-[20px] w-[20px]" strokeWidth={1.5} />
                             </button>
                         </div>
                     </div>

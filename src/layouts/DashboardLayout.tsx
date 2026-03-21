@@ -10,8 +10,8 @@ function DashboardInner({ children, fullWidth }: { children: React.ReactNode, fu
         <SidebarInset className={cn("min-w-0 bg-background relative", fullWidth && "h-svh overflow-hidden")}>
             {/* Floating trigger on desktop when sidebar is closed */}
             {isCollapsed && (
-                <div className="hidden md:flex absolute top-[14px] left-4 z-50">
-                    <SidebarTrigger className="h-7 w-7 !p-0 shadow-sm border border-border bg-background hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors" />
+                <div className="hidden md:flex absolute top-[21px] left-4 z-50">
+                    <SidebarTrigger className="h-8 w-8 !p-0 shadow-sm border border-border bg-background hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors" />
                 </div>
             )}
             
