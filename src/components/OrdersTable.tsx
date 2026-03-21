@@ -333,12 +333,12 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                 <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-border/30">
                         {visibleColumns.order_number && (
-                            <TableHead className="w-[90px] md:w-[130px] pl-4 md:pl-5 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold">
+                            <TableHead className="w-[80px] md:w-[100px] pl-4 md:pl-5 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold text-left">
                                 Nr.
                             </TableHead>
                         )}
                         {visibleColumns.customer && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold min-w-[280px]", getResponsiveClass('customer'))}>
                                 Kunde
                             </TableHead>
                         )}
@@ -348,7 +348,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                             </TableHead>
                         )}
                         {visibleColumns.mechanic && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold min-w-[120px]", getResponsiveClass('mechanic'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold w-[110px]", getResponsiveClass('mechanic'))}>
                                 Mitarbeiter
                             </TableHead>
                         )}
@@ -358,12 +358,12 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                             </TableHead>
                         )}
                         {visibleColumns.status && (
-                            <TableHead className="px-3 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold w-[130px] md:w-[140px] min-w-[130px]">
+                            <TableHead className="px-3 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold w-[135px] min-w-[135px]">
                                 Status
                             </TableHead>
                         )}
                         {visibleColumns.created_at && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold w-[90px]", getResponsiveClass('created_at'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold w-[85px]", getResponsiveClass('created_at'))}>
                                 Erstellt
                             </TableHead>
                         )}
@@ -396,7 +396,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 >
                                     {/* Nr. */}
                                     {visibleColumns.order_number && (
-                                        <TableCell className="w-[90px] md:w-[130px] pl-4 md:pl-5 py-3">
+                                        <TableCell className="w-[80px] md:w-[100px] pl-4 md:pl-5 py-3">
                                             <span className="font-mono text-[11px] font-semibold text-muted-foreground/70 tracking-tight">
                                                 {order.order_number}
                                             </span>
@@ -405,7 +405,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Kunde */}
                                     {visibleColumns.customer && (
-                                        <TableCell className={cn("hidden py-3 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4 min-w-[280px]", getResponsiveClass('customer'))}>
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-medium text-foreground truncate">{order.customer_name}</span>
@@ -443,11 +443,11 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     {visibleColumns.bike && (
                                         <TableCell className={cn("hidden py-3 px-3 md:px-4", getResponsiveClass('bike'))}>
                                             <div className="flex flex-col gap-0.5">
-                                                <span className="text-sm text-foreground/80 font-medium truncate max-w-[180px]">
+                                                <span className="text-sm text-foreground/80 font-medium truncate">
                                                     {[order.bike_brand, order.bike_model].filter(Boolean).join(' ') || <span className="text-muted-foreground/30">—</span>}
                                                 </span>
                                                 {order.bike_color && (
-                                                    <span className="text-[11px] text-muted-foreground/60 leading-tight truncate max-w-[180px]">
+                                                    <span className="text-[11px] text-muted-foreground/60 leading-tight truncate">
                                                         {order.bike_color}
                                                     </span>
                                                 )}
@@ -457,7 +457,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Mitarbeiter */}
                                     {visibleColumns.mechanic && (
-                                        <TableCell className={cn("hidden py-3 px-3 md:px-4", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4 w-[110px]", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
                                             {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
                                                 <div className="flex items-center gap-1">
                                                     {order.mechanic_ids.slice(0, 3).map(mid => {
@@ -504,7 +504,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Status */}
                                     {visibleColumns.status && (
-                                        <TableCell className="py-3 px-3 w-[130px] md:w-[140px]">
+                                        <TableCell className="py-3 px-3 w-[135px]">
                                             <span
                                                 className={cn(
                                                     "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap",
@@ -519,7 +519,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Erstellt */}
                                     {visibleColumns.created_at && (
-                                        <TableCell className={cn("hidden py-3 px-3 md:px-4", getResponsiveClass('created_at'))}>
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4 w-[85px]", getResponsiveClass('created_at'))}>
                                             <span className="text-[11px] text-muted-foreground/60 font-mono">
                                                 {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                             </span>
