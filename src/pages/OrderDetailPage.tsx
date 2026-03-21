@@ -38,7 +38,6 @@ import {
     Mail,
     Phone,
     Euro,
-    Clock,
     PackageCheck,
     Check,
     AlertCircle,
@@ -283,42 +282,44 @@ export default function OrderDetailPage() {
                 <div className="space-y-6 pb-8">
 
                     {/* ── Hero Header ─────────────────────────────────────────── */}
-                    <div className="rounded-lg border border-border bg-card">
-                        <div className="px-6 py-5">
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-primary/3 border border-primary/10 p-5">
+                        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+
+                        <div className="relative">
                             {/* ── Row 1: Navigation ── */}
-                            <div className="mb-4">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="gap-1.5 text-muted-foreground hover:text-foreground -ml-1 h-8"
-                                    onClick={() => navigate(returnPath)}
-                                >
-                                    <ArrowLeft className="h-3.5 w-3.5" />
-                                    Zurück
-                                </Button>
-                            </div>
+                            <Button
+                                variant="ghost"
+                                className="pl-0 gap-2 text-muted-foreground hover:text-foreground mb-3 h-8 text-sm"
+                                onClick={() => navigate(returnPath)}
+                            >
+                                <ArrowLeft className="h-3.5 w-3.5" />
+                                Zurück
+                            </Button>
 
                             {/* ── Row 2: Identity + Due Date ── */}
-                            <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-3">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                 {/* Left: order number, type badge, tags */}
                                 <div className="flex-1 min-w-0">
                                     {/* Order number + copy + type badge */}
-                                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                                        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                                        <h1 className="text-2xl font-bold tracking-tight text-foreground">
                                             {order.order_number}
                                         </h1>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon-sm"
-                                            className="text-muted-foreground hover:text-foreground hover:ring-1 hover:ring-border transition-all duration-200"
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(order.order_number)
-                                                toastSuccess('Kopiert', 'Auftragsnummer wurde kopiert.')
-                                            }}
-                                            title="Auftragsnummer kopieren"
-                                        >
-                                            <Copy className="h-3.5 w-3.5" />
-                                        </Button>
+                                        <span className="font-mono text-sm px-2.5 py-1 rounded-lg bg-muted/60 border border-border/50 text-muted-foreground flex items-center gap-1.5">
+                                            {order.bike_model || 'Fahrrad'}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-sm"
+                                                className="h-5 w-5 text-muted-foreground hover:text-foreground"
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(order.order_number)
+                                                    toastSuccess('Kopiert', 'Auftragsnummer wurde kopiert.')
+                                                }}
+                                                title="Auftragsnummer kopieren"
+                                            >
+                                                <Copy className="h-3 w-3" />
+                                            </Button>
+                                        </span>
                                         <Popover>
                                             <PopoverTrigger asChild>
                                                 <button
@@ -460,101 +461,99 @@ export default function OrderDetailPage() {
                                             </Popover>
                                         )}
                                     </div>
-                                </div>
 
-                                {/* Right: Due Date */}
-                                <div className="shrink-0">
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className={cn(
-                                                    "h-8 gap-2 text-xs font-normal",
-                                                    !order.due_date && "text-muted-foreground border-dashed",
-                                                    order.due_date && new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' && "text-red-600 border-red-200 bg-red-50 hover:bg-red-100 hover:text-red-700 dark:bg-red-950/20 dark:border-red-900/40"
-                                                )}
-                                            >
-                                                <CalendarIcon className="h-3.5 w-3.5" />
-                                                {order.due_date ? format(new Date(order.due_date), "PPP", { locale: de }) : "Termin setzen"}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-0" align="end">
-                                            <Calendar
-                                                mode="single"
-                                                selected={order.due_date ? new Date(order.due_date) : undefined}
-                                                onSelect={handleSaveDueDate}
-                                                initialFocus
-                                                locale={de}
-                                            />
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-                            </div>
-
-                            {/* ── Row 3: Metadata ── */}
-                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-5">
-                                <span className="flex items-center gap-1.5">
-                                    <Clock className="h-3.5 w-3.5" />
-                                    Erstellt {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
-                                </span>
-                                <span className="text-border">·</span>
-                                <span className="flex items-center gap-1.5">
-                                    <Bike className="h-3.5 w-3.5" />
-                                    {order.bike_model || 'Fahrrad'}
-                                    {order.bike_type && <span className="text-xs">({BIKE_TYPE_LABELS[order.bike_type] || order.bike_type})</span>}
-                                </span>
-                                <span className="text-border">·</span>
-                                <span className="flex items-center gap-1.5">
-                                    <User className="h-3.5 w-3.5" />
-                                    {order.customer_name}
-                                </span>
-                            </div>
-
-                            {/* ── Row 4: Action Bar ── */}
-                            {!isReadOnly && (
-                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-5">
-                                    {/* Primary Actions */}
-                                    <div className="flex flex-1 gap-2">
-                                        <Button
-                                            size="lg"
-                                            onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
-                                            className="flex-1 h-10 gap-2 text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg transition-colors"
+                                    {/* Status + Metadata */}
+                                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                                        <Badge
+                                            variant="secondary"
+                                            className={cn("border text-xs font-normal", (() => {
+                                                const statusColors: Record<string, string> = {
+                                                    eingegangen: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+                                                    warten_auf_teile: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+                                                    in_bearbeitung: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+                                                    kontrolle_offen: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+                                                    abholbereit: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+                                                    abgeholt: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
+                                                    abgeschlossen: 'bg-neutral-400/10 text-neutral-500 border-neutral-400/20',
+                                                }
+                                                return statusColors[order.status] || 'bg-muted text-muted-foreground border-border/60'
+                                            })())}
                                         >
-                                            <Wrench className="h-4 w-4" />
+                                            <div className={cn("h-1.5 w-1.5 rounded-full mr-1.5", STATUS_DOT_COLORS[order.status] || 'bg-muted-foreground')} />
+                                            {STATUS_FLOW.find(s => s.value === order.status)?.label
+                                                || (order.status === 'abgeholt' ? 'Abgeholt' : order.status === 'abgeschlossen' ? 'Abgeschlossen' : order.status)}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                            <User className="h-3 w-3" />
+                                            {order.customer_name}
+                                        </span>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <button
+                                                    className={cn(
+                                                        "text-xs text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors",
+                                                        order.due_date && new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' && "text-red-500"
+                                                    )}
+                                                >
+                                                    <CalendarIcon className="h-3 w-3" />
+                                                    {order.due_date ? format(new Date(order.due_date), "PPP", { locale: de }) : "Termin setzen"}
+                                                </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={order.due_date ? new Date(order.due_date) : undefined}
+                                                    onSelect={handleSaveDueDate}
+                                                    initialFocus
+                                                    locale={de}
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+                                        <span className="text-xs text-muted-foreground">
+                                            Erstellt am {new Date(order.created_at).toLocaleDateString('de-DE')}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                {!isReadOnly && (
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <Button
+                                            onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
+                                            className="bg-primary text-primary-foreground shadow-sm hover:shadow-primary/20"
+                                        >
+                                            <Wrench className="mr-2 h-4 w-4" />
                                             {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
                                                 ? "Weiterarbeiten"
                                                 : "Arbeitsmodus"}
                                         </Button>
                                         <Button
-                                            size="lg"
-                                            variant="outline"
                                             onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
-                                            className="flex-1 h-10 gap-2 text-sm font-semibold bg-[#4ab06c]/10 text-[#4ab06c] border-[#4ab06c]/20 hover:bg-[#4ab06c]/15 rounded-lg transition-colors"
+                                            variant="outline"
+                                            className="border-green-500/30 text-green-600 hover:bg-green-500/10"
                                         >
-                                            <ShieldCheck className="h-4 w-4" />
+                                            <ShieldCheck className="mr-2 h-4 w-4" />
                                             Kontrolle
                                         </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-muted-foreground hover:text-foreground"
+                                            onClick={() => {
+                                                const url = `${window.location.origin}/status/${order.id}`
+                                                navigator.clipboard.writeText(url)
+                                                toastSuccess('Link kopiert', 'Der Status-Link wurde in die Zwischenablage kopiert.')
+                                            }}
+                                            title="Status-Link kopieren"
+                                        >
+                                            <Copy className="h-4 w-4" />
+                                        </Button>
                                     </div>
-                                    {/* Secondary Actions */}
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-10 gap-1.5 text-xs rounded-lg sm:shrink-0"
-                                        onClick={() => {
-                                            const url = `${window.location.origin}/status/${order.id}`
-                                            navigator.clipboard.writeText(url)
-                                            toastSuccess('Link kopiert', 'Der Status-Link wurde in die Zwischenablage kopiert.')
-                                        }}
-                                    >
-                                        <Copy className="h-3.5 w-3.5" />
-                                        <span>Status-Link</span>
-                                    </Button>
-                                </div>
-                            )}
+                                )}
+                            </div>
 
                             {/* ── Row 5: Status Progress Timeline ── */}
-                            <div className="pt-5 border-t border-border/40">
+                            <div className="pt-5 mt-5 border-t border-primary/10">
                                 <div className="flex items-center gap-0">
                                     {STATUS_FLOW.map((step, idx) => {
                                         const stepIdx = STATUS_FLOW.findIndex(s => s.value === order.status)
@@ -652,6 +651,49 @@ export default function OrderDetailPage() {
                         </div>
                     </div>
 
+
+                    {/* ── Quick Info Cards ─────────────────────────────────── */}
+                    <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                        {/* Kundenwunsch Preview */}
+                        <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-1.5 rounded-lg bg-primary/10">
+                                        <AlertCircle className="h-3.5 w-3.5 text-primary" />
+                                    </div>
+                                    <span className="text-sm font-medium">Kundenwunsch</span>
+                                </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                                {customerNote || <span className="italic">Keine Beschreibung vorhanden.</span>}
+                            </p>
+                        </div>
+
+                        {/* Checklisten-Fortschritt */}
+                        <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm p-4">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-1.5 rounded-lg bg-primary/10">
+                                        <Wrench className="h-3.5 w-3.5 text-primary" />
+                                    </div>
+                                    <span className="text-sm font-medium">Checkliste</span>
+                                </div>
+                                <span className="text-xs font-mono text-muted-foreground">
+                                    {order.checklist ? `${order.checklist.filter((i: any) => i.completed).length}/${order.checklist.length}` : '0/0'} erledigt
+                                </span>
+                            </div>
+                            <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-primary rounded-full transition-all duration-500"
+                                    style={{
+                                        width: `${order.checklist && order.checklist.length > 0
+                                            ? Math.round((order.checklist.filter((i: any) => i.completed).length / order.checklist.length) * 100)
+                                            : 0}%`
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
 
                     {/* ── 2 Column Grid ──────────────────────────────────────── */}
                     <div className="grid gap-5 grid-cols-1 lg:grid-cols-5">

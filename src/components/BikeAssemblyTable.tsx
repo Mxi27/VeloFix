@@ -14,9 +14,8 @@ import {
 } from "@/components/ui/table"
 
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { Search, Eye, UserPlus, Users, X, Check, Zap, SlidersHorizontal, Settings2 } from "lucide-react"
+import { Search, Eye, Users, X, Check, Zap, SlidersHorizontal, Settings2, MoreHorizontal } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
@@ -240,39 +239,37 @@ export function BikeAssemblyTable() {
                 <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-border/30">
                         {visibleColumns.internal_number && (
-                            <TableHead className="w-[50px] md:w-[140px] pl-3 md:pl-5 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">
+                            <TableHead className="w-[80px] md:w-[120px] pl-4 md:pl-5 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold">
                                 Nr. / Modell
                             </TableHead>
                         )}
                         {visibleColumns.color_size && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[100px]", getResponsiveClass('color_size'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold min-w-[120px]", getResponsiveClass('color_size'))}>
                                 Farbe / Größe
                             </TableHead>
                         )}
                         {visibleColumns.customer && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold min-w-[220px]", getResponsiveClass('customer'))}>
                                 Kunde
                             </TableHead>
                         )}
                         {visibleColumns.mechanic && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[120px]", getResponsiveClass('mechanic'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold w-[110px]", getResponsiveClass('mechanic'))}>
                                 Monteur
                             </TableHead>
                         )}
                         {visibleColumns.progress && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[100px]", getResponsiveClass('progress'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold min-w-[100px]", getResponsiveClass('progress'))}>
                                 Fortschritt
                             </TableHead>
                         )}
                         {visibleColumns.status && (
-                            <TableHead className="px-2 md:px-3 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[90px] md:w-[100px] min-w-[90px]">
+                            <TableHead className="px-3 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold w-[135px] min-w-[135px]">
                                 Status
                             </TableHead>
                         )}
                         {visibleColumns.actions && (
-                            <TableHead className="text-right pr-3 md:pr-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[75px] md:w-[85px] min-w-[75px]">
-                                Aktion
-                            </TableHead>
+                            <TableHead className="w-[52px] min-w-[52px]" />
                         )}
                     </TableRow>
                 </TableHeader>
@@ -294,15 +291,15 @@ export function BikeAssemblyTable() {
                             return (
                                 <TableRow
                                     key={build.id}
-                                    className="group hover:bg-muted/25 cursor-pointer transition-colors border-b border-border/25 last:border-0"
+                                    className="group hover:bg-accent/40 cursor-pointer transition-colors duration-100 border-b border-border/20 last:border-0"
                                     onClick={() => handleViewBuild(build.id)}
                                 >
                                     {/* Nr / Modell */}
                                     {visibleColumns.internal_number && (
-                                        <TableCell className="w-[50px] md:w-[140px] pl-3 md:pl-5 py-2.5">
+                                        <TableCell className="w-[80px] md:w-[120px] pl-4 md:pl-5 py-3">
                                             <div className="flex flex-col min-w-0">
                                                 <div className="flex items-center gap-1.5 overflow-hidden">
-                                                    <span className="font-mono text-[10px] font-bold text-primary/80 bg-primary/5 px-1 py-0.5 rounded truncate shrink">
+                                                    <span className="font-mono text-[10px] font-bold text-primary/80 bg-primary/8 px-1 py-0.5 rounded truncate">
                                                         {build.internal_number || '—'}
                                                     </span>
                                                     {build.is_ebike && (
@@ -318,7 +315,7 @@ export function BikeAssemblyTable() {
 
                                     {/* Farbe/Größe */}
                                     {visibleColumns.color_size && (
-                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('color_size'))}>
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4", getResponsiveClass('color_size'))}>
                                             <div className="flex flex-col text-sm">
                                                 <span className="text-foreground/80 font-medium">{build.color || '—'}</span>
                                                 <span className="text-[11px] text-muted-foreground leading-tight tracking-tight uppercase font-medium">{build.frame_size || ''}</span>
@@ -328,44 +325,51 @@ export function BikeAssemblyTable() {
 
                                     {/* Kunde */}
                                     {visibleColumns.customer && (
-                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4 min-w-[220px]", getResponsiveClass('customer'))}>
                                             <div className="flex flex-col text-sm">
                                                 <span className="font-semibold text-foreground/80">{build.customer_name || <span className="text-muted-foreground/60 italic font-medium text-xs">Lager</span>}</span>
-                                                <span className="text-[11px] text-muted-foreground/60 truncate max-w-[140px] font-medium leading-none mt-0.5 customer-email">{build.customer_email}</span>
+                                                <span className="text-[11px] text-muted-foreground/60 truncate max-w-[220px] font-medium leading-none mt-0.5">{build.customer_email}</span>
                                             </div>
                                         </TableCell>
                                     )}
 
                                     {/* Monteur */}
                                     {visibleColumns.mechanic && (
-                                        <TableCell className={cn("hidden py-2.5 px-2 md:px-4", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
-                                            {build.assigned_employee_id ? (
-                                                <Badge variant="outline" className="bg-background/40 hover:bg-background/60 shadow-xs border-border/40 text-[11px] font-medium py-0 px-2 h-5 transition-colors">
-                                                    {getEmployeeName(build.assigned_employee_id)}
-                                                </Badge>
-                                            ) : (
-                                                <span className="text-[11px] text-muted-foreground/30 italic font-medium">—</span>
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4 w-[110px]", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
+                                            {build.assigned_employee_id ? (() => {
+                                                const name = getEmployeeName(build.assigned_employee_id)
+                                                const initials = name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'
+                                                return (
+                                                    <span
+                                                        title={name || undefined}
+                                                        className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground border border-border/50 shrink-0"
+                                                    >
+                                                        {initials}
+                                                    </span>
+                                                )
+                                            })() : (
+                                                <span className="text-[12px] text-muted-foreground/25">—</span>
                                             )}
                                         </TableCell>
                                     )}
 
                                     {/* Fortschritt */}
                                     {visibleColumns.progress && (
-                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('progress'))}>
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4", getResponsiveClass('progress'))}>
                                             {progress.total > 0 ? (
                                                 <div className="flex items-center gap-2.5 min-w-[90px]">
-                                                    <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden shadow-inner border border-border/5">
+                                                    <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden border border-border/5">
                                                         <motion.div
                                                             initial={{ width: 0 }}
                                                             animate={{ width: `${progress.pct}%` }}
                                                             transition={{ duration: 0.8, ease: "easeOut" }}
                                                             className={cn(
-                                                                "h-full rounded-full shadow-sm",
+                                                                "h-full rounded-full",
                                                                 progress.pct === 100 ? "bg-emerald-500" : "bg-primary"
                                                             )}
                                                         />
                                                     </div>
-                                                    <span className="text-[10px] text-muted-foreground font-bold font-mono whitespace-nowrap bg-muted/40 px-1 py-0.5 rounded border border-border/20">
+                                                    <span className="text-[10px] text-muted-foreground font-bold font-mono whitespace-nowrap bg-muted/40 px-1 py-0.5 rounded border border-border/20 leading-none">
                                                         {progress.pct}%
                                                     </span>
                                                 </div>
@@ -377,55 +381,48 @@ export function BikeAssemblyTable() {
 
                                     {/* Status */}
                                     {visibleColumns.status && (
-                                        <TableCell className="py-2.5 px-1 md:px-2 w-[85px] md:w-[100px]">
+                                        <TableCell className="py-3 px-3 w-[135px]">
                                             <StatusBadge status={build.status} variant="neurad" />
                                         </TableCell>
                                     )}
 
                                     {/* Aktionen */}
                                     {visibleColumns.actions && (
-                                        <TableCell className="text-right pr-4 py-2.5 w-[80px]">
-                                            <div className="flex justify-end gap-1">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
-                                                            onClick={e => e.stopPropagation()}
+                                        <TableCell className="text-right pr-3 py-3 w-[52px]">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground rounded-md transition-all"
+                                                        onClick={e => e.stopPropagation()}
+                                                    >
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-56">
+                                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewBuild(build.id) }}>
+                                                        <Eye className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                        Öffnen
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuLabel>Zuweisen an</DropdownMenuLabel>
+                                                    <DropdownMenuItem onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, null) }}>
+                                                        <X className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                        <span>Keine Zuweisung</span>
+                                                    </DropdownMenuItem>
+                                                    {employees.map(emp => (
+                                                        <DropdownMenuItem
+                                                            key={emp.id}
+                                                            onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, emp.id) }}
                                                         >
-                                                            <UserPlus className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-56">
-                                                        <DropdownMenuLabel>Mitarbeiter zuweisen</DropdownMenuLabel>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, null) }}>
-                                                            <X className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                            <span>Keine Zuweisung</span>
+                                                            <Users className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                                                            <span className="truncate flex-1">{emp.name}</span>
+                                                            {build.assigned_employee_id === emp.id && <Check className="ml-auto h-4 w-4 shrink-0" />}
                                                         </DropdownMenuItem>
-                                                        {employees.map(emp => (
-                                                            <DropdownMenuItem
-                                                                key={emp.id}
-                                                                onClick={e => { e.stopPropagation(); handleAssignEmployee(build.id, emp.id) }}
-                                                            >
-                                                                <Users className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
-                                                                <span className="truncate flex-1">{emp.name}</span>
-                                                                {build.assigned_employee_id === emp.id && <Check className="ml-auto h-4 w-4 shrink-0" />}
-                                                            </DropdownMenuItem>
-                                                        ))}
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                                                    onClick={e => { e.stopPropagation(); handleViewBuild(build.id) }}
-                                                >
-                                                    <Eye className="h-4 w-4" />
-                                                </Button>
-                                            </div>
+                                                    ))}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     )}
                                 </TableRow>
@@ -441,23 +438,23 @@ export function BikeAssemblyTable() {
         <div className="space-y-3">
             {/* ── Toolbar ── */}
             <div className="flex items-center gap-2">
-                {/* Combined search + filter pill */}
-                <div className="flex flex-1 items-center gap-1 min-w-0 rounded-lg border border-border/50 bg-background px-2.5 py-1 focus-within:border-border transition-colors">
-                    <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                {/* Search */}
+                <div className="flex flex-1 items-center gap-2 min-w-0 rounded-lg border border-border/40 bg-muted/20 px-3 py-1.5 focus-within:border-border/80 focus-within:bg-background transition-all">
+                    <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
                     <input
                         placeholder="Suche nach Modell, Marke, Nummer..."
-                        className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50 py-0.5"
+                        className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/40"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                     />
                     {searchTerm && (
-                        <button onClick={() => setSearchTerm('')} className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+                        <button onClick={() => setSearchTerm('')} className="shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
                             <X className="h-3.5 w-3.5" />
                         </button>
                     )}
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/30 bg-muted/10 px-1 py-0.5">
                             {/* Filter Toggle */}
                             <Popover open={showFilters} onOpenChange={setShowFilters}>
                                 <PopoverTrigger asChild>
@@ -603,45 +600,50 @@ export function BikeAssemblyTable() {
                 {/* Status Tabs — matches OrdersTable */}
                 <Tabs defaultValue="all" className="space-y-4" onValueChange={setFilterStatus}>
                     <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-0 border-b-0 gap-4">
-                        <TabsTrigger value="all" className="whitespace-nowrap gap-1.5 pb-2 text-sm">
+                        <TabsTrigger value="all" className="whitespace-nowrap items-center gap-2 pb-2.5 text-sm">
                             Alle
-                            {statusCounts.all > 0 && (
-                                <span className="text-[10px] bg-muted-foreground/10 text-muted-foreground px-1.5 py-0.5 rounded-full font-bold">
-                                    {statusCounts.all}
-                                </span>
-                            )}
+                            <span className={cn(
+                                "text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center tabular-nums leading-none",
+                                statusCounts.all > 0 ? "bg-foreground/8 text-foreground/60" : "bg-muted/60 text-muted-foreground/60"
+                            )}>
+                                {statusCounts.all}
+                            </span>
                         </TabsTrigger>
-                        <TabsTrigger value="offen" className="whitespace-nowrap gap-1.5 pb-2 text-sm">
+                        <TabsTrigger value="offen" className="whitespace-nowrap items-center gap-2 pb-2.5 text-sm">
                             Offen
-                            {statusCounts.offen > 0 && (
-                                <span className="text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded-full font-bold">
-                                    {statusCounts.offen}
-                                </span>
-                            )}
+                            <span className={cn(
+                                "text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center tabular-nums leading-none",
+                                statusCounts.offen > 0 ? "bg-rose-500/12 text-rose-500" : "bg-muted/60 text-muted-foreground/60"
+                            )}>
+                                {statusCounts.offen}
+                            </span>
                         </TabsTrigger>
-                        <TabsTrigger value="in_progress" className="whitespace-nowrap gap-1.5 pb-2 text-sm">
+                        <TabsTrigger value="in_progress" className="whitespace-nowrap items-center gap-2 pb-2.5 text-sm">
                             In Montage
-                            {statusCounts.in_progress > 0 && (
-                                <span className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded-full font-bold">
-                                    {statusCounts.in_progress}
-                                </span>
-                            )}
+                            <span className={cn(
+                                "text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center tabular-nums leading-none",
+                                statusCounts.in_progress > 0 ? "bg-orange-500/12 text-orange-500" : "bg-muted/60 text-muted-foreground/60"
+                            )}>
+                                {statusCounts.in_progress}
+                            </span>
                         </TabsTrigger>
-                        <TabsTrigger value="fertig" className="whitespace-nowrap gap-1.5 pb-2 text-sm">
+                        <TabsTrigger value="fertig" className="whitespace-nowrap items-center gap-2 pb-2.5 text-sm">
                             Montiert
-                            {statusCounts.fertig > 0 && (
-                                <span className="text-[10px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-1.5 py-0.5 rounded-full font-bold">
-                                    {statusCounts.fertig}
-                                </span>
-                            )}
+                            <span className={cn(
+                                "text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center tabular-nums leading-none",
+                                statusCounts.fertig > 0 ? "bg-yellow-500/12 text-yellow-500" : "bg-muted/60 text-muted-foreground/60"
+                            )}>
+                                {statusCounts.fertig}
+                            </span>
                         </TabsTrigger>
-                        <TabsTrigger value="abgeschlossen" className="whitespace-nowrap gap-1.5 pb-2 text-sm">
+                        <TabsTrigger value="abgeschlossen" className="whitespace-nowrap items-center gap-2 pb-2.5 text-sm">
                             Kontrolliert
-                            {statusCounts.abgeschlossen > 0 && (
-                                <span className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full font-bold">
-                                    {statusCounts.abgeschlossen}
-                                </span>
-                            )}
+                            <span className={cn(
+                                "text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center tabular-nums leading-none",
+                                statusCounts.abgeschlossen > 0 ? "bg-green-500/12 text-green-500" : "bg-muted/60 text-muted-foreground/60"
+                            )}>
+                                {statusCounts.abgeschlossen}
+                            </span>
                         </TabsTrigger>
                     </TabsList>
 
