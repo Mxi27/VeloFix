@@ -13,7 +13,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
+
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Search, Eye, UserPlus, Users, X, Check, Zap, SlidersHorizontal, Settings2 } from "lucide-react"
@@ -239,42 +239,42 @@ export function BikeAssemblyTable() {
     if (isLoading) return <OrdersTableSkeleton />
 
     const renderTable = (buildsToRender: BikeBuild[]) => (
-        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-sm">
+        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/40 bg-background">
             <Table className="w-full table-fixed">
                 <TableHeader>
-                    <TableRow className="hover:bg-transparent bg-muted/40">
+                    <TableRow className="hover:bg-transparent border-b border-border/30">
                         {visibleColumns.internal_number && (
-                            <TableHead className="w-[50px] md:w-[140px] pl-3 md:pl-5 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">
+                            <TableHead className="w-[50px] md:w-[140px] pl-3 md:pl-5 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">
                                 Nr. / Modell
                             </TableHead>
                         )}
                         {visibleColumns.color_size && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[100px]", getResponsiveClass('color_size'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[100px]", getResponsiveClass('color_size'))}>
                                 Farbe / Größe
                             </TableHead>
                         )}
                         {visibleColumns.customer && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
                                 Kunde
                             </TableHead>
                         )}
                         {visibleColumns.mechanic && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[120px]", getResponsiveClass('mechanic'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[120px]", getResponsiveClass('mechanic'))}>
                                 Monteur
                             </TableHead>
                         )}
                         {visibleColumns.progress && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[100px]", getResponsiveClass('progress'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[100px]", getResponsiveClass('progress'))}>
                                 Fortschritt
                             </TableHead>
                         )}
                         {visibleColumns.status && (
-                            <TableHead className="px-2 md:px-3 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[90px] md:w-[100px] min-w-[90px]">
+                            <TableHead className="px-2 md:px-3 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[90px] md:w-[100px] min-w-[90px]">
                                 Status
                             </TableHead>
                         )}
                         {visibleColumns.actions && (
-                            <TableHead className="text-right pr-3 md:pr-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[75px] md:w-[85px] min-w-[75px]">
+                            <TableHead className="text-right pr-3 md:pr-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[75px] md:w-[85px] min-w-[75px]">
                                 Aktion
                             </TableHead>
                         )}
@@ -299,12 +299,12 @@ export function BikeAssemblyTable() {
                             return (
                                 <TableRow
                                     key={build.id}
-                                    className="group hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
+                                    className="group hover:bg-muted/25 cursor-pointer transition-colors border-b border-border/25 last:border-0"
                                     onClick={() => handleViewBuild(build.id)}
                                 >
                                     {/* Nr / Modell */}
                                     {visibleColumns.internal_number && (
-                                        <TableCell className="w-[50px] md:w-[140px] pl-3 md:pl-5 py-3.5">
+                                        <TableCell className="w-[50px] md:w-[140px] pl-3 md:pl-5 py-2.5">
                                             <div className="flex flex-col min-w-0">
                                                 <div className="flex items-center gap-1.5 overflow-hidden">
                                                     <span className="font-mono text-[10px] font-bold text-primary/80 bg-primary/5 px-1 py-0.5 rounded truncate shrink">
@@ -323,7 +323,7 @@ export function BikeAssemblyTable() {
 
                                     {/* Farbe/Größe */}
                                     {visibleColumns.color_size && (
-                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('color_size'))}>
+                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('color_size'))}>
                                             <div className="flex flex-col text-sm">
                                                 <span className="text-foreground/80 font-medium">{build.color || '—'}</span>
                                                 <span className="text-[11px] text-muted-foreground leading-tight tracking-tight uppercase font-medium">{build.frame_size || ''}</span>
@@ -333,7 +333,7 @@ export function BikeAssemblyTable() {
 
                                     {/* Kunde */}
                                     {visibleColumns.customer && (
-                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
                                             <div className="flex flex-col text-sm">
                                                 <span className="font-semibold text-foreground/80">{build.customer_name || <span className="text-muted-foreground/60 italic font-medium text-xs">Lager</span>}</span>
                                                 <span className="text-[11px] text-muted-foreground/60 truncate max-w-[140px] font-medium leading-none mt-0.5 customer-email">{build.customer_email}</span>
@@ -343,7 +343,7 @@ export function BikeAssemblyTable() {
 
                                     {/* Monteur */}
                                     {visibleColumns.mechanic && (
-                                        <TableCell className={cn("hidden py-3.5 px-2 md:px-4", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
+                                        <TableCell className={cn("hidden py-2.5 px-2 md:px-4", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
                                             {build.assigned_employee_id ? (
                                                 <Badge variant="outline" className="bg-background/40 hover:bg-background/60 shadow-xs border-border/40 text-[11px] font-medium py-0 px-2 h-5 transition-colors">
                                                     {getEmployeeName(build.assigned_employee_id)}
@@ -356,7 +356,7 @@ export function BikeAssemblyTable() {
 
                                     {/* Fortschritt */}
                                     {visibleColumns.progress && (
-                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('progress'))}>
+                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('progress'))}>
                                             {progress.total > 0 ? (
                                                 <div className="flex items-center gap-2.5 min-w-[90px]">
                                                     <div className="flex-1 h-1.5 bg-muted/60 rounded-full overflow-hidden shadow-inner border border-border/5">
@@ -382,23 +382,22 @@ export function BikeAssemblyTable() {
 
                                     {/* Status */}
                                     {visibleColumns.status && (
-                                        <TableCell className="py-3.5 px-1 md:px-2 w-[85px] md:w-[100px]">
-                                            <Badge
-                                                variant="secondary"
+                                        <TableCell className="py-2.5 px-1 md:px-2 w-[85px] md:w-[100px]">
+                                            <span
                                                 className={cn(
-                                                    "font-medium border shadow-xs text-[9px] uppercase tracking-wider py-0 px-1 h-5 flex items-center justify-center",
+                                                    "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium max-w-full overflow-hidden",
                                                     statusInfo.color
                                                 )}
                                             >
-                                                <div className={cn("h-1 w-1 rounded-full mr-1 shadow-sm shrink-0", statusInfo.dotColor)} />
+                                                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusInfo.dotColor)} />
                                                 <span className="truncate">{statusInfo.label}</span>
-                                            </Badge>
+                                            </span>
                                         </TableCell>
                                     )}
 
                                     {/* Aktionen */}
                                     {visibleColumns.actions && (
-                                        <TableCell className="text-right pr-4 py-3.5 w-[80px]">
+                                        <TableCell className="text-right pr-4 py-2.5 w-[80px]">
                                             <div className="flex justify-end gap-1">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
@@ -452,34 +451,40 @@ export function BikeAssemblyTable() {
     )
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                {/* Search Bar */}
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Suche nach Modell, Marke, Nummer, Kunde..."
-                        className="pl-10 bg-background"
+        <div className="space-y-3">
+            {/* ── Toolbar ── */}
+            <div className="flex items-center gap-2">
+                {/* Combined search + filter pill */}
+                <div className="flex flex-1 items-center gap-1 min-w-0 rounded-lg border border-border/50 bg-background px-2.5 py-1 focus-within:border-border transition-colors">
+                    <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                    <input
+                        placeholder="Suche nach Modell, Marke, Nummer..."
+                        className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50 py-0.5"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                     />
+                    {searchTerm && (
+                        <button onClick={() => setSearchTerm('')} className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+                            <X className="h-3.5 w-3.5" />
+                        </button>
+                    )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1">
                             {/* Filter Toggle */}
                             <Popover open={showFilters} onOpenChange={setShowFilters}>
                                 <PopoverTrigger asChild>
                                     <Button
-                                        variant="outline"
+                                        variant="ghost"
                                         size="sm"
-                                        className="gap-2 bg-background"
+                                        className="h-8 w-8 p-0 relative text-muted-foreground hover:text-foreground"
+                                        title="Filter"
                                     >
                                         <SlidersHorizontal className="h-4 w-4" />
-                                        Filter
                                         {activeFilterCount > 0 && (
-                                            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                                            <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center">
                                                 {activeFilterCount}
-                                            </Badge>
+                                            </span>
                                         )}
                                     </Button>
                                 </PopoverTrigger>
@@ -565,12 +570,12 @@ export function BikeAssemblyTable() {
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button
-                                        variant="outline"
+                                        variant="ghost"
                                         size="sm"
-                                        className="gap-2 bg-background"
+                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                        title="Spalten"
                                     >
                                         <Settings2 className="h-4 w-4" />
-                                        Ansicht
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56">
@@ -593,7 +598,8 @@ export function BikeAssemblyTable() {
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-9 px-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                                    className="h-8 px-2 text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Filter zurücksetzen"
                                     onClick={() => {
                                         setSearchTerm("")
                                         setFilterEmployee("all")
@@ -602,22 +608,23 @@ export function BikeAssemblyTable() {
                                         setSortDir("desc")
                                     }}
                                 >
-                                    <X className="h-3.5 w-3.5 mr-1" />
-                                    Reset
+                                    <X className="h-3.5 w-3.5" />
                                 </Button>
                             )}
                         </div>
             </div>
                 {/* Status Tabs — matches OrdersTable */}
-                <Tabs defaultValue="all" className="space-y-6" onValueChange={setFilterStatus}>
-                    <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1 border-b-0 gap-6">
-                        <TabsTrigger value="all" className="whitespace-nowrap gap-2 pb-2">
+                <Tabs defaultValue="all" className="space-y-4" onValueChange={setFilterStatus}>
+                    <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-0 border-b-0 gap-4">
+                        <TabsTrigger value="all" className="whitespace-nowrap gap-1.5 pb-2 text-sm">
                             Alle
-                            <span className="text-[10px] bg-muted-foreground/10 text-muted-foreground px-1.5 py-0.5 rounded-full font-bold">
-                                {statusCounts.all}
-                            </span>
+                            {statusCounts.all > 0 && (
+                                <span className="text-[10px] bg-muted-foreground/10 text-muted-foreground px-1.5 py-0.5 rounded-full font-bold">
+                                    {statusCounts.all}
+                                </span>
+                            )}
                         </TabsTrigger>
-                        <TabsTrigger value="offen" className="whitespace-nowrap gap-2 pb-2">
+                        <TabsTrigger value="offen" className="whitespace-nowrap gap-1.5 pb-2 text-sm">
                             Offen
                             {statusCounts.offen > 0 && (
                                 <span className="text-[10px] bg-rose-500/10 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded-full font-bold">
@@ -625,7 +632,7 @@ export function BikeAssemblyTable() {
                                 </span>
                             )}
                         </TabsTrigger>
-                        <TabsTrigger value="in_progress" className="whitespace-nowrap gap-2 pb-2">
+                        <TabsTrigger value="in_progress" className="whitespace-nowrap gap-1.5 pb-2 text-sm">
                             In Montage
                             {statusCounts.in_progress > 0 && (
                                 <span className="text-[10px] bg-orange-500/10 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded-full font-bold">
@@ -633,7 +640,7 @@ export function BikeAssemblyTable() {
                                 </span>
                             )}
                         </TabsTrigger>
-                        <TabsTrigger value="fertig" className="whitespace-nowrap gap-2 pb-2">
+                        <TabsTrigger value="fertig" className="whitespace-nowrap gap-1.5 pb-2 text-sm">
                             Montiert
                             {statusCounts.fertig > 0 && (
                                 <span className="text-[10px] bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 px-1.5 py-0.5 rounded-full font-bold">
@@ -641,7 +648,7 @@ export function BikeAssemblyTable() {
                                 </span>
                             )}
                         </TabsTrigger>
-                        <TabsTrigger value="abgeschlossen" className="whitespace-nowrap gap-2 pb-2">
+                        <TabsTrigger value="abgeschlossen" className="whitespace-nowrap gap-1.5 pb-2 text-sm">
                             Kontrolliert
                             {statusCounts.abgeschlossen > 0 && (
                                 <span className="text-[10px] bg-green-500/10 text-green-600 dark:text-green-400 px-1.5 py-0.5 rounded-full font-bold">

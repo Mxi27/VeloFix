@@ -14,7 +14,7 @@ import {
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table"
-import { Input } from "@/components/ui/input"
+
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { 
@@ -337,47 +337,47 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     if (isLoading) return <OrdersTableSkeleton />
 
     const renderTable = (ordersToRender: Order[]) => (
-        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/60 bg-background shadow-sm">
+        <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-border/40 bg-background">
             <Table className="w-full table-fixed">
                 <TableHeader>
-                    <TableRow className="hover:bg-transparent bg-muted/40">
+                    <TableRow className="hover:bg-transparent border-b border-border/30">
                         {visibleColumns.order_number && (
-                            <TableHead className="w-[80px] md:w-[120px] pl-3 md:pl-5 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">
+                            <TableHead className="w-[80px] md:w-[120px] pl-3 md:pl-5 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">
                                 Nr.
                             </TableHead>
                         )}
                         {visibleColumns.customer && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
                                 Kunde
                             </TableHead>
                         )}
                         {visibleColumns.bike && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[140px]", getResponsiveClass('bike'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[140px]", getResponsiveClass('bike'))}>
                                 Fahrrad
                             </TableHead>
                         )}
                         {visibleColumns.mechanic && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground min-w-[120px]", getResponsiveClass('mechanic'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[120px]", getResponsiveClass('mechanic'))}>
                                 Mitarbeiter
                             </TableHead>
                         )}
                         {visibleColumns.due_date && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[100px]", getResponsiveClass('due_date'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[100px]", getResponsiveClass('due_date'))}>
                                 Fällig
                             </TableHead>
                         )}
                         {visibleColumns.status && (
-                            <TableHead className="px-2 md:px-3 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[100px] md:w-[110px] min-w-[100px]">
+                            <TableHead className="px-2 md:px-3 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[100px] md:w-[110px] min-w-[100px]">
                                 Status
                             </TableHead>
                         )}
                         {visibleColumns.created_at && (
-                            <TableHead className={cn("hidden px-3 md:px-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[100px]", getResponsiveClass('created_at'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[100px]", getResponsiveClass('created_at'))}>
                                 Erstellt
                             </TableHead>
                         )}
                         {visibleColumns.actions && (
-                            <TableHead className="text-right pr-3 md:pr-4 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground w-[75px] md:w-[85px] min-w-[75px]">
+                            <TableHead className="text-right pr-3 md:pr-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[75px] md:w-[85px] min-w-[75px]">
                                 Aktion
                             </TableHead>
                         )}
@@ -399,12 +399,12 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                             return (
                                 <TableRow
                                     key={order.id}
-                                    className="group hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/40 last:border-0"
+                                    className="group hover:bg-muted/25 cursor-pointer transition-colors border-b border-border/25 last:border-0"
                                     onClick={() => handleViewOrder(order.id)}
                                 >
                                     {/* Nr. */}
                                     {visibleColumns.order_number && (
-                                        <TableCell className="w-[80px] md:w-[120px] pl-3 md:pl-5 py-3.5">
+                                        <TableCell className="w-[80px] md:w-[120px] pl-3 md:pl-5 py-2.5">
                                             <span className="font-mono text-[11px] font-bold text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded">
                                                 {order.order_number}
                                             </span>
@@ -413,7 +413,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Kunde */}
                                     {visibleColumns.customer && (
-                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
                                             <div className="flex flex-col text-sm">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-semibold text-foreground/80">{order.customer_name}</span>
@@ -451,7 +451,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Fahrrad */}
                                     {visibleColumns.bike && (
-                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('bike'))}>
+                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('bike'))}>
                                             <div className="flex flex-col text-sm">
                                                 <span className="text-foreground/80 font-medium truncate max-w-[180px]">
                                                     {[order.bike_brand, order.bike_model].filter(Boolean).join(' ') || '—'}
@@ -467,7 +467,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Mitarbeiter */}
                                     {visibleColumns.mechanic && (
-                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
+                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
                                             {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
                                                 <div className="flex items-center gap-1 flex-wrap">
                                                     {order.mechanic_ids.slice(0, 2).map(mid => (
@@ -487,7 +487,7 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Fällig */}
                                     {visibleColumns.due_date && (
-                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('due_date'))}>
+                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('due_date'))}>
                                             {order.due_date ? (
                                                 <span className={cn(
                                                     "text-[11px] font-medium font-mono border border-border/20 px-1.5 py-0.5 rounded shadow-sm bg-muted/30",
@@ -506,23 +506,22 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Status */}
                                     {visibleColumns.status && (
-                                        <TableCell className="py-3.5 px-1 md:px-2 w-[100px] md:w-[110px]">
-                                            <Badge
-                                                variant="secondary"
+                                        <TableCell className="py-2.5 px-1 md:px-2 w-[100px] md:w-[110px]">
+                                            <span
                                                 className={cn(
-                                                    "font-medium border shadow-xs text-[9px] uppercase tracking-wider py-0 px-1.5 h-5 flex items-center justify-center max-w-full overflow-hidden",
+                                                    "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium max-w-full overflow-hidden",
                                                     statusInfo.color
                                                 )}
                                             >
-                                                <div className={cn("h-1 w-1 rounded-full mr-1.5 shadow-sm shrink-0", statusInfo.dotColor)} />
+                                                <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusInfo.dotColor)} />
                                                 <span className="truncate">{statusInfo.label}</span>
-                                            </Badge>
+                                            </span>
                                         </TableCell>
                                     )}
 
                                     {/* Erstellt */}
                                     {visibleColumns.created_at && (
-                                        <TableCell className={cn("hidden py-3.5 px-3 md:px-4", getResponsiveClass('created_at'))}>
+                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('created_at'))}>
                                             <span className="text-[11px] text-muted-foreground font-mono">
                                                 {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                             </span>
@@ -531,8 +530,8 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Aktionen */}
                                     {visibleColumns.actions && (
-                                        <TableCell className="text-right pr-4 py-3.5 w-[80px]">
-                                            <div className="flex justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                        <TableCell className="text-right pr-4 py-2.5 w-[80px]">
+                                            <div className="flex justify-end gap-1">
                                                 {effectiveMode === 'trash' ? (
                                                     <Button
                                                         variant="ghost"
@@ -611,34 +610,40 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
     )
 
     return (
-        <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                {/* Search Bar */}
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Suche nach Kunde, Nr., Modell, Marke oder Tag..."
-                        className="pl-10 bg-background"
+        <div className="space-y-3">
+            {/* ── Toolbar ── */}
+            <div className="flex items-center gap-2">
+                {/* Combined search + filter pill */}
+                <div className="flex flex-1 items-center gap-1 min-w-0 rounded-lg border border-border/50 bg-background px-2.5 py-1 focus-within:border-border transition-colors">
+                    <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                    <input
+                        placeholder="Suche nach Kunde, Nr., Modell..."
+                        className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50 py-0.5"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                     />
+                    {searchTerm && (
+                        <button onClick={() => setSearchTerm('')} className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+                            <X className="h-3.5 w-3.5" />
+                        </button>
+                    )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1">
                                 {/* Filter Toggle */}
                                 <Popover open={showFilters} onOpenChange={setShowFilters}>
                                     <PopoverTrigger asChild>
                                         <Button
-                                            variant="outline"
+                                            variant="ghost"
                                             size="sm"
-                                            className="gap-2 bg-background"
+                                            className="h-8 w-8 p-0 relative text-muted-foreground hover:text-foreground"
+                                            title="Filter"
                                         >
                                             <SlidersHorizontal className="h-4 w-4" />
-                                            Filter
                                             {activeFilterCount > 0 && (
-                                                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                                                <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center">
                                                     {activeFilterCount}
-                                                </Badge>
+                                                </span>
                                             )}
                                         </Button>
                                     </PopoverTrigger>
@@ -782,12 +787,12 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button
-                                            variant="outline"
+                                            variant="ghost"
                                             size="sm"
-                                            className="gap-2 bg-background"
+                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                                            title="Spalten"
                                         >
                                             <Settings2 className="h-4 w-4" />
-                                            Ansicht
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-56">
@@ -810,7 +815,8 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-9 px-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                                        className="h-8 px-2 text-muted-foreground hover:text-foreground transition-colors"
+                                        title="Filter zurücksetzen"
                                         onClick={() => {
                                             setSearchTerm("")
                                             setFilterEmployee("all")
@@ -821,20 +827,18 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                             if (effectiveMode === 'active') setFilterStatus('all')
                                         }}
                                     >
-                                        <X className="h-3.5 w-3.5 mr-1" />
-                                        Reset
+                                        <X className="h-3.5 w-3.5" />
                                     </Button>
                                 )}
                             </div>
             </div>
                     {/* Status Tabs */}
                     {effectiveMode === 'active' ? (
-                        <Tabs defaultValue="all" value={filterStatus} onValueChange={setFilterStatus} className="space-y-6">
-                            <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-1 border-b-0 gap-6">
+                        <Tabs defaultValue="all" value={filterStatus} onValueChange={setFilterStatus} className="space-y-4">
+                            <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-0 border-b-0 gap-4">
                                 {STATUS_TABS.map(tab => {
                                     const count = statusCounts[tab.value as keyof typeof statusCounts] ?? 0
-                                    
-                                    // Make counts colorful based on status like Neurad Aufbau
+
                                     let badgeClass = "bg-muted-foreground/10 text-muted-foreground"
                                     if (count > 0) {
                                         if (tab.value === 'eingegangen') badgeClass = "bg-blue-500/10 text-blue-600 dark:text-blue-400"
@@ -845,15 +849,11 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                     }
 
                                     return (
-                                        <TabsTrigger key={tab.value} value={tab.value} className="whitespace-nowrap gap-2 pb-2">
+                                        <TabsTrigger key={tab.value} value={tab.value} className="whitespace-nowrap gap-1.5 pb-2 text-sm">
                                             {tab.label}
-                                            {count > 0 ? (
+                                            {count > 0 && (
                                                 <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-bold", badgeClass)}>
                                                     {count}
-                                                </span>
-                                            ) : (
-                                                <span className="text-[10px] bg-muted-foreground/10 text-muted-foreground px-1.5 py-0.5 rounded-full font-bold">
-                                                    0
                                                 </span>
                                             )}
                                         </TabsTrigger>
