@@ -16,11 +16,10 @@ import {
 } from "@/components/ui/table"
 
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { 
     Search, Users, X, Check, SlidersHorizontal, RotateCcw as Restore, 
     Settings2, MoreHorizontal, 
-    Trash2, ExternalLink, Eye
+    Trash2, ExternalLink
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
@@ -334,70 +333,71 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                 <TableHeader>
                     <TableRow className="hover:bg-transparent border-b border-border/30">
                         {visibleColumns.order_number && (
-                            <TableHead className="w-[80px] md:w-[120px] pl-3 md:pl-5 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium">
+                            <TableHead className="w-[90px] md:w-[130px] pl-4 md:pl-5 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold">
                                 Nr.
                             </TableHead>
                         )}
                         {visibleColumns.customer && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
                                 Kunde
                             </TableHead>
                         )}
                         {visibleColumns.bike && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[140px]", getResponsiveClass('bike'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold min-w-[140px]", getResponsiveClass('bike'))}>
                                 Fahrrad
                             </TableHead>
                         )}
                         {visibleColumns.mechanic && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium min-w-[120px]", getResponsiveClass('mechanic'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold min-w-[120px]", getResponsiveClass('mechanic'))}>
                                 Mitarbeiter
                             </TableHead>
                         )}
                         {visibleColumns.due_date && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[100px]", getResponsiveClass('due_date'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold w-[100px]", getResponsiveClass('due_date'))}>
                                 Fällig
                             </TableHead>
                         )}
                         {visibleColumns.status && (
-                            <TableHead className="px-2 md:px-3 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[100px] md:w-[110px] min-w-[100px]">
+                            <TableHead className="px-3 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold w-[130px] md:w-[140px] min-w-[130px]">
                                 Status
                             </TableHead>
                         )}
                         {visibleColumns.created_at && (
-                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[100px]", getResponsiveClass('created_at'))}>
+                            <TableHead className={cn("hidden px-3 md:px-4 text-[10px] uppercase tracking-wider text-muted-foreground/40 font-semibold w-[90px]", getResponsiveClass('created_at'))}>
                                 Erstellt
                             </TableHead>
                         )}
                         {visibleColumns.actions && (
-                            <TableHead className="text-right pr-3 md:pr-4 text-[10px] uppercase tracking-wider text-muted-foreground/50 font-medium w-[75px] md:w-[85px] min-w-[75px]">
-                                Aktion
-                            </TableHead>
+                            <TableHead className="w-[52px] min-w-[52px]" />
                         )}
                     </TableRow>
                 </TableHeader>
                 <TableBody>
                     {ordersToRender.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={8} className="h-32 text-center text-muted-foreground">
+                            <TableCell colSpan={8} className="h-36 text-center text-muted-foreground">
                                 <div className="flex flex-col items-center justify-center gap-2">
                                     <Search className="h-8 w-8 opacity-20" />
-                                    <p>Keine Aufträge gefunden</p>
+                                    <p className="text-sm">Keine Aufträge gefunden</p>
                                 </div>
                             </TableCell>
                         </TableRow>
                     ) : (
                         ordersToRender.map(order => {
                             const statusInfo = getOrderStatusInfo(order.status)
+                            const isOverdue = order.due_date &&
+                                new Date(order.due_date) < new Date() &&
+                                !['abgeholt', 'abgeschlossen'].includes(order.status)
                             return (
                                 <TableRow
                                     key={order.id}
-                                    className="group hover:bg-muted/25 cursor-pointer transition-colors border-b border-border/25 last:border-0"
+                                    className="group hover:bg-accent/40 cursor-pointer transition-colors duration-100 border-b border-border/20 last:border-0"
                                     onClick={() => handleViewOrder(order.id)}
                                 >
                                     {/* Nr. */}
                                     {visibleColumns.order_number && (
-                                        <TableCell className="w-[80px] md:w-[120px] pl-3 md:pl-5 py-2.5">
-                                            <span className="font-mono text-[11px] font-bold text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded">
+                                        <TableCell className="w-[90px] md:w-[130px] pl-4 md:pl-5 py-3">
+                                            <span className="font-mono text-[11px] font-semibold text-muted-foreground/70 tracking-tight">
                                                 {order.order_number}
                                             </span>
                                         </TableCell>
@@ -405,51 +405,49 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Kunde */}
                                     {visibleColumns.customer && (
-                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
-                                            <div className="flex flex-col text-sm">
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4 min-w-[140px] max-w-[25vw]", getResponsiveClass('customer'))}>
+                                            <div className="flex flex-col gap-0.5">
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-semibold text-foreground/80">{order.customer_name}</span>
+                                                    <span className="text-sm font-medium text-foreground truncate">{order.customer_name}</span>
                                                     {order.is_leasing && (
-                                                        <span className="text-[9px] font-bold px-1 py-0.5 rounded bg-primary/10 text-primary shrink-0 uppercase tracking-wider">
+                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary shrink-0 uppercase tracking-wider">
                                                             Leasing
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-1 mt-0.5">
-                                                    {order.tags && order.tags.length > 0 && (
-                                                        <div className="flex gap-1 shrink-0">
-                                                            {order.tags.slice(0, 2).map(tagId => {
-                                                                const tagInfo = workshopTags.find((t: any) => t.id === tagId)
-                                                                if (!tagInfo) return null
-                                                                return (
-                                                                    <span
-                                                                        key={tagId}
-                                                                        className="inline-flex rounded px-1.5 py-px text-[9px] font-bold text-white uppercase tracking-wider"
-                                                                        style={{ backgroundColor: tagInfo.color }}
-                                                                    >
-                                                                        {tagInfo.name}
-                                                                    </span>
-                                                                )
-                                                            })}
-                                                            {order.tags.length > 2 && (
-                                                                <span className="text-[9px] text-muted-foreground font-medium">+{order.tags.length - 2}</span>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                {order.tags && order.tags.length > 0 && (
+                                                    <div className="flex gap-1">
+                                                        {order.tags.slice(0, 2).map(tagId => {
+                                                            const tagInfo = workshopTags.find((t: any) => t.id === tagId)
+                                                            if (!tagInfo) return null
+                                                            return (
+                                                                <span
+                                                                    key={tagId}
+                                                                    className="inline-flex rounded-sm px-1.5 py-px text-[9px] font-bold text-white uppercase tracking-wider"
+                                                                    style={{ backgroundColor: tagInfo.color }}
+                                                                >
+                                                                    {tagInfo.name}
+                                                                </span>
+                                                            )
+                                                        })}
+                                                        {order.tags.length > 2 && (
+                                                            <span className="text-[9px] text-muted-foreground font-medium">+{order.tags.length - 2}</span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </TableCell>
                                     )}
 
                                     {/* Fahrrad */}
                                     {visibleColumns.bike && (
-                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('bike'))}>
-                                            <div className="flex flex-col text-sm">
-                                                <span className="text-foreground/80 font-medium truncate max-w-[180px]">
-                                                    {[order.bike_brand, order.bike_model].filter(Boolean).join(' ') || '—'}
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4", getResponsiveClass('bike'))}>
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-sm text-foreground/80 font-medium truncate max-w-[180px]">
+                                                    {[order.bike_brand, order.bike_model].filter(Boolean).join(' ') || <span className="text-muted-foreground/30">—</span>}
                                                 </span>
                                                 {order.bike_color && (
-                                                    <span className="text-[11px] text-muted-foreground leading-tight tracking-tight mt-0.5 truncate max-w-[180px]">
+                                                    <span className="text-[11px] text-muted-foreground/60 leading-tight truncate max-w-[180px]">
                                                         {order.bike_color}
                                                     </span>
                                                 )}
@@ -459,137 +457,132 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
 
                                     {/* Mitarbeiter */}
                                     {visibleColumns.mechanic && (
-                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4", getResponsiveClass('mechanic'))} onClick={e => e.stopPropagation()}>
                                             {order.mechanic_ids && order.mechanic_ids.length > 0 ? (
-                                                <div className="flex items-center gap-1 flex-wrap">
-                                                    {order.mechanic_ids.slice(0, 2).map(mid => (
-                                                        <Badge key={mid} variant="outline" className="bg-background/40 hover:bg-background/60 shadow-xs border-border/40 text-[11px] font-medium py-0 px-2 h-5 transition-colors">
-                                                            {getEmployeeName(mid)}
-                                                        </Badge>
-                                                    ))}
-                                                    {order.mechanic_ids.length > 2 && (
-                                                        <span className="text-[10px] text-muted-foreground font-medium">+{order.mechanic_ids.length - 2}</span>
+                                                <div className="flex items-center gap-1">
+                                                    {order.mechanic_ids.slice(0, 3).map(mid => {
+                                                        const name = getEmployeeName(mid)
+                                                        const initials = name ? name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?'
+                                                        return (
+                                                            <span
+                                                                key={mid}
+                                                                title={name || undefined}
+                                                                className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground border border-border/50 shrink-0"
+                                                            >
+                                                                {initials}
+                                                            </span>
+                                                        )
+                                                    })}
+                                                    {order.mechanic_ids.length > 3 && (
+                                                        <span className="text-[10px] text-muted-foreground font-medium ml-0.5">+{order.mechanic_ids.length - 3}</span>
                                                     )}
                                                 </div>
                                             ) : (
-                                                <span className="text-[11px] text-muted-foreground/30 italic font-medium">—</span>
+                                                <span className="text-[12px] text-muted-foreground/25">—</span>
                                             )}
                                         </TableCell>
                                     )}
 
                                     {/* Fällig */}
                                     {visibleColumns.due_date && (
-                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('due_date'))}>
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4", getResponsiveClass('due_date'))}>
                                             {order.due_date ? (
                                                 <span className={cn(
-                                                    "text-[11px] font-medium font-mono border border-border/20 px-1.5 py-0.5 rounded shadow-sm bg-muted/30",
-                                                    new Date(order.due_date) < new Date() &&
-                                                    !['abgeholt', 'abgeschlossen'].includes(order.status)
-                                                        ? "text-[#de4c4a] border-[#de4c4a]/20 bg-[#de4c4a]/5"
+                                                    "inline-flex items-center text-[11px] font-mono font-medium px-1.5 py-0.5 rounded-md",
+                                                    isOverdue
+                                                        ? "text-red-500 bg-red-500/8 border border-red-500/20"
                                                         : "text-muted-foreground"
                                                 )}>
+                                                    {isOverdue && <span className="mr-1 h-1 w-1 rounded-full bg-red-500 inline-block" />}
                                                     {new Date(order.due_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                                 </span>
                                             ) : (
-                                                <span className="text-muted-foreground/40">—</span>
+                                                <span className="text-muted-foreground/20 text-[12px]">—</span>
                                             )}
                                         </TableCell>
                                     )}
 
                                     {/* Status */}
                                     {visibleColumns.status && (
-                                        <TableCell className="py-2.5 px-1 md:px-2 w-[100px] md:w-[110px]">
+                                        <TableCell className="py-3 px-3 w-[130px] md:w-[140px]">
                                             <span
                                                 className={cn(
-                                                    "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium max-w-full overflow-hidden",
+                                                    "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap",
                                                     statusInfo.color
                                                 )}
                                             >
                                                 <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", statusInfo.dotColor)} />
-                                                <span className="truncate">{statusInfo.label}</span>
+                                                {statusInfo.label}
                                             </span>
                                         </TableCell>
                                     )}
 
                                     {/* Erstellt */}
                                     {visibleColumns.created_at && (
-                                        <TableCell className={cn("hidden py-2.5 px-3 md:px-4", getResponsiveClass('created_at'))}>
-                                            <span className="text-[11px] text-muted-foreground font-mono">
+                                        <TableCell className={cn("hidden py-3 px-3 md:px-4", getResponsiveClass('created_at'))}>
+                                            <span className="text-[11px] text-muted-foreground/60 font-mono">
                                                 {new Date(order.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                                             </span>
                                         </TableCell>
                                     )}
 
-                                    {/* Aktionen */}
+                                    {/* Aktionen — nur ⋯ Menü, sichtbar on hover */}
                                     {visibleColumns.actions && (
-                                        <TableCell className="text-right pr-4 py-2.5 w-[80px]">
-                                            <div className="flex justify-end gap-1">
-                                                {effectiveMode === 'trash' ? (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
-                                                        onClick={(e) => { e.stopPropagation(); handleRestoreOrder(order.id) }}
-                                                        title="Wiederherstellen"
-                                                    >
-                                                        <Restore className="h-4 w-4" />
-                                                    </Button>
-                                                ) : (
-                                                    <>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-primary rounded-full"
-                                                                    onClick={e => e.stopPropagation()}
-                                                                >
-                                                                    <MoreHorizontal className="h-4 w-4" />
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="w-56">
-                                                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewOrder(order.id) }}>
-                                                                    <ExternalLink className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                                    Öffnen
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuLabel>Zuweisen an</DropdownMenuLabel>
-                                                                <DropdownMenuItem onClick={e => { e.stopPropagation(); handleAssignEmployee(order.id, null) }}>
-                                                                    <X className="mr-2 h-4 w-4 text-muted-foreground" />
-                                                                    <span>Keine Zuweisung</span>
-                                                                </DropdownMenuItem>
-                                                                {employees.map(emp => (
-                                                                    <DropdownMenuItem
-                                                                        key={emp.id}
-                                                                        onClick={e => { e.stopPropagation(); handleAssignEmployee(order.id, emp.id) }}
-                                                                    >
-                                                                        <Users className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
-                                                                        <span className="truncate flex-1">{emp.name}</span>
-                                                                        {order.mechanic_ids?.includes(emp.id) && <Check className="ml-auto h-4 w-4 shrink-0" />}
-                                                                    </DropdownMenuItem>
-                                                                ))}
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuItem
-                                                                    onClick={(e) => { e.stopPropagation(); setOrderToDelete(order.id) }}
-                                                                    className="text-destructive focus:text-destructive"
-                                                                >
-                                                                    <Trash2 className="mr-2 h-4 w-4 shrink-0" />
-                                                                    Löschen
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-
+                                        <TableCell className="text-right pr-3 py-3 w-[52px]">
+                                            {effectiveMode === 'trash' ? (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary rounded-full transition-opacity"
+                                                    onClick={(e) => { e.stopPropagation(); handleRestoreOrder(order.id) }}
+                                                    title="Wiederherstellen"
+                                                >
+                                                    <Restore className="h-3.5 w-3.5" />
+                                                </Button>
+                                            ) : (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                                                            onClick={e => { e.stopPropagation(); handleViewOrder(order.id) }}
+                                                            className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground rounded-md transition-all"
+                                                            onClick={e => e.stopPropagation()}
                                                         >
-                                                            <Eye className="h-4 w-4" />
+                                                            <MoreHorizontal className="h-4 w-4" />
                                                         </Button>
-                                                    </>
-                                                )}
-                                            </div>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-52">
+                                                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewOrder(order.id) }}>
+                                                            <ExternalLink className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                            Öffnen
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuLabel>Zuweisen an</DropdownMenuLabel>
+                                                        <DropdownMenuItem onClick={e => { e.stopPropagation(); handleAssignEmployee(order.id, null) }}>
+                                                            <X className="mr-2 h-4 w-4 text-muted-foreground" />
+                                                            <span>Keine Zuweisung</span>
+                                                        </DropdownMenuItem>
+                                                        {employees.map(emp => (
+                                                            <DropdownMenuItem
+                                                                key={emp.id}
+                                                                onClick={e => { e.stopPropagation(); handleAssignEmployee(order.id, emp.id) }}
+                                                            >
+                                                                <Users className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                                                                <span className="truncate flex-1">{emp.name}</span>
+                                                                {order.mechanic_ids?.includes(emp.id) && <Check className="ml-auto h-4 w-4 shrink-0" />}
+                                                            </DropdownMenuItem>
+                                                        ))}
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem
+                                                            onClick={(e) => { e.stopPropagation(); setOrderToDelete(order.id) }}
+                                                            className="text-destructive focus:text-destructive"
+                                                        >
+                                                            <Trash2 className="mr-2 h-4 w-4 shrink-0" />
+                                                            Löschen
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            )}
                                         </TableCell>
                                     )}
                                 </TableRow>
@@ -605,35 +598,36 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
         <div className="space-y-3">
             {/* ── Toolbar ── */}
             <div className="flex items-center gap-2">
-                {/* Combined search + filter pill */}
-                <div className="flex flex-1 items-center gap-1 min-w-0 rounded-lg border border-border/50 bg-background px-2.5 py-1 focus-within:border-border transition-colors">
-                    <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                {/* Search */}
+                <div className="flex flex-1 items-center gap-2 min-w-0 rounded-lg border border-border/40 bg-muted/20 px-3 py-1.5 focus-within:border-border/80 focus-within:bg-background transition-all">
+                    <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
                     <input
                         placeholder="Suche nach Kunde, Nr., Modell..."
-                        className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50 py-0.5"
+                        className="flex-1 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/40"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                     />
                     {searchTerm && (
-                        <button onClick={() => setSearchTerm('')} className="shrink-0 text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+                        <button onClick={() => setSearchTerm('')} className="shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
                             <X className="h-3.5 w-3.5" />
                         </button>
                     )}
                 </div>
 
-                <div className="flex shrink-0 items-center gap-1">
+                {/* Toolbar actions */}
+                <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border/30 bg-muted/10 px-1 py-0.5">
                                 {/* Filter Toggle */}
                                 <Popover open={showFilters} onOpenChange={setShowFilters}>
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-8 w-8 p-0 relative text-muted-foreground hover:text-foreground"
-                                            title="Filter"
+                                            className="h-7 w-7 p-0 relative text-muted-foreground hover:text-foreground rounded"
+                                            title="Filter & Sortierung"
                                         >
-                                            <SlidersHorizontal className="h-4 w-4" />
+                                            <SlidersHorizontal className="h-3.5 w-3.5" />
                                             {activeFilterCount > 0 && (
-                                                <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center">
+                                                <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center">
                                                     {activeFilterCount}
                                                 </span>
                                             )}
@@ -781,13 +775,13 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                            title="Spalten"
+                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded"
+                                            title="Spalten einblenden/ausblenden"
                                         >
-                                            <Settings2 className="h-4 w-4" />
+                                            <Settings2 className="h-3.5 w-3.5" />
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-56">
+                                    <DropdownMenuContent align="end" className="w-52">
                                         <DropdownMenuLabel>Sichtbare Spalten</DropdownMenuLabel>
                                         <DropdownMenuSeparator />
                                         {AVAILABLE_COLUMNS.map(col => (
@@ -804,50 +798,54 @@ export function OrdersTable({ mode = 'active', showArchived }: OrdersTableProps)
                                 </DropdownMenu>
 
                                 {hasActiveFilters && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 px-2 text-muted-foreground hover:text-foreground transition-colors"
-                                        title="Filter zurücksetzen"
-                                        onClick={() => {
-                                            setSearchTerm("")
-                                            setFilterEmployee("all")
-                                            setDateRange(undefined)
-                                            setFilterTags([])
-                                            setSortField("none")
-                                            setSortDir("desc")
-                                            if (effectiveMode === 'active') setFilterStatus('all')
-                                        }}
-                                    >
-                                        <X className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <>
+                                        <div className="w-px h-4 bg-border/40 mx-0.5" />
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 px-2 text-muted-foreground hover:text-foreground transition-colors rounded gap-1 text-xs"
+                                            title="Filter zurücksetzen"
+                                            onClick={() => {
+                                                setSearchTerm("")
+                                                setFilterEmployee("all")
+                                                setDateRange(undefined)
+                                                setFilterTags([])
+                                                setSortField("none")
+                                                setSortDir("desc")
+                                                if (effectiveMode === 'active') setFilterStatus('all')
+                                            }}
+                                        >
+                                            <X className="h-3 w-3" />
+                                            <span className="hidden sm:inline">Zurücksetzen</span>
+                                        </Button>
+                                    </>
                                 )}
                             </div>
             </div>
                     {/* Status Tabs */}
                     {effectiveMode === 'active' ? (
-                        <Tabs defaultValue="all" value={filterStatus} onValueChange={setFilterStatus} className="space-y-4">
-                            <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-0 border-b-0 gap-4">
+                        <Tabs defaultValue="all" value={filterStatus} onValueChange={setFilterStatus} className="space-y-3">
+                            <TabsList variant="line" className="w-full overflow-x-auto flex-nowrap justify-start no-scrollbar pb-0 border-b-0 gap-3">
                                 {STATUS_TABS.map(tab => {
                                     const count = statusCounts[tab.value as keyof typeof statusCounts] ?? 0
+                                    const isAll = tab.value === 'all'
 
-                                    let badgeClass = "bg-muted-foreground/10 text-muted-foreground"
+                                    let badgeClass = "bg-muted/60 text-muted-foreground/60"
                                     if (count > 0) {
-                                        if (tab.value === 'eingegangen') badgeClass = "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                                        else if (tab.value === 'warten_auf_teile') badgeClass = "bg-rose-500/10 text-rose-600 dark:text-rose-400"
-                                        else if (tab.value === 'in_bearbeitung') badgeClass = "bg-purple-500/10 text-purple-600 dark:text-purple-400"
-                                        else if (tab.value === 'kontrolle_offen') badgeClass = "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400"
-                                        else if (tab.value === 'abholbereit') badgeClass = "bg-green-500/10 text-green-600 dark:text-green-400"
+                                        if (isAll) badgeClass = "bg-foreground/8 text-foreground/60"
+                                        else if (tab.value === 'eingegangen') badgeClass = "bg-blue-500/12 text-blue-500"
+                                        else if (tab.value === 'warten_auf_teile') badgeClass = "bg-rose-500/12 text-rose-500"
+                                        else if (tab.value === 'in_bearbeitung') badgeClass = "bg-purple-500/12 text-purple-500"
+                                        else if (tab.value === 'kontrolle_offen') badgeClass = "bg-amber-500/12 text-amber-500"
+                                        else if (tab.value === 'abholbereit') badgeClass = "bg-emerald-500/12 text-emerald-500"
                                     }
 
                                     return (
-                                        <TabsTrigger key={tab.value} value={tab.value} className="whitespace-nowrap gap-1.5 pb-2 text-sm">
+                                        <TabsTrigger key={tab.value} value={tab.value} className="whitespace-nowrap items-center gap-2 pb-2.5 text-sm">
                                             {tab.label}
-                                            {count > 0 && (
-                                                <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-bold", badgeClass)}>
-                                                    {count}
-                                                </span>
-                                            )}
+                                            <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center tabular-nums leading-none", badgeClass)}>
+                                                {count}
+                                            </span>
                                         </TabsTrigger>
                                     )
                                 })}
