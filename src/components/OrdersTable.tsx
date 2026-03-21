@@ -3,7 +3,7 @@ import { toastSuccess, toastError } from '@/lib/toast-utils'
 import { useState, useMemo } from "react"
 import { useColumnVisibility } from "@/hooks/useColumnVisibility"
 import { useNavigate } from "react-router-dom"
-import { STATUS_COLORS, STATUS_LABELS } from "@/lib/constants"
+import { STATUS_COLORS, STATUS_LABELS, STATUS_DOT_COLORS_MAP } from "@/lib/constants"
 import type { DateRange } from "react-day-picker"
 import { DateRangePicker } from "@/components/DateRangePicker"
 import {
@@ -88,20 +88,12 @@ const STATUS_TABS = [
     { value: 'abholbereit',     label: 'Abholbereit' },
 ]
 
-const STATUS_DOT = {
-    eingegangen: "bg-[#6c8fff]",
-    warten_auf_teile: "bg-[#de4c4a]",
-    in_bearbeitung: "bg-[#c77dff]",
-    kontrolle_offen: "bg-[#f0b429]",
-    abholbereit: "bg-[#4ab06c]",
-    abgeholt: "bg-[#e07098]",
-    abgeschlossen: "bg-[#888888]",
-} as Record<string, string>
+const STATUS_DOT = STATUS_DOT_COLORS_MAP
 
 function getOrderStatusInfo(status: string) {
     const label = STATUS_LABELS[status] || status.replace(/_/g, ' ')
-    const color = STATUS_COLORS[status] || "bg-muted text-muted-foreground border-border/60"
-    const dotColor = STATUS_DOT[status] || "bg-muted-foreground"
+    const color = STATUS_COLORS[status] || "bg-neutral-500/10 text-neutral-500"
+    const dotColor = STATUS_DOT[status] || "bg-neutral-400"
     return { label, color, dotColor }
 }
 

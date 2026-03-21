@@ -41,11 +41,11 @@ import {
 } from "@/components/ui/select"
 
 const STATUS_FLOW = [
-    { value: 'eingegangen', label: 'Eingegangen', icon: Clock, color: 'text-gray-500 bg-gray-500/10 border-gray-500/20' },
-    { value: 'warten_auf_teile', label: 'Warten auf Teile', icon: Pause, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
-    { value: 'in_bearbeitung', label: 'In Bearbeitung', icon: Play, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
-    { value: 'abholbereit', label: 'Abholbereit', icon: PackageCheck, color: 'text-green-500 bg-green-500/10 border-green-500/20' },
-    { value: 'abgeschlossen', label: 'Abgeschlossen', icon: Archive, color: 'text-slate-500 bg-slate-500/10 border-slate-500/20' }
+    { value: 'eingegangen', label: 'Eingegangen', icon: Clock, color: 'text-blue-600 bg-blue-500/10 border-blue-500/20' },
+    { value: 'warten_auf_teile', label: 'Warten auf Teile', icon: Pause, color: 'text-orange-600 bg-orange-500/10 border-orange-500/20' },
+    { value: 'in_bearbeitung', label: 'In Bearbeitung', icon: Play, color: 'text-violet-600 bg-violet-500/10 border-violet-500/20' },
+    { value: 'abholbereit', label: 'Abholbereit', icon: PackageCheck, color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20' },
+    { value: 'abgeschlossen', label: 'Abgeschlossen', icon: Archive, color: 'text-neutral-500 bg-neutral-500/10 border-neutral-500/20' }
 ]
 
 interface ChecklistItem {

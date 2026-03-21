@@ -80,13 +80,13 @@ import { format } from "date-fns"
 import { de } from "date-fns/locale"
 
 const STATUS_DOT_COLORS: Record<string, string> = {
-    eingegangen: "bg-[#6c8fff]",
-    warten_auf_teile: "bg-[#de4c4a]",
-    in_bearbeitung: "bg-[#c77dff]",
-    kontrolle_offen: "bg-[#f0b429]",
-    abholbereit: "bg-[#4ab06c]",
-    abgeholt: "bg-[#e07098]",
-    abgeschlossen: "bg-[#8a8580]",
+    eingegangen:      "bg-blue-500",
+    warten_auf_teile: "bg-orange-500",
+    in_bearbeitung:   "bg-violet-500",
+    kontrolle_offen:  "bg-amber-500",
+    abholbereit:      "bg-emerald-500",
+    abgeholt:         "bg-teal-500",
+    abgeschlossen:    "bg-neutral-400",
 }
 
 import { ChecklistTemplateSelector } from "@/components/ChecklistTemplateSelector"
