@@ -18,8 +18,6 @@ import {
     Search,
     Minus,
 } from "lucide-react"
-import { DashboardLayout } from "@/layouts/DashboardLayout"
-import { PageHeader } from "@/components/PageHeader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -262,7 +260,7 @@ function ReviewCard({ item }: { item: any }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-export default function FeedbackDashboard() {
+export function FeedbackAnalysisSettings() {
     const { workshopId } = useAuth()
     const [loading, setLoading] = useState(true)
     const [feedback, setFeedback] = useState<any[]>([])
@@ -412,49 +410,46 @@ export default function FeedbackDashboard() {
 
     if (loading) {
         return (
-            <DashboardLayout>
-                <div className="flex items-center justify-center min-h-[60vh]">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-            </DashboardLayout>
+            <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
         )
     }
 
     return (
-        <DashboardLayout>
-                <PageHeader
-                    icon={MessageSquare}
-                    title="Kundenfeedback"
-                    description="Zufriedenheit, Preisempfinden und alle Bewertungen auf einen Blick"
-                    titleBadge={healthStatus ? (
-                        <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", healthStatus.cls)}>
+        <div className="flex flex-col gap-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border border-border/50">
+                <div>
+                    <h3 className="font-medium text-sm">Kundenfeedback Übersicht</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Zufriedenheit & Preisempfinden</p>
+                    {healthStatus && (
+                        <span className={cn("mt-2 inline-block text-xs px-2 py-0.5 rounded-full border font-medium", healthStatus.cls)}>
                             {healthStatus.label}
                         </span>
-                    ) : undefined}
-                    action={
-                        <div className="flex flex-col items-end gap-1.5">
-                            <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-1 border border-border/30">
-                                {TIME_FRAMES.map(tf => (
-                                    <button
-                                        key={tf.value}
-                                        onClick={() => setTimeFrame(tf.value)}
-                                        className={cn(
-                                            "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
-                                            timeFrame === tf.value
-                                                ? "bg-background text-foreground shadow-sm"
-                                                : "text-muted-foreground hover:text-foreground"
-                                        )}
-                                    >
-                                        {tf.label}
-                                    </button>
-                                ))}
-                            </div>
-                            <p className="text-[11px] text-muted-foreground/50 tabular-nums">{dateRangeLabel}</p>
-                        </div>
-                    }
-                />
+                    )}
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                    <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-1 border border-border/30">
+                        {TIME_FRAMES.map(tf => (
+                            <button
+                                key={tf.value}
+                                onClick={() => setTimeFrame(tf.value)}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-md text-[11px] font-medium transition-all",
+                                    timeFrame === tf.value
+                                        ? "bg-background text-foreground shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                {tf.label}
+                            </button>
+                        ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/50 tabular-nums">{dateRangeLabel}</p>
+                </div>
+            </div>
 
-            <div className="space-y-5 pb-12">
+            <div className="space-y-5 pb-10">
                 {/* Empty state */}
                 {feedback.length === 0 ? (
                     <Card className="border-dashed">
@@ -835,6 +830,6 @@ export default function FeedbackDashboard() {
                     </>
                 )}
             </div>
-        </DashboardLayout>
+        </div>
     )
 }

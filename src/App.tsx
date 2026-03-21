@@ -21,7 +21,6 @@ const ServiceModePage      = lazy(() => import("@/pages/ServiceModePage"));
 const ControlModePage      = lazy(() => import("@/pages/ControlModePage"));
 const SettingsPage         = lazy(() => import("@/pages/SettingsPage"));
 const ArchivePage          = lazy(() => import("@/pages/ArchivePage"));
-const TrashPage            = lazy(() => import("@/pages/TrashPage"));
 const LeasingBillingPage   = lazy(() => import("@/pages/LeasingBillingPage"));
 const BikeBuildsPage       = lazy(() => import("@/pages/BikeBuildsPage"));
 const BikeBuildDetailPage  = lazy(() => import("@/pages/BikeBuildDetailPage"));
@@ -29,7 +28,6 @@ const TasksPage            = lazy(() => import("@/pages/TasksPage"));
 const CockpitPage          = lazy(() => import("@/pages/CockpitPage"));
 const NotebookPage         = lazy(() => import("@/pages/NotebookPage"));
 const FeedbackPage         = lazy(() => import("@/pages/FeedbackPage"));
-const FeedbackDashboard    = lazy(() => import("@/pages/FeedbackDashboard"));
 const OrderStatusPage      = lazy(() => import("@/pages/OrderStatusPage"));
 const IntakePage           = lazy(() => import("@/pages/IntakePage"));
 
@@ -90,10 +88,8 @@ function AppRoutes() {
                 <Route path="/dashboard/orders/:orderId/work" element={<ProtectedRoute>{dashboardRedirect ?? <ServiceModePage />}</ProtectedRoute>} />
                 <Route path="/dashboard/orders/:orderId/control" element={<ProtectedRoute>{dashboardRedirect ?? <ControlModePage />}</ProtectedRoute>} />
                 <Route path="/dashboard/orders/:orderId" element={<ProtectedRoute>{dashboardRedirect ?? <OrderDetailPage />}</ProtectedRoute>} />
-                <Route path="/dashboard/trash" element={<ProtectedRoute>{dashboardRedirect ?? <TrashPage />}</ProtectedRoute>} />
                 <Route path="/dashboard/archive" element={<ProtectedRoute>{dashboardRedirect ?? <ArchivePage />}</ProtectedRoute>} />
                 <Route path="/dashboard/leasing-billing" element={<ProtectedRoute>{dashboardRedirect ?? <LeasingBillingPage />}</ProtectedRoute>} />
-                <Route path="/dashboard/feedback-analysis" element={<ProtectedRoute>{dashboardRedirect ?? <FeedbackDashboard />}</ProtectedRoute>} />
                 <Route path="/dashboard/feedback" element={<ProtectedRoute>{dashboardRedirect ?? <FeedbackPage />}</ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute>{dashboardRedirect ?? <SettingsPage />}</ProtectedRoute>} />
 
