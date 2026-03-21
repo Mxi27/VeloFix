@@ -71,7 +71,7 @@ export interface HistoryItemEntry {
 
 export interface GroupedHistoryEvent {
     id: string
-    type: 'service' | 'control' | 'status'
+    type: 'service' | 'control' | 'status' | 'checklist'
     title: string
     timestamp: string
     actor?: { id: string; name: string }

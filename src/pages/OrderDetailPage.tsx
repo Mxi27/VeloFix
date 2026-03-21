@@ -1,4 +1,4 @@
-import { toastSuccess, toastError } from '@/lib/toast-utils'
+import { toastSuccess } from '@/lib/toast-utils'
 import { OrderHistory } from "@/components/OrderHistory"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { useOrderDetail, STATUS_FLOW, LEASING_STATUS, COMPLETED_STATUS } from "@/hooks/useOrderDetail"
@@ -147,12 +147,6 @@ export default function OrderDetailPage() {
         setPendingStatusUpdate,
         pendingOrderTypeUpdate,
         setPendingOrderTypeUpdate,
-        isKundenwunschOpen,
-        setIsKundenwunschOpen,
-        isChecklistOpen,
-        setIsChecklistOpen,
-        isInternalNotesOpen,
-        setIsInternalNotesOpen,
         isCustomerDataOpen,
         setIsCustomerDataOpen,
         isBikeDataOpen,
@@ -279,7 +273,7 @@ export default function OrderDetailPage() {
     return (
         <PageTransition>
             <DashboardLayout>
-                <div className="space-y-6 pb-8">
+                <div className="space-y-4 pb-8">
 
                     {/* ── Hero Header ─────────────────────────────────────────── */}
                     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-primary/3 border border-primary/10 p-5">
@@ -296,249 +290,44 @@ export default function OrderDetailPage() {
                                 Zurück
                             </Button>
 
-                            {/* ── Row 2: Identity + Due Date ── */}
-                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                                {/* Left: order number, type badge, tags */}
-                                <div className="flex-1 min-w-0">
-                                    {/* Order number + copy + type badge */}
-                                    <div className="flex flex-wrap items-center gap-3 mb-2">
-                                        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                                            {order.order_number}
-                                        </h1>
-                                        <span className="font-mono text-sm px-2.5 py-1 rounded-lg bg-muted/60 border border-border/50 text-muted-foreground flex items-center gap-1.5">
-                                            {order.bike_model || 'Fahrrad'}
-                                            <Button
-                                                variant="ghost"
-                                                size="icon-sm"
-                                                className="h-5 w-5 text-muted-foreground hover:text-foreground"
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(order.order_number)
-                                                    toastSuccess('Kopiert', 'Auftragsnummer wurde kopiert.')
-                                                }}
-                                                title="Auftragsnummer kopieren"
-                                            >
-                                                <Copy className="h-3 w-3" />
-                                            </Button>
-                                        </span>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <button
-                                                    disabled={isReadOnly}
-                                                    className={cn(
-                                                        "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-transparent transition-all duration-200 focus:outline-none",
-                                                        isReadOnly ? "cursor-default text-muted-foreground bg-muted/50" : "cursor-pointer hover:bg-muted/10 hover:ring-1 hover:ring-border/50",
-                                                        order.is_leasing
-                                                            ? "bg-primary/10 text-primary border-primary/20 hover:border-primary/40"
-                                                            : "bg-muted text-muted-foreground border-border/50 hover:border-border"
-                                                    )}
-                                                >
-                                                    {order.is_leasing ? "Leasing" : "Standard"}
-                                                    {!isReadOnly && <span className="opacity-50">▾</span>}
-                                                </button>
-                                            </PopoverTrigger>
-                                            {!isReadOnly && (
-                                                <PopoverContent className="w-64 p-2" align="start" sideOffset={6}>
-                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2 pb-2">Auftragstyp</p>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (!order.is_leasing) return
-                                                            setPendingOrderTypeUpdate(false)
-                                                            setShowOrderTypeConfirm(true)
-                                                        }}
-                                                        className={cn(
-                                                            "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors mb-1",
-                                                            !order.is_leasing
-                                                                ? "bg-foreground/5 ring-1 ring-border cursor-default"
-                                                                : "hover:bg-muted/60 cursor-pointer"
-                                                        )}
-                                                    >
-                                                        <div className={cn(
-                                                            "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                                                            !order.is_leasing ? "border-primary" : "border-border"
-                                                        )}>
-                                                            {!order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium leading-tight">Standard</p>
-                                                            <p className="text-[11px] text-muted-foreground mt-0.5">Normale Reparatur ohne Leasing</p>
-                                                        </div>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => {
-                                                            if (order.is_leasing) return
-                                                            handleOrderTypeUpdate(true)
-                                                        }}
-                                                        className={cn(
-                                                            "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
-                                                            order.is_leasing
-                                                                ? "bg-foreground/5 ring-1 ring-border cursor-default"
-                                                                : "hover:bg-muted/60 cursor-pointer"
-                                                        )}
-                                                    >
-                                                        <div className={cn(
-                                                            "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                                                            order.is_leasing ? "border-primary" : "border-border"
-                                                        )}>
-                                                            {order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-sm font-medium leading-tight">Leasing</p>
-                                                            <p className="text-[11px] text-muted-foreground mt-0.5">Auftrag über einen Leasing-Anbieter</p>
-                                                        </div>
-                                                    </button>
-                                                </PopoverContent>
-                                            )}
-                                        </Popover>
-                                    </div>
-
-                                    {/* Tags */}
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        {order.tags && order.tags.map(tagId => {
-                                            const tagInfo = workshopTags.find(t => t.id === tagId)
-                                            if (!tagInfo) return null
-                                            return (
-                                                <Badge
-                                                    key={tagId}
-                                                    className="px-2 py-0.5 text-xs font-medium text-white shadow-sm border-0 flex items-center gap-1"
-                                                    style={{ backgroundColor: tagInfo.color }}
-                                                >
-                                                    {tagInfo.name}
-                                                    {!isReadOnly && (
-                                                        <button onClick={(e) => handleRemoveTag(tagId, e)} className="hover:bg-black/20 rounded-full p-0.5 ml-0.5">
-                                                            <X className="w-3 h-3" />
-                                                        </button>
-                                                    )}
-                                                </Badge>
-                                            )
-                                        })}
-
-                                        {!isReadOnly && workshopTags.length > 0 && (
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="outline" size="sm" className="h-6 gap-1 px-2 text-[10px] sm:text-xs border-dashed text-muted-foreground hover:text-foreground">
-                                                        <Plus className="w-3 h-3" /> Tag
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-56 p-2" align="start">
-                                                    <form onSubmit={handleCreateAndAddTag} className="flex gap-2 mb-2 p-1">
-                                                        <Input
-                                                            placeholder="Neuer Tag..."
-                                                            className="h-7 text-xs"
-                                                            value={tagInput}
-                                                            onChange={(e) => setTagInput(e.target.value)}
-                                                            autoFocus
-                                                        />
-                                                        <Button type="submit" size="sm" className="h-7 px-2">
-                                                            <Plus className="w-3.5 h-3.5" />
-                                                        </Button>
-                                                    </form>
-                                                    <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                                                        <p className="text-[10px] font-semibold text-muted-foreground px-2 pb-1 uppercase tracking-wider">Vorhandene Tags</p>
-                                                        {workshopTags.length === 0 && (
-                                                            <p className="text-[10px] text-muted-foreground px-2 italic">Keine Tags vorhanden</p>
-                                                        )}
-                                                        {workshopTags.map(tag => {
-                                                            const isAssigned = order.tags?.includes(tag.id)
-                                                            return (
-                                                                <button
-                                                                    key={tag.id}
-                                                                    onClick={() => handleToggleTag(tag.id)}
-                                                                    className={cn(
-                                                                        "w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-md transition-colors",
-                                                                        isAssigned ? "bg-primary/5 text-primary" : "hover:bg-muted/50"
-                                                                    )}
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tag.color }} />
-                                                                        {tag.name}
-                                                                    </div>
-                                                                    {isAssigned && <Check className="w-3.5 h-3.5" />}
-                                                                </button>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                </PopoverContent>
-                                            </Popover>
-                                        )}
-                                    </div>
-
-                                    {/* Status + Metadata */}
-                                    <div className="flex items-center gap-3 mt-2 flex-wrap">
-                                        <Badge
-                                            variant="secondary"
-                                            className={cn("border text-xs font-normal", (() => {
-                                                const statusColors: Record<string, string> = {
-                                                    eingegangen: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-                                                    warten_auf_teile: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-                                                    in_bearbeitung: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
-                                                    kontrolle_offen: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-                                                    abholbereit: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-                                                    abgeholt: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
-                                                    abgeschlossen: 'bg-neutral-400/10 text-neutral-500 border-neutral-400/20',
-                                                }
-                                                return statusColors[order.status] || 'bg-muted text-muted-foreground border-border/60'
-                                            })())}
-                                        >
-                                            <div className={cn("h-1.5 w-1.5 rounded-full mr-1.5", STATUS_DOT_COLORS[order.status] || 'bg-muted-foreground')} />
-                                            {STATUS_FLOW.find(s => s.value === order.status)?.label
-                                                || (order.status === 'abgeholt' ? 'Abgeholt' : order.status === 'abgeschlossen' ? 'Abgeschlossen' : order.status)}
-                                        </Badge>
-                                        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                            <User className="h-3 w-3" />
-                                            {order.customer_name}
-                                        </span>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <button
-                                                    className={cn(
-                                                        "text-xs text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors",
-                                                        order.due_date && new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' && "text-red-500"
-                                                    )}
-                                                >
-                                                    <CalendarIcon className="h-3 w-3" />
-                                                    {order.due_date ? format(new Date(order.due_date), "PPP", { locale: de }) : "Termin setzen"}
-                                                </button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <Calendar
-                                                    mode="single"
-                                                    selected={order.due_date ? new Date(order.due_date) : undefined}
-                                                    onSelect={handleSaveDueDate}
-                                                    initialFocus
-                                                    locale={de}
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
-                                        <span className="text-xs text-muted-foreground">
-                                            Erstellt am {new Date(order.created_at).toLocaleDateString('de-DE')}
-                                        </span>
-                                    </div>
+                            {/* ── Row 2: Identity + Actions ── */}
+                            <div className="flex items-start justify-between gap-2">
+                                {/* Left: order number + bike + type */}
+                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                                    <h1 className="text-lg font-bold tracking-tight text-foreground whitespace-nowrap">
+                                        {order.order_number}
+                                    </h1>
+                                    <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 text-muted-foreground">
+                                        {order.bike_model || order.bike_brand || 'Fahrrad'}
+                                    </span>
                                 </div>
 
                                 {/* Action Buttons */}
                                 {!isReadOnly && (
-                                    <div className="flex items-center gap-2 shrink-0">
+                                    <div className="flex items-center gap-1.5 shrink-0">
                                         <Button
+                                            size="sm"
                                             onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
-                                            className="bg-primary text-primary-foreground shadow-sm hover:shadow-primary/20"
+                                            className="bg-primary text-primary-foreground shadow-sm hover:shadow-primary/20 h-8 text-xs"
                                         >
-                                            <Wrench className="mr-2 h-4 w-4" />
-                                            {order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
+                                            <Wrench className="mr-1 h-3.5 w-3.5" />
+                                            <span className="hidden sm:inline">{order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
                                                 ? "Weiterarbeiten"
-                                                : "Arbeitsmodus"}
+                                                : "Arbeitsmodus"}</span>
                                         </Button>
                                         <Button
+                                            size="sm"
                                             onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
                                             variant="outline"
-                                            className="border-green-500/30 text-green-600 hover:bg-green-500/10"
+                                            className="border-green-500/30 text-green-600 hover:bg-green-500/10 h-8 text-xs"
                                         >
-                                            <ShieldCheck className="mr-2 h-4 w-4" />
-                                            Kontrolle
+                                            <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                                            <span className="hidden sm:inline">Kontrolle</span>
                                         </Button>
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            className="text-muted-foreground hover:text-foreground"
+                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
                                             onClick={() => {
                                                 const url = `${window.location.origin}/status/${order.id}`
                                                 navigator.clipboard.writeText(url)
@@ -546,280 +335,342 @@ export default function OrderDetailPage() {
                                             }}
                                             title="Status-Link kopieren"
                                         >
-                                            <Copy className="h-4 w-4" />
+                                            <Copy className="h-3.5 w-3.5" />
                                         </Button>
                                     </div>
                                 )}
                             </div>
 
-                            {/* ── Row 5: Status Progress Timeline ── */}
-                            <div className="pt-5 mt-5 border-t border-primary/10">
-                                <div className="flex items-center gap-0">
-                                    {STATUS_FLOW.map((step, idx) => {
-                                        const stepIdx = STATUS_FLOW.findIndex(s => s.value === order.status)
-                                        const isDone = idx < stepIdx
-                                        const isActive = step.value === order.status
-                                        const isLast = idx === STATUS_FLOW.length - 1
-                                        const Icon = step.icon
-                                        return (
-                                            <div key={step.value} className="flex items-center flex-1 min-w-0">
-                                                <button
-                                                    onClick={() => !saving && !isReadOnly && handleStatusChange(step.value)}
-                                                    disabled={saving || isReadOnly || isActive}
-                                                    className={cn(
-                                                        "flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all duration-200 cursor-pointer select-none group",
-                                                        "disabled:cursor-default",
-                                                        isActive && "cursor-default"
-                                                    )}
-                                                >
-                                                    <div className={cn(
-                                                        "relative h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 shrink-0",
-                                                        isDone && "bg-primary/10 border border-primary/30",
-                                                        isActive && cn(STATUS_DOT_COLORS[step.value], "text-white border-transparent"),
-                                                        !isDone && !isActive && "bg-transparent border border-border text-muted-foreground group-hover:border-muted-foreground/40"
-                                                    )}>
-                                                        {isDone
-                                                            ? <Check className="h-4 w-4 text-primary" />
-                                                            : <Icon className={cn("h-4 w-4", isActive ? "text-primary-foreground" : "text-muted-foreground")} />
-                                                        }
-                                                    </div>
-                                                    <span className={cn(
-                                                        "text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1",
-                                                        isActive && "text-foreground font-semibold",
-                                                        isDone && "text-muted-foreground",
-                                                        !isDone && !isActive && "text-muted-foreground"
-                                                    )}>
-                                                        {step.label}
-                                                    </span>
-                                                </button>
-                                                {!isLast && (
-                                                    <div className={cn(
-                                                        "flex-1 h-px mx-0.5 transition-all duration-300",
-                                                        idx < stepIdx ? "bg-primary/40" : "bg-border/60"
-                                                    )} />
-                                                )}
-                                            </div>
-                                        )
-                                    })}
-
-                                    {/* Separator */}
-                                    <div className="w-3 h-px bg-border/40 mx-1 shrink-0" />
-
-                                    {/* Leasing / Abgeholt */}
-                                    {order.is_leasing && (
-                                        <>
+                            {/* ── Metadata line ── */}
+                            <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <button
+                                            disabled={isReadOnly}
+                                            className={cn(
+                                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-200 focus:outline-none",
+                                                isReadOnly ? "cursor-default" : "cursor-pointer hover:ring-1 hover:ring-border/50",
+                                                order.is_leasing
+                                                    ? "bg-primary/10 text-primary border-primary/20"
+                                                    : "bg-muted/50 text-muted-foreground border-border/40"
+                                            )}
+                                        >
+                                            {order.is_leasing ? "Leasing" : "Standard"}
+                                            {!isReadOnly && <span className="opacity-40 text-[9px]">▾</span>}
+                                        </button>
+                                    </PopoverTrigger>
+                                    {!isReadOnly && (
+                                        <PopoverContent className="w-64 p-2" align="start" sideOffset={6}>
+                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2 pb-2">Auftragstyp</p>
                                             <button
-                                                onClick={() => !saving && !isReadOnly && handleStatusChange(LEASING_STATUS.value)}
-                                                disabled={saving || isReadOnly || order.status === LEASING_STATUS.value || order.status === COMPLETED_STATUS.value}
-                                                className="flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all duration-200 cursor-pointer select-none group disabled:cursor-default"
+                                                onClick={() => {
+                                                    if (!order.is_leasing) return
+                                                    setPendingOrderTypeUpdate(false)
+                                                    setShowOrderTypeConfirm(true)
+                                                }}
+                                                className={cn(
+                                                    "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors mb-1",
+                                                    !order.is_leasing
+                                                        ? "bg-foreground/5 ring-1 ring-border cursor-default"
+                                                        : "hover:bg-muted/60 cursor-pointer"
+                                                )}
                                             >
                                                 <div className={cn(
-                                                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
-                                                    order.status === LEASING_STATUS.value && cn(STATUS_DOT_COLORS.abgeholt, "text-white"),
-                                                    order.status !== LEASING_STATUS.value && "bg-transparent border border-border text-muted-foreground group-hover:border-muted-foreground/40"
+                                                    "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                                                    !order.is_leasing ? "border-primary" : "border-border"
                                                 )}>
-                                                    <LEASING_STATUS.icon className={cn("h-4 w-4", order.status === LEASING_STATUS.value ? "text-white" : "text-muted-foreground")} />
+                                                    {!order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
                                                 </div>
-                                                <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1", order.status === LEASING_STATUS.value ? "text-foreground font-semibold" : "text-muted-foreground")}>
-                                                    {LEASING_STATUS.label}
-                                                </span>
+                                                <div>
+                                                    <p className="text-sm font-medium leading-tight">Standard</p>
+                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Normale Reparatur ohne Leasing</p>
+                                                </div>
                                             </button>
-                                            <div className="w-4 h-px bg-border/40 mx-1 shrink-0" />
-                                        </>
+                                            <button
+                                                onClick={() => {
+                                                    if (order.is_leasing) return
+                                                    handleOrderTypeUpdate(true)
+                                                }}
+                                                className={cn(
+                                                    "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
+                                                    order.is_leasing
+                                                        ? "bg-foreground/5 ring-1 ring-border cursor-default"
+                                                        : "hover:bg-muted/60 cursor-pointer"
+                                                )}
+                                            >
+                                                <div className={cn(
+                                                    "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                                                    order.is_leasing ? "border-primary" : "border-border"
+                                                )}>
+                                                    {order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-medium leading-tight">Leasing</p>
+                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Auftrag über einen Leasing-Anbieter</p>
+                                                </div>
+                                            </button>
+                                        </PopoverContent>
                                     )}
+                                </Popover>
+                                <Badge
+                                    variant="secondary"
+                                    className={cn("border text-xs font-normal", (() => {
+                                        const statusColors: Record<string, string> = {
+                                            eingegangen: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+                                            warten_auf_teile: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+                                            in_bearbeitung: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+                                            kontrolle_offen: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+                                            abholbereit: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+                                            abgeholt: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
+                                            abgeschlossen: 'bg-neutral-400/10 text-neutral-500 border-neutral-400/20',
+                                        }
+                                        return statusColors[order.status] || 'bg-muted text-muted-foreground border-border/60'
+                                    })())}
+                                >
+                                    <div className={cn("h-1.5 w-1.5 rounded-full mr-1.5", STATUS_DOT_COLORS[order.status] || 'bg-muted-foreground')} />
+                                    {STATUS_FLOW.find(s => s.value === order.status)?.label
+                                        || (order.status === 'abgeholt' ? 'Abgeholt' : order.status === 'abgeschlossen' ? 'Abgeschlossen' : order.status)}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                    <User className="h-3 w-3" />
+                                    {order.customer_name}
+                                </span>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <button
+                                            className={cn(
+                                                "text-xs text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors",
+                                                order.due_date && new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' && "text-red-500"
+                                            )}
+                                        >
+                                            <CalendarIcon className="h-3 w-3" />
+                                            {order.due_date ? format(new Date(order.due_date), "PPP", { locale: de }) : "Termin setzen"}
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={order.due_date ? new Date(order.due_date) : undefined}
+                                            onSelect={handleSaveDueDate}
+                                            initialFocus
+                                            locale={de}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                                <span className="text-xs text-muted-foreground">
+                                    Erstellt am {new Date(order.created_at).toLocaleDateString('de-DE')}
+                                </span>
 
-                                    {/* Abgeschlossen */}
-                                    <button
-                                        onClick={() => !saving && !isReadOnly && handleStatusChange(COMPLETED_STATUS.value)}
-                                        disabled={saving || isReadOnly || order.status === COMPLETED_STATUS.value}
-                                        className="flex flex-col items-center gap-1 px-2 py-1 rounded-lg transition-all duration-200 cursor-pointer select-none group disabled:cursor-default"
-                                    >
-                                        <div className={cn(
-                                            "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 shrink-0",
-                                            order.status === COMPLETED_STATUS.value && cn(STATUS_DOT_COLORS.abgeschlossen, "text-white"),
-                                            order.status !== COMPLETED_STATUS.value && "bg-transparent border border-border text-muted-foreground group-hover:border-muted-foreground/40"
-                                        )}>
-                                            <COMPLETED_STATUS.icon className={cn("h-4 w-4", order.status === COMPLETED_STATUS.value ? "text-white" : "text-muted-foreground")} />
-                                        </div>
-                                        <span className={cn("text-[10px] font-medium leading-tight text-center hidden sm:block w-full min-h-[2.5em] flex items-center justify-center px-1", order.status === COMPLETED_STATUS.value ? "text-foreground font-semibold" : "text-muted-foreground")}>
-                                            {COMPLETED_STATUS.label}
-                                        </span>
-                                    </button>
-                                </div>
+                                {/* Tags inline */}
+                                {order.tags && order.tags.length > 0 && (
+                                    <div className="w-px h-3 bg-border/40 mx-0.5" />
+                                )}
+                                {order.tags && order.tags.map(tagId => {
+                                    const tagInfo = workshopTags.find(t => t.id === tagId)
+                                    if (!tagInfo) return null
+                                    return (
+                                        <Badge
+                                            key={tagId}
+                                            className="px-1.5 py-0 text-[10px] font-medium text-white border-0 flex items-center gap-0.5 h-5"
+                                            style={{ backgroundColor: tagInfo.color }}
+                                        >
+                                            {tagInfo.name}
+                                            {!isReadOnly && (
+                                                <button onClick={(e) => handleRemoveTag(tagId, e)} className="hover:bg-black/20 rounded-full p-0.5">
+                                                    <X className="w-2.5 h-2.5" />
+                                                </button>
+                                            )}
+                                        </Badge>
+                                    )
+                                })}
+                                {!isReadOnly && workshopTags.length > 0 && (
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" size="sm" className="h-5 gap-0.5 px-1.5 text-[10px] border-dashed text-muted-foreground hover:text-foreground">
+                                                <Plus className="w-2.5 h-2.5" /> Tag
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-56 p-2" align="start">
+                                            <form onSubmit={handleCreateAndAddTag} className="flex gap-2 mb-2 p-1">
+                                                <Input
+                                                    placeholder="Neuer Tag..."
+                                                    className="h-7 text-xs"
+                                                    value={tagInput}
+                                                    onChange={(e) => setTagInput(e.target.value)}
+                                                    autoFocus
+                                                />
+                                                <Button type="submit" size="sm" className="h-7 px-2">
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                </Button>
+                                            </form>
+                                            <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                                                <p className="text-[10px] font-semibold text-muted-foreground px-2 pb-1 uppercase tracking-wider">Vorhandene Tags</p>
+                                                {workshopTags.length === 0 && (
+                                                    <p className="text-[10px] text-muted-foreground px-2 italic">Keine Tags vorhanden</p>
+                                                )}
+                                                {workshopTags.map(tag => {
+                                                    const isAssigned = order.tags?.includes(tag.id)
+                                                    return (
+                                                        <button
+                                                            key={tag.id}
+                                                            onClick={() => handleToggleTag(tag.id)}
+                                                            className={cn(
+                                                                "w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-md transition-colors",
+                                                                isAssigned ? "bg-primary/5 text-primary" : "hover:bg-muted/50"
+                                                            )}
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tag.color }} />
+                                                                {tag.name}
+                                                            </div>
+                                                            {isAssigned && <Check className="w-3.5 h-3.5" />}
+                                                        </button>
+                                                    )
+                                                })}
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
+                                )}
                             </div>
+
+                            {/* ── Status Flow (Todoist-style stepper) ── */}
+                            {(() => {
+                                const stepIdx = STATUS_FLOW.findIndex(s => s.value === order.status)
+                                const allSteps = [
+                                    ...STATUS_FLOW.map(s => ({ ...s, type: 'main' as const })),
+                                    ...(order.is_leasing ? [{ ...LEASING_STATUS, type: 'extra' as const }] : []),
+                                    { ...COMPLETED_STATUS, type: 'extra' as const },
+                                ]
+                                return (
+                                    <div className="flex flex-wrap items-center gap-1 mt-3 pt-3 border-t border-primary/10">
+                                        {allSteps.map((step, idx) => {
+                                            const isMainStep = step.type === 'main'
+                                            const isDone = isMainStep ? idx < stepIdx : false
+                                            const isActive = step.value === order.status
+
+                                            return (
+                                                <div key={step.value} className="flex items-center">
+                                                    {/* Separator before extra steps */}
+                                                    {!isMainStep && idx > 0 && allSteps[idx - 1]?.type === 'main' && (
+                                                        <div className="w-px h-4 bg-border/30 mr-1" />
+                                                    )}
+                                                    <button
+                                                        onClick={() => !saving && !isReadOnly && handleStatusChange(step.value)}
+                                                        disabled={saving || isReadOnly || isActive}
+                                                        className={cn(
+                                                            "inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium transition-all duration-200 select-none whitespace-nowrap",
+                                                            isActive && "bg-foreground text-background shadow-sm",
+                                                            isDone && "bg-primary/10 text-primary",
+                                                            !isDone && !isActive && "text-muted-foreground/60 hover:bg-muted/50 hover:text-foreground"
+                                                        )}
+                                                    >
+                                                        {isDone ? (
+                                                            <div className="h-3.5 w-3.5 rounded-full bg-primary/20 flex items-center justify-center">
+                                                                <Check className="h-2.5 w-2.5 text-primary" />
+                                                            </div>
+                                                        ) : isActive ? (
+                                                            <div className="relative h-3.5 w-3.5 flex items-center justify-center">
+                                                                <div className={cn("h-2 w-2 rounded-full", STATUS_DOT_COLORS[step.value])} />
+                                                                <div className={cn("absolute inset-0 rounded-full animate-ping opacity-20", STATUS_DOT_COLORS[step.value])} />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/25" />
+                                                        )}
+                                                        {step.label}
+                                                    </button>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )
+                            })()}
 
                         </div>
                     </div>
 
 
-                    {/* ── Quick Info Cards ─────────────────────────────────── */}
+                    {/* ── Briefing ────────────────────────────────────────── */}
                     <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-                        {/* Kundenwunsch Preview */}
+                        {/* Kundenwunsch - always visible */}
                         <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm p-4">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-2">
-                                    <div className="p-1.5 rounded-lg bg-primary/10">
-                                        <AlertCircle className="h-3.5 w-3.5 text-primary" />
-                                    </div>
-                                    <span className="text-sm font-medium">Kundenwunsch</span>
+                            <div className="flex items-center gap-2 mb-3">
+                                <div className="p-1.5 rounded-lg bg-amber-500/10">
+                                    <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
                                 </div>
+                                <span className="text-sm font-semibold">Kundenwunsch</span>
                             </div>
-                            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                                {customerNote || <span className="italic">Keine Beschreibung vorhanden.</span>}
-                            </p>
+                            <div
+                                className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90 max-h-[120px] overflow-y-auto"
+                            >
+                                {customerNote || <span className="text-muted-foreground italic">Keine Beschreibung vorhanden.</span>}
+                            </div>
                         </div>
 
-                        {/* Checklisten-Fortschritt */}
+                        {/* Interne Notizen - always visible, editable */}
                         <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm p-4">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                     <div className="p-1.5 rounded-lg bg-primary/10">
-                                        <Wrench className="h-3.5 w-3.5 text-primary" />
+                                        <StickyNote className="h-3.5 w-3.5 text-primary" />
                                     </div>
-                                    <span className="text-sm font-medium">Checkliste</span>
+                                    <span className="text-sm font-semibold">Interne Notizen</span>
+                                    {saving && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                                </div>
+                                {!isReadOnly && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center hover:bg-muted transition-colors"
+                                        onClick={() => {
+                                            setEditInternalNote(order?.internal_note || "")
+                                            setIsInternalNoteEditDialogOpen(true)
+                                        }}
+                                    >
+                                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                                    </Button>
+                                )}
+                            </div>
+                            <div
+                                className={cn(
+                                    "text-sm whitespace-pre-wrap leading-relaxed max-h-[120px] overflow-y-auto",
+                                    !isReadOnly && "cursor-pointer hover:bg-muted/10 rounded-lg -m-1 p-1 transition-colors"
+                                )}
+                                onClick={() => {
+                                    if (!isReadOnly) {
+                                        setEditInternalNote(order?.internal_note || "")
+                                        setIsInternalNoteEditDialogOpen(true)
+                                    }
+                                }}
+                            >
+                                {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ── Checkliste (always open, full width) ─────────────── */}
+                    <div className="rounded-xl border border-border/40 bg-card/50 backdrop-blur-sm overflow-hidden">
+                        <div className="px-4 py-3.5 border-b border-border/40">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="p-1.5 rounded-lg bg-primary/10">
+                                        <PackageCheck className="h-3.5 w-3.5 text-primary" />
+                                    </div>
+                                    <span className="text-sm font-semibold">Checkliste</span>
                                 </div>
                                 <span className="text-xs font-mono text-muted-foreground">
-                                    {order.checklist ? `${order.checklist.filter((i: any) => i.completed).length}/${order.checklist.length}` : '0/0'} erledigt
+                                    {order.checklist?.filter(i => i.completed).length || 0}/{order.checklist?.length || 0} erledigt
                                 </span>
                             </div>
-                            <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-primary rounded-full transition-all duration-500"
-                                    style={{
-                                        width: `${order.checklist && order.checklist.length > 0
-                                            ? Math.round((order.checklist.filter((i: any) => i.completed).length / order.checklist.length) * 100)
-                                            : 0}%`
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* ── 2 Column Grid ──────────────────────────────────────── */}
-                    <div className="grid gap-5 grid-cols-1 lg:grid-cols-5">
-
-                        {/* ━━ LEFT COLUMN (Main Work) ━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-                        <div className="lg:col-span-3 space-y-5">
-
-                            {/* Kundenwunsch */}
-                            <Collapsible
-                                open={isKundenwunschOpen}
-                                onOpenChange={setIsKundenwunschOpen}
-                                className="rounded-lg border border-border bg-card overflow-hidden"
-                            >
-                                <CollapsibleTrigger asChild>
-                                    <div className="flex items-center gap-2.5 px-5 py-3.5 border-b border-border/40 cursor-pointer hover:bg-muted/30 transition-colors group">
-                                        <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center">
-                                            <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                                        </div>
-                                        <span className="text-sm font-semibold">Kundenwunsch</span>
-                                        <ChevronDown className={cn(
-                                            "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                                            isKundenwunschOpen ? "transform rotate-180" : ""
-                                        )} />
-                                    </div>
-                                </CollapsibleTrigger>
-                                <CollapsibleContent>
-                                    <div className="px-5 py-3.5">
-                                        <div
-                                            className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90 cursor-default"
-                                            onClick={() => toastError("Nicht bearbeitbar", "Der Kundenwunsch kann im Nachhinein nicht mehr bearbeitet werden.")}
-                                        >
-                                            {customerNote || <span className="text-muted-foreground italic">Keine Beschreibung vorhanden.</span>}
-                                        </div>
-                                    </div>
-                                </CollapsibleContent>
-                            </Collapsible>
-
-                            {/* Internal Notes */}
-                            <Collapsible
-                                open={isInternalNotesOpen}
-                                onOpenChange={setIsInternalNotesOpen}
-                                className="rounded-lg border border-border bg-card overflow-hidden flex flex-col"
-                            >
-                                <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
-                                    <CollapsibleTrigger asChild>
-                                        <div className="flex items-center gap-2 cursor-pointer flex-1">
-                                            <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                <StickyNote className="h-3.5 w-3.5 text-primary" />
-                                            </div>
-                                            <span className="text-sm font-semibold">Interne Notizen</span>
-                                            {saving && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
-                                            <ChevronDown className={cn(
-                                                "h-4 w-4 text-muted-foreground transition-transform duration-200 ml-1",
-                                                isInternalNotesOpen ? "transform rotate-180" : ""
-                                            )} />
-                                        </div>
-                                    </CollapsibleTrigger>
-                                    {!isReadOnly && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 rounded-lg bg-muted/80 flex items-center justify-center hover:bg-muted transition-colors"
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                setEditInternalNote(order?.internal_note || "")
-                                                setIsInternalNoteEditDialogOpen(true)
-                                            }}
-                                        >
-                                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                                        </Button>
-                                    )}
+                            {/* Progress Bar */}
+                            {order.checklist && order.checklist.length > 0 && (
+                                <div className="w-full h-2 bg-muted/50 rounded-full overflow-hidden mb-3">
+                                    <div
+                                        className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                                        style={{ width: `${Math.round((order.checklist.filter(i => i.completed).length / order.checklist.length) * 100)}%` }}
+                                    />
                                 </div>
-                                <CollapsibleContent className="flex-1 flex flex-col">
-                                    <div className="p-0 flex-1 flex flex-col">
-                                        <div
-                                            className={cn(
-                                                "px-4 py-3.5 text-sm whitespace-pre-wrap leading-relaxed min-h-[80px]",
-                                                !isReadOnly && "cursor-pointer hover:bg-muted/20 transition-colors"
-                                            )}
-                                            onClick={() => {
-                                                if (!isReadOnly) {
-                                                    setEditInternalNote(order?.internal_note || "")
-                                                    setIsInternalNoteEditDialogOpen(true)
-                                                }
-                                            }}
-                                        >
-                                            {internalNote || <span className="text-muted-foreground italic">Keine internen Notizen.</span>}
-                                        </div>
-                                    </div>
-                                </CollapsibleContent>
-                            </Collapsible>
-
-                            {/* Checklist Card */}
-                            <Collapsible
-                                open={isChecklistOpen}
-                                onOpenChange={setIsChecklistOpen}
-                                className="rounded-lg border border-border bg-card overflow-hidden"
-                            >
-                                <div className="px-4 py-3.5 border-b border-border/40">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <CollapsibleTrigger asChild>
-                                            <div className="flex items-center gap-2.5 cursor-pointer flex-1">
-                                                <div className="h-7 w-7 rounded-lg bg-muted flex items-center justify-center">
-                                                    <PackageCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                                                </div>
-                                                <span className="text-sm font-semibold">Checkliste</span>
-                                                <ChevronDown className={cn(
-                                                    "h-4 w-4 text-muted-foreground transition-transform duration-200",
-                                                    isChecklistOpen ? "transform rotate-180" : ""
-                                                )} />
-                                            </div>
-                                        </CollapsibleTrigger>
-                                        <span className="text-xs text-muted-foreground font-medium tabular-nums">
-                                            {order.checklist?.filter(i => i.completed).length || 0} / {order.checklist?.length || 0}
-                                        </span>
-                                    </div>
-
-                                    {/* Progress Bar */}
-                                    {order.checklist && order.checklist.length > 0 && (
-                                        <div className="w-full h-1.5 bg-muted/60 rounded-full overflow-hidden mb-3">
-                                            <div
-                                                className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-                                                style={{ width: `${Math.round((order.checklist.filter(i => i.completed).length / order.checklist.length) * 100)}%` }}
-                                            />
-                                        </div>
-                                    )}
+                            )}
 
                                     {/* Template Selector */}
                                     {/* Template Selection Modal */}
@@ -961,10 +812,9 @@ export default function OrderDetailPage() {
                                             </AlertDialogContent>
                                         </AlertDialog>
                                     </div>
-                                </div>
+                        </div>
 
-                                <CollapsibleContent>
-                                    <div className="px-4 py-3">
+                        <div className="px-4 py-3">
                                         {order.checklist && order.checklist.length > 0 ? (
                                             <div className="space-y-6">
                                                 {/* Grouped Rendering */}
@@ -1047,15 +897,14 @@ export default function OrderDetailPage() {
                                                 <p className="text-xs max-w-[180px]">Wähle oben eine Vorlage aus, um zu starten.</p>
                                             </div>
                                         )}
-                                    </div>
-                                </CollapsibleContent>
-                            </Collapsible>
-
-
                         </div>
+                    </div>
 
-                        {/* ━━ RIGHT COLUMN (Details) ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-                        <div className="lg:col-span-2 space-y-5">
+                    {/* ── Details Grid ─────────────────────────────────────── */}
+                    <div className="grid gap-5 grid-cols-1 md:grid-cols-2">
+
+                        {/* ━━ Details Column 1 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                        <div className="space-y-5">
 
                             {/* Customer Card */}
                             <Collapsible
@@ -1275,6 +1124,11 @@ export default function OrderDetailPage() {
                                     </div>
                                 </CollapsibleContent>
                             </Collapsible>
+
+                        </div>
+
+                        {/* ━━ Details Column 2 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                        <div className="space-y-5">
 
                             {/* Leasing Card (conditional) */}
                             {order.is_leasing && (
@@ -1991,25 +1845,20 @@ export default function OrderDetailPage() {
 
             <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
                 <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-                    <DialogHeader className="px-6 py-4 border-b">
-                        <DialogTitle className="flex items-center gap-2">
-                            <History className="h-5 w-5 text-primary" />
-                            Auftrags-Verlauf
+                    <DialogHeader className="px-5 py-4 border-b border-border/40">
+                        <DialogTitle className="flex items-center gap-2 text-base">
+                            <History className="h-4 w-4 text-muted-foreground" />
+                            Verlauf
                         </DialogTitle>
-                        <DialogDescription>
-                            Detaillierte Historie aller Änderungen und Ereignisse für diesen Auftrag.
+                        <DialogDescription className="text-xs">
+                            Alle Änderungen und Ereignisse
                         </DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="flex-1 px-6 py-4 overflow-y-auto">
-                        <div className="pr-4">
+                    <ScrollArea className="flex-1 min-h-0">
+                        <div className="px-3 py-4">
                             <OrderHistory history={order?.history || []} />
                         </div>
                     </ScrollArea>
-                    <div className="px-6 py-4 border-t bg-muted/30 flex justify-end">
-                        <Button variant="outline" onClick={() => setIsHistoryModalOpen(false)}>
-                            Schließen
-                        </Button>
-                    </div>
                 </DialogContent>
             </Dialog>
         </PageTransition >
