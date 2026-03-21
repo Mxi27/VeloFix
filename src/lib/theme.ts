@@ -1,14 +1,16 @@
-
 export type Theme = 'light' | 'dark' | 'system'
 
-// Preset colors for the application
+// Preset colors for the application (Refined premium palette)
 export const PRESET_COLORS = [
-    { name: 'Default Blue', hex: '#3b82f6', oklch: '0.50 0.14 250' }, // Corrected default
-    { name: 'Purple', hex: '#a855f7', oklch: '0.55 0.16 280' },
-    { name: 'Green', hex: '#22c55e', oklch: '0.55 0.14 145' },
-    { name: 'Orange', hex: '#f97316', oklch: '0.68 0.16 45' },
-    { name: 'Red', hex: '#ef4444', oklch: '0.55 0.16 25' },
-    { name: 'Pink', hex: '#ec4899', oklch: '0.60 0.16 340' },
+    { name: 'VeloFix Red',    hex: '#de4c4a' },
+    { name: 'Terracotta',     hex: '#d66a4e' },
+    { name: 'Amber Glow',     hex: '#d97706' },
+    { name: 'Nordic Green',   hex: '#2d8a5d' },
+    { name: 'Deep Teal',      hex: '#0d9488' },
+    { name: 'Steel Blue',     hex: '#4a7fb4' },
+    { name: 'Royal Indigo',   hex: '#4f46e5' },
+    { name: 'Soft Violet',    hex: '#8b5cf6' },
+    { name: 'Graphite Grey',  hex: '#64748b' },
 ]
 
 // Convert hex to OKLCH (approximation for now, or use a library if precise conversion needed)

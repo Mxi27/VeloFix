@@ -14,7 +14,7 @@ export function PageHeader({ title, description, titleBadge, action, children }:
         <div className="mb-5">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div className="flex items-center gap-2.5 flex-wrap">
-                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                    <h1 className="tracking-tight text-foreground">
                         {title}
                     </h1>
                     {titleBadge}
