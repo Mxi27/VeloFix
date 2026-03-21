@@ -13,7 +13,6 @@ import {
     HelpCircle,
     PanelLeftClose,
     Plus,
-    Bell,
 } from "lucide-react"
 import {
     Sidebar,
@@ -189,9 +188,6 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
 
                         {/* Top Row: Bell + Toggle (right aligned) */}
                         <div className="flex items-center shrink-0">
-                            <button className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors">
-                                <Bell className="h-[18px] w-[18px]" strokeWidth={1.5} />
-                            </button>
                             <button onClick={toggleSidebar} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors">
                                 <PanelLeftClose className="h-[18px] w-[18px]" strokeWidth={1.5} />
                             </button>
