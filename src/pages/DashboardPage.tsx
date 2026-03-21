@@ -7,11 +7,7 @@ import { CreateOrderModal } from "@/components/CreateOrderModal"
 import { useAuth } from "@/contexts/AuthContext"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import {
-    PlusCircle,
-    Bike,
-} from "lucide-react"
-
+import { Plus, Bike } from "lucide-react"
 
 export default function DashboardPage() {
     const { workshopId, userRole } = useAuth()
@@ -21,9 +17,6 @@ export default function DashboardPage() {
     useEffect(() => {
         if (!workshopId) return
         const fetchData = async () => {
-            // We just need to trigger a re-render of OrdersTable or similar if needed, 
-            // but OrdersTable usually handles its own fetching.
-            // DashboardPage mostly manages full-page layout and stats.
         }
         fetchData()
     }, [workshopId, refreshKey])
@@ -45,12 +38,12 @@ export default function DashboardPage() {
                             onOrderCreated={handleOrderCreated}
                         >
                             <Button
-                                variant="outline"
+                                variant="default"
                                 size="sm"
-                                className="gap-1.5 h-8 text-sm font-normal"
+                                className="h-9 px-4 gap-2"
                                 onClick={() => setIsNewOrderOpen(true)}
                             >
-                                <PlusCircle className="h-4 w-4" />
+                                <Plus className="h-4 w-4" />
                                 Neuer Auftrag
                             </Button>
                         </CreateOrderModal>
