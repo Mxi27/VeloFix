@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
+import type { Database } from "@/types/supabase"
+
+type BikeBuild = Database['public']['bike_builds']['Row']
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { PageTransition } from "@/components/PageTransition"
 import { Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/AuthContext"
 import { toast } from "sonner"
+import { isUuid } from "@/lib/utils"
 import { BikeBuildOverview } from "@/components/neurad/BikeBuildOverview"
 import { BikeBuildWizard } from "@/components/neurad/BikeBuildWizard"
 import { BikeBuildControl } from "@/components/neurad/BikeBuildControl"
@@ -14,10 +18,10 @@ export default function BikeBuildDetailPage() {
     const { id } = useParams()
     const navigate = useNavigate()
     const location = useLocation()
-    const returnPath = (location.state as any)?.from || '/dashboard/bike-builds'
+    const returnPath = (location.state as { from?: string } | null)?.from ?? '/dashboard/bike-builds'
     const { workshopId } = useAuth()
 
-    const [build, setBuild] = useState<any | null>(null)
+    const [build, setBuild] = useState<BikeBuild | null>(null)
     const [loading, setLoading] = useState(true)
     const [viewMode, setViewMode] = useState<'overview' | 'workshop' | 'control'>('overview')
 
@@ -26,14 +30,41 @@ export default function BikeBuildDetailPage() {
             if (!id || !workshopId) return
             setLoading(true)
             try {
+                const isIdUuid = isUuid(id)
                 const { data, error } = await supabase
                     .from('bike_builds')
                     .select('*')
-                    .eq('id', id)
+                    .or(isIdUuid ? `id.eq.${id},internal_number.eq.${id}` : `internal_number.eq.${id}`)
                     .single()
 
                 if (error) throw error
                 setBuild(data)
+
+                // Subscriptions should use the UUID
+                const realId = data.id
+                const channel = supabase
+                    .channel(`bike_build_detail_${realId}`)
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'UPDATE',
+                            schema: 'public',
+                            table: 'bike_builds',
+                            filter: `id=eq.${realId}`
+                        },
+                        (payload) => {
+                            setBuild((current) => {
+                                const updated = payload.new as BikeBuild
+                                if (!current) return updated
+                                return { ...current, ...updated }
+                            })
+                        }
+                    )
+                    .subscribe()
+
+                return () => {
+                    supabase.removeChannel(channel)
+                }
             } catch (error) {
                 console.error("Error fetching build", error)
                 toast.error("Baufahrrad nicht gefunden")
@@ -44,35 +75,16 @@ export default function BikeBuildDetailPage() {
         }
 
         fetchBuild()
-
-        // Realtime subscription
-        const channel = supabase
-            .channel(`bike_build_detail_${id}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: 'UPDATE',
-                    schema: 'public',
-                    table: 'bike_builds',
-                    filter: `id=eq.${id}`
-                },
-                (payload) => {
-                    setBuild((current: any) => {
-                        if (!current) return payload.new
-                        return { ...current, ...payload.new }
-                    })
-                }
-            )
-            .subscribe()
-
-        return () => {
-            supabase.removeChannel(channel)
-        }
     }, [id, workshopId, navigate])
 
     const refreshBuild = async () => {
         if (!id) return
-        const { data } = await supabase.from('bike_builds').select('*').eq('id', id).single()
+        const isIdUuid = isUuid(id)
+        const { data } = await supabase
+            .from('bike_builds')
+            .select('*')
+            .or(isIdUuid ? `id.eq.${id},internal_number.eq.${id}` : `internal_number.eq.${id}`)
+            .single()
         if (data) {
             setBuild((current: any) => {
                 if (!current) return data

@@ -21,13 +21,14 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Textarea } from '@/components/ui/textarea'
-import { cn } from "@/lib/utils"
+import { cn, isUuid } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { toast } from "@/lib/toast"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { EmployeeSelectionModal } from "@/components/EmployeeSelectionModal"
 import { logOrderEvent } from "@/lib/history"
+import type { WorkshopOrder } from "@/types/index"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import jsPDF from "jspdf"
@@ -40,11 +41,11 @@ import {
 } from "@/components/ui/select"
 
 const STATUS_FLOW = [
-    { value: 'eingegangen', label: 'Eingegangen', icon: Clock, color: 'text-gray-500 bg-gray-500/10 border-gray-500/20' },
-    { value: 'warten_auf_teile', label: 'Warten auf Teile', icon: Pause, color: 'text-orange-500 bg-orange-500/10 border-orange-500/20' },
-    { value: 'in_bearbeitung', label: 'In Bearbeitung', icon: Play, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
-    { value: 'abholbereit', label: 'Abholbereit', icon: PackageCheck, color: 'text-green-500 bg-green-500/10 border-green-500/20' },
-    { value: 'abgeschlossen', label: 'Abgeschlossen', icon: Archive, color: 'text-slate-500 bg-slate-500/10 border-slate-500/20' }
+    { value: 'eingegangen', label: 'Eingegangen', icon: Clock, color: 'text-blue-600 bg-blue-500/10 border-blue-500/20' },
+    { value: 'warten_auf_teile', label: 'Warten auf Teile', icon: Pause, color: 'text-orange-600 bg-orange-500/10 border-orange-500/20' },
+    { value: 'in_bearbeitung', label: 'In Bearbeitung', icon: Play, color: 'text-violet-600 bg-violet-500/10 border-violet-500/20' },
+    { value: 'abholbereit', label: 'Abholbereit', icon: PackageCheck, color: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20' },
+    { value: 'abgeschlossen', label: 'Abgeschlossen', icon: Archive, color: 'text-neutral-500 bg-neutral-500/10 border-neutral-500/20' }
 ]
 
 interface ChecklistItem {
@@ -68,7 +69,7 @@ export default function ServiceModePage() {
 
     // State
     const [loading, setLoading] = useState(true)
-    const [order, setOrder] = useState<any>(null)
+    const [order, setOrder] = useState<WorkshopOrder | null>(null)
     const [items, setItems] = useState<ChecklistItem[]>([])
     const [currentStepIndex, setCurrentStepIndex] = useState(0)
     const [isSaving, setIsSaving] = useState(false)
@@ -116,10 +117,11 @@ export default function ServiceModePage() {
 
         const fetchOrder = async () => {
             try {
+                const isIdUuid = isUuid(orderId)
                 const { data, error } = await supabase
                     .from('orders')
                     .select('*')
-                    .eq('id', orderId)
+                    .or(isIdUuid ? `id.eq.${orderId},order_number.eq.${orderId}` : `order_number.eq.${orderId}`)
                     .single()
 
                 if (error) throw error
@@ -157,7 +159,7 @@ export default function ServiceModePage() {
                 const firstTodo = parsedItems.findIndex(i => !i.completed && !i.skipped)
                 if (firstTodo >= 0) setCurrentStepIndex(firstTodo)
 
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error("Error loading order:", err)
                 toast.error("Fehler", "Auftrag konnte nicht geladen werden.")
             } finally {
@@ -601,7 +603,7 @@ export default function ServiceModePage() {
             doc.setFont("helvetica", "normal")
             doc.setTextColor(130, 130, 130)
 
-            let metaParts = []
+            const metaParts = []
 
             // If completed, show timestamp
             if (item.completed) {

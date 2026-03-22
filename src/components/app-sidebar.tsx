@@ -1,75 +1,102 @@
 import {
     LayoutDashboard,
-    PlusCircle,
     Archive,
     Settings,
     LogOut,
     Bike,
     CreditCard,
-    Trash2,
     Star,
     CheckSquare,
     BookOpen,
-    BarChart3,
+    ListTodo,
+    ChevronDown,
+    HelpCircle,
+    PanelLeft,
+    Plus,
 } from "lucide-react"
 import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
-    SidebarGroup,
-    SidebarGroupContent,
-    SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
-    SidebarMenuButton,
     SidebarMenuItem,
     SidebarRail,
+    useSidebar,
 } from "@/components/ui/sidebar"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/AuthContext"
 import { useNavigate, useLocation } from "react-router-dom"
 import { CreateOrderModal } from "@/components/CreateOrderModal"
+import { SettingsModal } from "@/components/SettingsModal"
 import { useState } from "react"
-import { Button } from "./ui/button"
 import { cn } from "@/lib/utils"
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
     onOrderCreated?: () => void
 }
 
-interface SidebarItemProps {
-    item: {
-        title: string
-        icon: any
-        href: string
-    }
-    location: any
-    navigate: any
+interface NavItem {
+    title: string
+    icon: React.ComponentType<{ className?: string; strokeWidth?: number }>
+    href: string
+    badge?: number
 }
 
-function SidebarItem({ item, location, navigate }: SidebarItemProps) {
-    const isActive = location.pathname === item.href || (item.href === "/dashboard/notebook" && location.pathname.startsWith("/dashboard/notebook"))
-    
+/* Todoist nav button */
+function NavBtn({
+    item,
+    isActive,
+    onClick,
+}: {
+    item: NavItem
+    isActive: boolean
+    onClick: () => void
+}) {
     return (
         <SidebarMenuItem>
-            <SidebarMenuButton
-                isActive={isActive}
-                asChild
-                onClick={() => navigate(item.href)}
+            <button
+                onClick={onClick}
                 className={cn(
-                    "cursor-pointer rounded-lg h-9",
-                    isActive && "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                    "w-full flex items-center gap-2.5 h-[34px] px-2.5 rounded-lg text-[14px] transition-colors duration-100 cursor-pointer select-none outline-none",
+                    isActive
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
                 )}
             >
-                <div className="flex items-center gap-2.5 w-full">
-                    <item.icon className={cn(
-                        "h-4 w-4 shrink-0",
-                        isActive ? "text-primary" : "text-muted-foreground"
-                    )} />
-                    <span className="truncate">{item.title}</span>
-                </div>
-            </SidebarMenuButton>
+                <item.icon
+                    strokeWidth={isActive ? 2 : 1.5}
+                    className={cn(
+                        "h-[18px] w-[18px] shrink-0",
+                        isActive ? "text-primary" : "text-sidebar-foreground/50"
+                    )}
+                />
+                <span className="flex-1 truncate text-left">{item.title}</span>
+                {item.badge !== undefined && item.badge > 0 && (
+                    <span className={cn(
+                        "text-[12px] tabular-nums",
+                        isActive ? "text-primary" : "text-sidebar-foreground/40"
+                    )}>
+                        {item.badge}
+                    </span>
+                )}
+            </button>
         </SidebarMenuItem>
+    )
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <p className="px-2.5 pt-5 pb-1.5 text-[13px] font-semibold text-sidebar-foreground/50 select-none">
+            {children}
+        </p>
     )
 }
 
@@ -77,172 +104,181 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
     const { user, signOut, userRole } = useAuth()
     const navigate = useNavigate()
     const location = useLocation()
+    const { toggleSidebar } = useSidebar()
     const [isNewOrderOpen, setIsNewOrderOpen] = useState(false)
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
     const handleLogout = async () => {
         try {
             await signOut()
             navigate("/login", { replace: true })
-        } catch (error) {
-            console.error("Logout error:", error)
+        } catch (err) {
+            console.error("Logout error:", err)
         }
     }
 
+    const isActive = (href: string) =>
+        href === "/dashboard"
+            ? location.pathname === "/dashboard"
+            : location.pathname.startsWith(href)
 
+    const userName = user?.user_metadata?.full_name || user?.email || "Benutzer"
     const initials = user?.user_metadata?.full_name
         ?.split(" ")
         .map((n: string) => n[0])
         .join("")
         .toUpperCase() || "U"
 
+    const mainItems: NavItem[] = [
+        { title: "Reparaturen", icon: ListTodo, href: "/dashboard" },
+        { title: "Mein Cockpit", icon: LayoutDashboard, href: "/dashboard/cockpit" },
+        { title: "Aufgaben", icon: CheckSquare, href: "/dashboard/tasks" },
+    ]
+
+    const workshopItems: NavItem[] = [
+        { title: "Neuradaufbau", icon: Bike, href: "/dashboard/bike-builds" },
+        { title: "Reparatur Archiv", icon: Archive, href: "/dashboard/archive" },
+        { title: "Leasing", icon: CreditCard, href: "/dashboard/leasing-billing" },
+    ]
+
+    const commItems: NavItem[] = [
+        { title: "Notizbuch", icon: BookOpen, href: "/dashboard/notebook" },
+        { title: "Feedback", icon: Star, href: "/dashboard/feedback" },
+    ]
+
     return (
-        <Sidebar>
-            <SidebarHeader className="border-b">
-                <div className="flex items-center gap-3 px-2 py-3">
-                    <div className="bg-primary p-2 rounded-lg">
-                        <Bike className="h-5 w-5 text-primary-foreground" />
+        <>
+            <Sidebar className="border-r border-sidebar-border">
+                {/* ── User header — Todoist style: round avatar + name + chevron ── */}
+                <SidebarHeader className="px-3 py-3">
+                    <div className="flex items-center gap-1.5 w-full">
+                        {/* Profile Row */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <div className="flex items-center gap-2 cursor-pointer hover:bg-sidebar-accent/50 p-1.5 -ml-1.5 rounded-md transition-colors min-w-0 flex-1">
+                                    <Avatar className="h-6 w-6 rounded-full shrink-0">
+                                        <AvatarImage src="" />
+                                        <AvatarFallback className="rounded-full bg-[#e8a064] text-white text-[10px] font-bold">
+                                            {initials}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span className="flex-1 text-[13px] font-semibold text-sidebar-foreground truncate min-w-0">
+                                        {userName}
+                                    </span>
+                                    <ChevronDown className="h-3.5 w-3.5 text-sidebar-foreground/40 shrink-0" />
+                                </div>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-[240px]">
+                                <div className="px-2 py-1.5 text-sm">
+                                    <p className="font-semibold truncate">{userName}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                                </div>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => setIsSettingsOpen(true)}>
+                                    <Settings className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <span>Einstellungen</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    <span>Abmelden</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* Top Row: Toggle (right aligned) */}
+                        <div className="flex items-center shrink-0">
+                            <button 
+                                onClick={toggleSidebar} 
+                                className="h-8 w-8 flex items-center justify-center rounded-md hover:bg-sidebar-accent text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors"
+                                title="Menü ein/ausklappen"
+                            >
+                                <PanelLeft className="h-[20px] w-[20px]" strokeWidth={1.5} />
+                            </button>
+                        </div>
                     </div>
-                    <div className="flex flex-col">
-                        <span className="font-semibold tracking-tight">VeloFix</span>
-                        <span className="text-[11px] text-muted-foreground">
-                            Werkstatt Pro
+                </SidebarHeader>
+
+                <SidebarContent className="px-2 py-1 overflow-y-auto">
+                    {/* ── New Order — Todoist "Aufgabe hinzufügen" style ── */}
+                    {userRole !== 'read' && (
+                        <div className="mb-1.5">
+                            <CreateOrderModal
+                                open={isNewOrderOpen}
+                                onOpenChange={setIsNewOrderOpen}
+                                onOrderCreated={onOrderCreated}
+                            >
+                                <button
+                                    className="w-full flex items-center gap-2.5 h-[34px] px-2.5 rounded-lg text-[14px] font-bold text-primary hover:bg-sidebar-accent/60 transition-colors duration-100 cursor-pointer"
+                                    onClick={() => setIsNewOrderOpen(true)}
+                                >
+                                    <div className="rounded-full bg-primary flex items-center justify-center h-[22px] w-[22px] shrink-0">
+                                        <Plus className="h-[14px] w-[14px] text-white stroke-[3]" />
+                                    </div>
+                                    <span>Neuer Auftrag</span>
+                                </button>
+                            </CreateOrderModal>
+                        </div>
+                    )}
+
+                    {/* ── Main navigation ── */}
+                    <SidebarMenu>
+                        {mainItems.map((item) => (
+                            <NavBtn
+                                key={item.href}
+                                item={item}
+                                isActive={isActive(item.href)}
+                                onClick={() => navigate(item.href)}
+                            />
+                        ))}
+                    </SidebarMenu>
+
+
+
+                    {/* ── Werkstatt (Meine Projekte style) ── */}
+                    <SectionLabel>Werkstatt</SectionLabel>
+                    <SidebarMenu>
+                        {workshopItems.map((item) => (
+                            <NavBtn
+                                key={item.href}
+                                item={item}
+                                isActive={isActive(item.href)}
+                                onClick={() => navigate(item.href)}
+                            />
+                        ))}
+
+                    </SidebarMenu>
+
+                    {/* ── Kommunikation ── */}
+                    <SectionLabel>Kommunikation</SectionLabel>
+                    <SidebarMenu>
+                        {commItems.map((item) => (
+                            <NavBtn
+                                key={item.href}
+                                item={item}
+                                isActive={isActive(item.href)}
+                                onClick={() => navigate(item.href)}
+                            />
+                        ))}
+                    </SidebarMenu>
+                </SidebarContent>
+
+                {/* ── Footer — Todoist "Hilfe & Ressourcen" style ── */}
+                <SidebarFooter className="px-2 py-2">
+                    <div
+                        className="flex items-center gap-2.5 h-[34px] px-2.5 rounded-lg hover:bg-sidebar-accent/60 transition-colors duration-100 cursor-pointer group"
+                        title="Hilfe & Ressourcen"
+                    >
+                        <HelpCircle strokeWidth={1.5} className="h-[18px] w-[18px] shrink-0 text-sidebar-foreground/50" />
+                        <span className="flex-1 text-[13px] font-medium text-sidebar-foreground/70 truncate group-hover:text-sidebar-foreground transition-colors">
+                            Hilfe & Ressourcen
                         </span>
                     </div>
-                </div>
-            </SidebarHeader>
+                </SidebarFooter>
+                <SidebarRail />
+            </Sidebar>
 
-            <SidebarContent className="px-2">
-                <SidebarGroup>
-                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
-                        Werkstatt
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu className="space-y-0.5">
-                            {/* New Order Button */}
-                            {userRole !== 'read' && (
-                                <CreateOrderModal
-                                    open={isNewOrderOpen}
-                                    onOpenChange={setIsNewOrderOpen}
-                                    onOrderCreated={onOrderCreated}
-                                >
-                                    <SidebarMenuItem>
-                                        <SidebarMenuButton
-                                            asChild
-                                            className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground cursor-pointer rounded-lg h-9 font-medium"
-                                            onClick={() => setIsNewOrderOpen(true)}
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                <PlusCircle className="h-4 w-4" />
-                                                <span>Neuer Auftrag</span>
-                                            </span>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                </CreateOrderModal>
-                            )}
-
-                            <div className="h-1" />
-
-                            {[
-                                { title: "Reparaturen", icon: LayoutDashboard, href: "/dashboard" },
-                                { title: "Aufgaben", icon: CheckSquare, href: "/dashboard/tasks" },
-                                { title: "Neuradaufbau", icon: Bike, href: "/dashboard/bike-builds" },
-                            ].map((item) => (
-                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarGroup>
-                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
-                        Verwaltung
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu className="space-y-0.5">
-                            {[
-                                { title: "Reparatur Archiv", icon: Archive, href: "/dashboard/archive" },
-                                { title: "Leasing Abrechnung", icon: CreditCard, href: "/dashboard/leasing-billing" },
-                            ].map((item) => (
-                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
-                            ))}
-                            {(userRole === 'admin' || userRole === 'owner') && (
-                                <>
-                                    <SidebarItem 
-                                        item={{ title: "Papierkorb", icon: Trash2, href: "/dashboard/trash" }} 
-                                        location={location} 
-                                        navigate={navigate} 
-                                    />
-                                    <SidebarItem 
-                                        item={{ title: "Feedback Analyse", icon: BarChart3, href: "/dashboard/feedback-analysis" }} 
-                                        location={location} 
-                                        navigate={navigate} 
-                                    />
-                                </>
-                            )}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarGroup>
-                    <SidebarGroupLabel className="text-[11px] uppercase tracking-wider font-medium text-muted-foreground/70 px-2 pt-3 pb-2">
-                        Kommunikation
-                    </SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu className="space-y-0.5">
-                            {[
-                                { title: "Notizbuch", icon: BookOpen, href: "/dashboard/notebook" },
-                                { title: "Feedback", icon: Star, href: "/dashboard/feedback" },
-                            ].map((item) => (
-                                <SidebarItem key={item.title} item={item} location={location} navigate={navigate} />
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarGroup className="mt-auto">
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            <SidebarItem 
-                                item={{ title: "Einstellungen", icon: Settings, href: "/settings" }} 
-                                location={location} 
-                                navigate={navigate} 
-                            />
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-            </SidebarContent>
-
-            <SidebarFooter className="border-t p-2">
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <div className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-sidebar-accent/50 transition-colors">
-                            <Avatar className="h-8 w-8 rounded-lg">
-                                <AvatarImage src="" />
-                                <AvatarFallback className="rounded-lg bg-primary/10 text-primary text-xs font-medium">
-                                    {initials}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-medium text-sm">
-                                    {user?.user_metadata?.full_name || "Benutzer"}
-                                </span>
-                                <span className="truncate text-xs text-muted-foreground">
-                                    {user?.email}
-                                </span>
-                            </div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 rounded-lg"
-                                onClick={handleLogout}
-                            >
-                                <LogOut className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-            </SidebarFooter>
-            <SidebarRail />
-        </Sidebar>
+            <SettingsModal open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+        </>
     )
 }

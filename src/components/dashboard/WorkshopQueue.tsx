@@ -11,7 +11,8 @@ import {
     ArrowRight,
 } from "lucide-react"
 import type { OrderItem } from "./OrderCard"
-import { STATUS_COLORS, STATUS_LABELS, DueDateBadge } from "./OrderCard"
+import { DueDateBadge } from "./OrderCard"
+import { StatusBadge } from "@/components/ui/status-badge"
 import { cn } from "@/lib/utils"
 import { isPast, isToday } from "date-fns"
 
@@ -76,7 +77,7 @@ export const WorkshopQueue = ({ orders, employees }: WorkshopQueueProps) => {
                         <Wrench className="h-4 w-4 text-amber-600" />
                     </div>
                     <h2 className="text-lg font-semibold tracking-tight">Warteschlange</h2>
-                    <Badge variant="secondary" className="bg-slate-100 text-slate-700 ml-1">
+                    <Badge variant="secondary" className="bg-muted text-muted-foreground ml-1">
                         {filteredOrders.length}
                     </Badge>
                 </div>
@@ -155,9 +156,7 @@ export const WorkshopQueue = ({ orders, employees }: WorkshopQueueProps) => {
                                         <div className="flex items-center justify-between md:justify-start">
                                             <span className="font-mono text-sm font-semibold text-primary/80">{order.order_number}</span>
                                             {/* Mobile Status Badge override */}
-                                            <Badge variant="secondary" className={cn("md:hidden text-[10px] h-5 px-1.5 font-normal border", STATUS_COLORS[order.status])}>
-                                                {STATUS_LABELS[order.status] || order.status}
-                                            </Badge>
+                                            <StatusBadge status={order.status} className="md:hidden text-[10px] h-5 px-1.5" />
                                         </div>
 
                                         {/* Info */}
@@ -191,9 +190,7 @@ export const WorkshopQueue = ({ orders, employees }: WorkshopQueueProps) => {
 
                                         {/* Status (Desktop) */}
                                         <div className="hidden md:flex items-center">
-                                            <Badge variant="secondary" className={cn("text-[10px] h-5 px-1.5 font-normal border", STATUS_COLORS[order.status])}>
-                                                {STATUS_LABELS[order.status] || order.status}
-                                            </Badge>
+                                            <StatusBadge status={order.status} className="text-[10px] h-5 px-1.5" />
                                         </div>
 
                                         {/* Chevron */}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { DashboardLayout } from '@/layouts/DashboardLayout'
 import { PageTransition } from '@/components/PageTransition'
+import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -49,6 +50,7 @@ import {
     Wrench,
     MessageSquare,
     Tag,
+    Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -207,9 +209,9 @@ export default function SettingsPage() {
                             <CardContent className="space-y-6">
                                 <form onSubmit={handleUpdateProfile} className="space-y-6">
                                     <div className="flex items-center gap-6">
-                                        <Avatar className="h-24 w-24 border-4 border-background shadow-lg ring-2 ring-primary/10">
+                                        <Avatar className="h-20 w-20 rounded-sm border border-border">
                                             <AvatarImage src="" />
-                                            <AvatarFallback className="text-2xl bg-gradient-to-br from-primary/80 to-primary text-primary-foreground">
+                                            <AvatarFallback className="rounded-sm bg-primary/10 text-primary text-2xl font-bold">
                                                 {initials}
                                             </AvatarFallback>
                                         </Avatar>
@@ -220,7 +222,7 @@ export default function SettingsPage() {
                                             <p className="text-sm text-muted-foreground">{user?.email}</p>
                                             <div className="flex items-center gap-2">
                                                 <span className={cn(
-                                                    "text-xs font-medium px-2.5 py-1 rounded-full",
+                                                    "text-[11px] font-medium px-2 py-0.5 rounded-[3px]",
                                                     (userRole === 'admin' || userRole === 'owner')
                                                         ? "bg-primary/10 text-primary"
                                                         : "bg-muted text-muted-foreground"
@@ -343,59 +345,56 @@ export default function SettingsPage() {
     return (
         <PageTransition>
             <DashboardLayout>
-                {/* Premium Header */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-purple-500/5 border border-primary/10 p-6 mb-8">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-                    <div className="relative">
-                        <h1 className="text-2xl font-bold tracking-tight">Einstellungen</h1>
-                        <p className="text-muted-foreground text-sm mt-1">
-                            {(userRole === 'admin' || userRole === 'owner')
-                                ? 'Profil, Werkstatt und Mitarbeiter verwalten'
-                                : 'Profil und Präferenzen anpassen'}
-                        </p>
-                    </div>
-                </div>
+                <PageHeader
+                    icon={Settings}
+                    title="Einstellungen"
+                    description={(userRole === 'admin' || userRole === 'owner')
+                        ? 'Profil, Werkstatt und Mitarbeiter verwalten'
+                        : 'Profil und Präferenzen anpassen'}
+                />
 
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Premium Sidebar Navigation */}
                     <div className="lg:w-64 shrink-0">
-                        <nav className="sticky top-4 p-2 rounded-xl bg-muted/30 border space-y-4">
-                            {filteredNavGroups.map((group, gi) => (
-                                <div key={group.label}>
-                                    {gi > 0 && <div className="border-t border-border/50 mb-3" />}
-                                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 mb-1.5">
-                                        {group.label}
-                                    </p>
-                                    <div className="space-y-0.5">
-                                        {group.items.map((item) => {
-                                            const Icon = item.icon
-                                            const isActive = activeSection === item.id
+                    {/* Notion-style flat sidebar nav */}
+                    <nav className="sticky top-4 space-y-4">
+                        {filteredNavGroups.map((group, gi) => (
+                            <div key={group.label}>
+                                {gi > 0 && <div className="border-t border-border/50 mb-2 mt-1" />}
+                                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50 px-2 mb-1 select-none">
+                                    {group.label}
+                                </p>
+                                <div className="space-y-0.5">
+                                    {group.items.map((item) => {
+                                        const Icon = item.icon
+                                        const isActive = activeSection === item.id
 
-                                            return (
-                                                <button
-                                                    key={item.id}
-                                                    onClick={() => setActiveSection(item.id)}
-                                                    className={cn(
-                                                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200",
-                                                        isActive
-                                                            ? "bg-background shadow-sm border text-foreground"
-                                                            : "hover:bg-background hover:shadow-sm hover:border-border/50 border border-transparent text-muted-foreground hover:text-foreground"
-                                                    )}
-                                                >
-                                                    <div className={cn(
-                                                        "p-1.5 rounded-md transition-colors",
-                                                        isActive ? "bg-primary/10 text-primary" : "bg-transparent"
-                                                    )}>
-                                                        <Icon className="h-4 w-4" />
-                                                    </div>
-                                                    <span className="font-medium text-sm">{item.label}</span>
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
+                                        return (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => setActiveSection(item.id)}
+                                                className={cn(
+                                                    "w-full flex items-center gap-2 h-7 px-2 rounded-sm text-[14px] transition-colors duration-100 cursor-pointer outline-none relative",
+                                                    isActive
+                                                        ? "bg-accent text-foreground font-medium"
+                                                        : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                                                )}
+                                            >
+                                                {isActive && (
+                                                    <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-full bg-primary" />
+                                                )}
+                                                <Icon className={cn(
+                                                    "h-[15px] w-[15px] shrink-0 transition-colors",
+                                                    isActive ? "text-foreground/80" : "text-muted-foreground/60"
+                                                )} />
+                                                <span className="truncate">{item.label}</span>
+                                            </button>
+                                        )
+                                    })}
                                 </div>
-                            ))}
-                        </nav>
+                            </div>
+                        ))}
+                    </nav>
                     </div>
 
                     {/* Content Area */}

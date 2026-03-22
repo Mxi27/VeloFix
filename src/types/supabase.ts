@@ -35,6 +35,7 @@ export interface Database {
                     inquiry_retention_days?: number | null
                     order_retention_days?: number | null
                     trash_retention_days?: number | null
+                    google_review_url?: string | null
                 }
                 Insert: {
                     id?: string
@@ -61,6 +62,7 @@ export interface Database {
                     inquiry_retention_days?: number | null
                     order_retention_days?: number | null
                     trash_retention_days?: number | null
+                    google_review_url?: string | null
                 }
                 Update: {
                     id?: string
@@ -87,6 +89,7 @@ export interface Database {
                     inquiry_retention_days?: number | null
                     order_retention_days?: number | null
                     trash_retention_days?: number | null
+                    google_review_url?: string | null
                 }
             }
             workshop_tags: {

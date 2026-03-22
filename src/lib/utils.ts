@@ -23,3 +23,12 @@ export function formatRelativeTime(date: Date): string {
   if (days < 7) return format(date, "EEEE", { locale: de })
   return format(date, "dd. MMM", { locale: de })
 }
+
+/**
+ * Checks if a string is a valid UUID
+ */
+export function isUuid(value: string | null | undefined): boolean {
+  if (!value) return false
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  return uuidRegex.test(value)
+}

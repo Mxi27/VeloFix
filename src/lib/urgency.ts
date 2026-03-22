@@ -1,6 +1,6 @@
 import { isPast, isToday, format, differenceInHours, differenceInDays } from "date-fns"
 import { de } from "date-fns/locale"
-import { AlertTriangle, Clock, ShieldCheck, Calendar } from "lucide-react"
+import { AlertTriangle, Clock, ShieldCheck, Minus } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 export interface UrgencyInfo {
@@ -21,7 +21,7 @@ export interface UrgencyInfo {
 export const getUrgencyInfo = (dueDate: string | null): UrgencyInfo => {
   if (!dueDate) {
     return {
-      icon: Calendar,
+      icon: Minus,
       color: "text-slate-600 dark:text-slate-400",
       bg: "bg-slate-50 dark:bg-slate-900/20",
       label: "Kein Datum",

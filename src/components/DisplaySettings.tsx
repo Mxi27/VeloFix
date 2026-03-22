@@ -16,7 +16,7 @@ export function DisplaySettings() {
     const { workshopId, broadcastThemeChange } = useAuth()
     const [theme, setTheme] = useState<Theme>('system')
     const [compactMode, setCompactMode] = useState(false)
-    const [accentColor, setAccentColor] = useState('#3b82f6')
+    const [accentColor, setAccentColor] = useState('#de4c4a')
 
 
     useEffect(() => {

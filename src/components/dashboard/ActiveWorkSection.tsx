@@ -20,9 +20,9 @@ export interface ShopTask {
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
-    high: "bg-red-50 text-red-700 border-red-200",
-    medium: "bg-amber-50 text-amber-700 border-amber-200",
-    low: "bg-slate-50 text-slate-600 border-slate-200",
+    high: "bg-red-500/12 text-red-700 border-red-500/25 dark:text-red-400 dark:bg-red-500/15 dark:border-red-500/25",
+    medium: "bg-amber-500/12 text-amber-700 border-amber-500/25 dark:text-amber-400 dark:bg-amber-500/15 dark:border-amber-500/25",
+    low: "bg-slate-500/10 text-slate-600 border-slate-500/20 dark:text-slate-400 dark:bg-slate-500/12 dark:border-slate-500/20",
 }
 
 interface ActiveWorkSectionProps {
@@ -45,7 +45,7 @@ export const ActiveWorkSection = ({ myOrders, qcOrders, shopTasks }: ActiveWorkS
                         </div>
                         <h2 className="text-lg font-semibold tracking-tight">Meine Räder</h2>
                         {myOrders.length > 0 && (
-                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200 ml-1">
+                            <Badge variant="secondary" className="bg-blue-500/12 text-blue-700 border-blue-500/25 dark:bg-blue-500/15 dark:text-blue-400 dark:border-blue-500/25 ml-1">
                                 {myOrders.length}
                             </Badge>
                         )}
