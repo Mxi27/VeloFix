@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Plus, Check, ArrowLeft,
-    X, CheckCircle2, Download, SkipForward, AlertTriangle,
+    X, Download, AlertTriangle,
     Clock, Pause, Play, PackageCheck, Archive
 } from 'lucide-react'
 
@@ -100,6 +100,7 @@ export default function ServiceModePage() {
 
     // Shared Mode Enforcer
     const selectionMade = useRef(false) // Track if selection happened
+    const activeItemRef = useRef<HTMLDivElement>(null)
     // Force re-selection on entry (Mount)
     useEffect(() => {
         if (isSharedMode) {
@@ -334,7 +335,52 @@ export default function ServiceModePage() {
         toast.success(newItems[currentStepIndex].warning ? "Warnung aktiviert" : "Warnung entfernt")
     }
 
+    // Toggle completion for any item (Todoist-style circle click)
+    const handleToggleItemComplete = async (idx: number) => {
+        if (isSaving || isReadOnly) return
+        const newItems = [...items]
+        const wasCompleted = newItems[idx].completed
+        newItems[idx] = {
+            ...newItems[idx],
+            completed: !wasCompleted,
+            skipped: false
+        }
+        setItems(newItems)
+        await saveChecklist(newItems)
 
+        if (!wasCompleted) {
+            // Auto-advance to next uncompleted step
+            const nextIdx = newItems.findIndex((item, i) => i > idx && !item.completed && !item.skipped)
+            if (nextIdx >= 0) {
+                setCurrentStepIndex(nextIdx)
+            } else {
+                // Nothing after — try from the beginning
+                const firstOpen = newItems.findIndex(item => !item.completed && !item.skipped)
+                if (firstOpen >= 0) setCurrentStepIndex(firstOpen)
+            }
+
+            if (orderId) {
+                const actor = activeEmployee ? { id: activeEmployee.id, name: activeEmployee.name } : undefined
+                logOrderEvent(orderId, {
+                    type: 'service_step',
+                    title: newItems[idx].text,
+                    description: `Schritt "${newItems[idx].text}" erledigt`,
+                    actor
+                }, user).catch(console.error)
+            }
+            if (newItems.every(i => i.completed || i.skipped)) {
+                setIsFinished(true)
+                toast.success("Fertig!", "Alle Schritte abgeschlossen.")
+            }
+        }
+    }
+
+    // Auto-scroll active item into view
+    useEffect(() => {
+        if (activeItemRef.current) {
+            activeItemRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        }
+    }, [currentStepIndex])
 
     // --- Data Save Handlers ---
 
@@ -634,220 +680,420 @@ export default function ServiceModePage() {
         toast.success("PDF erstellt", "Neues Design angewendet.")
     }
 
-    // Render section — Jony Ive redesign
+    // Render
     const completedCount = items.filter(i => i.completed || i.skipped).length
     const currentStatus = STATUS_FLOW.find(s => s.value === order?.status)
+    const allDone = items.length > 0 && items.every(i => i.completed || i.skipped)
 
-    const renderCompletionScreen = () => (
-        <div className="flex-1 flex items-center justify-center px-6 pb-16">
-            <motion.div
-                initial={{ opacity: 0, scale: 0.94, y: 12 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="w-full max-w-sm flex flex-col items-center text-center gap-6"
-            >
-                <div className="relative">
-                    <div className="absolute inset-0 rounded-full bg-green-500/20 blur-2xl scale-150" />
-                    <div className="relative h-24 w-24 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center">
-                        <CheckCircle2 className="h-12 w-12 text-green-500" />
+    // ── Completion (mobile fullscreen / desktop right panel) ──
+    const renderCompletionContent = () => (
+        <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="w-full max-w-sm mx-auto flex flex-col items-center text-center gap-6 py-12 px-6"
+        >
+            <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center">
+                <Check className="h-8 w-8 text-green-500" strokeWidth={2} />
+            </div>
+            <div className="space-y-1.5">
+                <h2 className="text-xl font-semibold tracking-tight">Alle Schritte erledigt</h2>
+                <p className="text-sm text-muted-foreground/60">
+                    {items.filter(i => i.completed).length} erledigt
+                    {items.filter(i => i.skipped).length > 0 && ` · ${items.filter(i => i.skipped).length} übersprungen`}
+                </p>
+            </div>
+            <div className="w-full flex flex-col gap-2 pt-2">
+                <button
+                    onClick={generatePDF}
+                    className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-2 hover:bg-primary/90 active:scale-[0.98] transition-all"
+                >
+                    <Download className="h-4 w-4" />
+                    Protokoll herunterladen
+                </button>
+                <button
+                    onClick={() => navigate(-1)}
+                    className="w-full h-10 text-sm text-muted-foreground/60 hover:text-foreground transition-colors"
+                >
+                    Zurück zur Übersicht
+                </button>
+            </div>
+        </motion.div>
+    )
+
+    // ── Step list (left panel on desktop, full on mobile) ──
+    const renderStepList = () => (
+        <div className="flex flex-col w-full px-4 pb-8">
+            {/* All-done banner */}
+            {allDone && !isFinished && (
+                <div className="flex items-center justify-between py-3 mb-1">
+                    <div className="flex items-center gap-2.5">
+                        <div className="h-7 w-7 rounded-full bg-green-500/10 flex items-center justify-center">
+                            <Check className="h-3.5 w-3.5 text-green-500" strokeWidth={2.5} />
+                        </div>
+                        <span className="text-sm font-medium text-green-600">Alle erledigt</span>
                     </div>
-                </div>
-                <div className="space-y-2">
-                    <h2 className="text-3xl font-bold tracking-tight">Fertig!</h2>
-                    <p className="text-muted-foreground">
-                        Alle {items.length} Arbeitsschritte dokumentiert.
-                    </p>
-                </div>
-                <div className="w-full flex flex-col gap-3 pt-2">
                     <button
                         onClick={generatePDF}
-                        className="w-full h-14 rounded-2xl bg-primary text-primary-foreground text-base font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all"
+                        className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                     >
-                        <Download className="h-5 w-5" />
-                        Protokoll herunterladen
-                    </button>
-                    <button
-                        onClick={() => navigate(-1)}
-                        className="w-full h-11 rounded-2xl text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                        Zurück zur Übersicht
+                        <Download className="h-3.5 w-3.5" />
+                        PDF
                     </button>
                 </div>
-            </motion.div>
+            )}
+
+            {/* Step list */}
+            <div className="flex flex-col">
+                {items.map((item, idx) => {
+                    const isActive = idx === currentStepIndex && !isFinished
+                    const isDone = item.completed
+                    const isSkip = item.skipped
+
+                    return (
+                        <div key={idx} ref={isActive ? activeItemRef : undefined}>
+                            {/* Divider */}
+                            {idx > 0 && <div className={cn("h-px ml-[34px]", isActive || (idx > 0 && items[idx - 1] && idx - 1 === currentStepIndex) ? "bg-transparent" : "bg-border/30")} />}
+
+                            <div className={cn(
+                                "rounded-xl transition-all duration-200",
+                                isActive && "bg-muted/40 -mx-2 px-2"
+                            )}>
+                                {/* Row: checkbox + title */}
+                                <div
+                                    className="flex items-start gap-3 py-3 cursor-pointer group"
+                                    onClick={() => {
+                                        if (!isActive) {
+                                            jumpToStep(idx)
+                                            setIsFinished(false)
+                                        }
+                                    }}
+                                >
+                                    {/* Circle checkbox */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleToggleItemComplete(idx)
+                                        }}
+                                        disabled={isReadOnly || isSaving}
+                                        className={cn(
+                                            "flex-none mt-[2px] h-[22px] w-[22px] rounded-full border-[1.5px] flex items-center justify-center transition-all duration-200",
+                                            isDone
+                                                ? "bg-primary border-primary text-primary-foreground"
+                                                : isSkip
+                                                    ? "border-amber-400/60"
+                                                    : item.warning
+                                                        ? "border-red-400/60 hover:border-red-500 hover:bg-red-500/10"
+                                                        : isActive
+                                                            ? "border-primary/60 hover:bg-primary hover:border-primary hover:text-primary-foreground"
+                                                            : "border-muted-foreground/35 group-hover:border-muted-foreground/40"
+                                        )}
+                                    >
+                                        {isDone && <Check className="h-3 w-3" strokeWidth={3} />}
+                                        {isSkip && !isDone && (
+                                            <div className="h-[6px] w-[6px] rounded-full bg-amber-400/60" />
+                                        )}
+                                    </button>
+
+                                    {/* Title + meta */}
+                                    <div className="flex-1 min-w-0">
+                                        <span className={cn(
+                                            "text-[15px] leading-snug transition-colors",
+                                            isDone
+                                                ? "line-through text-muted-foreground/60 decoration-muted-foreground/40"
+                                                : isSkip
+                                                    ? "text-muted-foreground/60"
+                                                    : isActive
+                                                        ? "text-foreground font-medium"
+                                                        : "text-foreground/80"
+                                        )}>
+                                            {item.text}
+                                        </span>
+                                        {/* Preview meta for collapsed items */}
+                                        {!isActive && item.notes && (
+                                            <p className="text-[12px] text-muted-foreground/50 truncate mt-0.5 lg:hidden">
+                                                {item.notes}
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Right indicators */}
+                                    <div className="flex items-center gap-1.5 shrink-0 mt-[3px]">
+                                        {item.warning && (
+                                            <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Expanded detail — MOBILE ONLY (lg+ uses right panel) */}
+                                <AnimatePresence>
+                                    {isActive && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                                            className="overflow-hidden lg:hidden"
+                                        >
+                                            <div className="pl-[34px] pb-4 flex flex-col gap-3">
+                                                {item.description && (
+                                                    <p className="text-[13px] text-muted-foreground/60 leading-relaxed -mt-1">
+                                                        {item.description}
+                                                    </p>
+                                                )}
+
+                                                <textarea
+                                                    value={item.notes || ''}
+                                                    onChange={(e) => handleNoteChange(e.target.value)}
+                                                    onBlur={() => saveChecklist(items)}
+                                                    placeholder="Notiz hinzufügen…"
+                                                    disabled={isReadOnly}
+                                                    className={cn(
+                                                        "w-full bg-transparent text-[13px] leading-relaxed resize-none outline-none",
+                                                        "text-muted-foreground placeholder:text-muted-foreground/60",
+                                                        "border-l-2 border-border/40 pl-3 focus:border-primary/30 transition-colors",
+                                                        "min-h-[44px] disabled:cursor-not-allowed"
+                                                    )}
+                                                    rows={2}
+                                                />
+
+                                                <div className="flex items-center gap-3 flex-wrap">
+                                                    {!isDone && !isSkip && !isReadOnly && (
+                                                        <button
+                                                            onClick={handleCompleteStep}
+                                                            disabled={isSaving}
+                                                            className="inline-flex items-center gap-1.5 text-[13px] font-medium text-primary hover:text-primary/80 transition-colors"
+                                                        >
+                                                            <Check className="h-3.5 w-3.5" />
+                                                            Erledigt
+                                                        </button>
+                                                    )}
+                                                    {!isDone && !isSkip && !isReadOnly && (
+                                                        <button
+                                                            onClick={handleSkipStep}
+                                                            disabled={isSaving}
+                                                            className="text-[13px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                                                        >
+                                                            Überspringen
+                                                        </button>
+                                                    )}
+                                                    {(isDone || isSkip) && !isReadOnly && (
+                                                        <button
+                                                            onClick={handleRevertStep}
+                                                            disabled={isSaving}
+                                                            className="text-[13px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                                                        >
+                                                            Zurücksetzen
+                                                        </button>
+                                                    )}
+
+                                                    <div className="flex-1" />
+
+                                                    {!isReadOnly && (
+                                                        <>
+                                                            <button
+                                                                onClick={handleToggleWarning}
+                                                                title="Warnung"
+                                                                className={cn(
+                                                                    "p-1 rounded transition-colors",
+                                                                    item.warning
+                                                                        ? "text-red-400"
+                                                                        : "text-muted-foreground/45 hover:text-red-400"
+                                                                )}
+                                                            >
+                                                                <AlertTriangle className="h-3.5 w-3.5" />
+                                                            </button>
+                                                            <button
+                                                                onClick={handleDeleteClick}
+                                                                title="Löschen"
+                                                                className="p-1 rounded text-muted-foreground/45 hover:text-red-400 transition-colors"
+                                                            >
+                                                                <X className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+
+            {/* Add step */}
+            {!isReadOnly && (
+                <button
+                    onClick={() => setIsAddStepOpen(true)}
+                    className="flex items-center gap-3 py-3 mt-1 text-muted-foreground/50 hover:text-primary transition-colors group"
+                >
+                    <div className="h-[22px] w-[22px] rounded-full border-[1.5px] border-dashed border-current flex items-center justify-center transition-colors">
+                        <Plus className="h-3 w-3" />
+                    </div>
+                    <span className="text-[15px] group-hover:text-primary transition-colors">Schritt hinzufügen</span>
+                </button>
+            )}
         </div>
     )
 
-    const renderActiveStep = () => (
-        <div className="flex-1 flex flex-col px-4 pb-6 w-full max-w-2xl mx-auto">
+    // ── Detail panel (desktop right panel only) ──
+    const renderStepDetail = () => {
+        if (isFinished) return renderCompletionContent()
+        if (!currentItem) return null
+
+        const isDone = currentItem.completed
+        const isSkip = currentItem.skipped
+
+        return (
             <AnimatePresence mode="wait">
                 <motion.div
                     key={currentStepIndex}
-                    initial={{ opacity: 0, x: 24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -24 }}
-                    transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex flex-col gap-4 flex-1"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex flex-col gap-8 p-8 max-w-xl"
                 >
-                    {/* Step Card */}
-                    <div className={cn(
-                        "flex-1 flex flex-col rounded-3xl border bg-card/60 backdrop-blur-xl overflow-hidden",
-                        currentItem?.warning ? "border-red-500/30" : "border-border/40"
-                    )}>
-                        {/* Card header */}
-                        <div className="px-6 pt-6 pb-4 flex items-start justify-between gap-4">
-                            <div className="flex-1 min-w-0 space-y-3">
-                                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
-                                    Schritt {currentStepIndex + 1} von {items.length}
-                                </p>
-                                <h2 className="text-3xl font-bold tracking-tight leading-tight">
-                                    {currentItem?.text}
-                                </h2>
-                                {currentItem?.description && (
-                                    <p className="text-base text-muted-foreground leading-relaxed">
-                                        {currentItem.description}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0 pt-1">
-                                {currentItem?.completed && (
-                                    <span className="flex items-center gap-1 text-xs font-medium text-green-600 bg-green-500/10 border border-green-500/20 px-2.5 py-1 rounded-full">
-                                        <Check className="h-3 w-3" /> Erledigt
-                                    </span>
-                                )}
-                                {!isReadOnly && (
-                                    <button
-                                        onClick={() => handleToggleWarning()}
-                                        title="Warnung setzen"
-                                        className={cn(
-                                            "h-8 w-8 rounded-full flex items-center justify-center transition-all",
-                                            currentItem?.warning
-                                                ? "bg-red-500/15 text-red-500"
-                                                : "text-muted-foreground/40 hover:text-muted-foreground"
-                                        )}
-                                    >
-                                        <AlertTriangle className="h-4 w-4" />
-                                    </button>
-                                )}
-                                {!isReadOnly && (
-                                    <button
-                                        onClick={handleDeleteClick}
-                                        className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-red-500 transition-colors"
-                                        title="Schritt löschen"
-                                    >
-                                        <X className="h-4 w-4" />
-                                    </button>
-                                )}
-                            </div>
+                    {/* Step header */}
+                    <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground/60 font-medium">
+                                Schritt {currentStepIndex + 1} von {items.length}
+                            </span>
+                            {isDone && (
+                                <span className="text-xs font-medium text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full">
+                                    Erledigt
+                                </span>
+                            )}
+                            {isSkip && (
+                                <span className="text-xs font-medium text-amber-500 bg-amber-400/10 px-2 py-0.5 rounded-full">
+                                    Übersprungen
+                                </span>
+                            )}
+                            {currentItem.warning && (
+                                <span className="text-xs font-medium text-red-500 bg-red-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" /> Warnung
+                                </span>
+                            )}
                         </div>
-
-                        {/* Divider */}
-                        <div className="h-px bg-border/30 mx-6" />
-
-                        {/* Note area — borderless, integrated */}
-                        <div className="flex-1 px-6 py-4">
-                            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40 mb-2">
-                                Notiz
+                        <h2 className="text-2xl font-semibold tracking-tight leading-snug">
+                            {currentItem.text}
+                        </h2>
+                        {currentItem.description && (
+                            <p className="text-[15px] text-muted-foreground/60 leading-relaxed">
+                                {currentItem.description}
                             </p>
-                            <textarea
-                                value={currentItem?.notes || ''}
-                                onChange={(e) => handleNoteChange(e.target.value)}
-                                placeholder={isReadOnly ? "—" : "Befunde, verwendete Teile, Auffälligkeiten…"}
-                                disabled={isReadOnly}
-                                className={cn(
-                                    "w-full bg-transparent text-sm leading-relaxed resize-none outline-none text-foreground placeholder:text-muted-foreground/30 min-h-[80px]",
-                                    "disabled:cursor-not-allowed"
-                                )}
-                                rows={4}
-                            />
-                        </div>
+                        )}
+                    </div>
 
-                        {/* Actions footer */}
-                        <div className="px-4 pb-5 flex flex-col gap-2">
-                            {/* Secondary row */}
-                            <div className="flex items-center justify-between px-2">
-                                <button
-                                    onClick={() => jumpToStep(currentStepIndex - 1)}
-                                    disabled={currentStepIndex === 0}
-                                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
-                                >
-                                    <ArrowLeft className="h-3.5 w-3.5" />
-                                    Zurück
-                                </button>
-                                {!currentItem?.completed && !isReadOnly && (
-                                    <button
-                                        onClick={handleSkipStep}
-                                        disabled={isSaving}
-                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                                    >
-                                        Überspringen →
-                                    </button>
-                                )}
-                                {currentItem?.completed && !isReadOnly && (
-                                    <button
-                                        onClick={handleRevertStep}
-                                        disabled={isSaving}
-                                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                                    >
-                                        Als unerledigt
-                                    </button>
-                                )}
-                            </div>
+                    {/* Divider */}
+                    <div className="h-px bg-border/30" />
 
-                            {/* Primary CTA */}
+                    {/* Notes */}
+                    <div className="flex flex-col gap-2">
+                        <p className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">Notiz</p>
+                        <textarea
+                            value={currentItem.notes || ''}
+                            onChange={(e) => handleNoteChange(e.target.value)}
+                            onBlur={() => saveChecklist(items)}
+                            placeholder="Befunde, verwendete Teile, Auffälligkeiten…"
+                            disabled={isReadOnly}
+                            className={cn(
+                                "w-full bg-transparent text-[15px] leading-relaxed resize-none outline-none",
+                                "text-foreground/80 placeholder:text-muted-foreground/60",
+                                "border-l-2 border-border/40 pl-4 focus:border-primary/30 transition-colors",
+                                "min-h-[120px] disabled:cursor-not-allowed"
+                            )}
+                            rows={5}
+                        />
+                    </div>
+
+                    {/* Divider */}
+                    <div className="h-px bg-border/30" />
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-4 flex-wrap">
+                        {!isDone && !isSkip && !isReadOnly && (
                             <button
                                 onClick={handleCompleteStep}
-                                disabled={isSaving || isReadOnly}
-                                className={cn(
-                                    "w-full h-14 rounded-2xl text-base font-semibold transition-all active:scale-[0.98]",
-                                    "flex items-center justify-center gap-2 shadow-lg",
-                                    currentItem?.completed
-                                        ? "bg-green-600 text-white shadow-green-600/20 hover:bg-green-700"
-                                        : "bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90",
-                                    (isSaving || isReadOnly) && "opacity-50 cursor-not-allowed"
-                                )}
+                                disabled={isSaving}
+                                className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
                             >
-                                {isSaving ? (
-                                    <div className="h-5 w-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                                ) : (
-                                    <>
-                                        <Check className="h-5 w-5" />
-                                        {currentItem?.completed ? 'Aktualisieren' : 'Abschließen'}
-                                    </>
-                                )}
+                                <Check className="h-4 w-4" />
+                                Erledigt
                             </button>
-                        </div>
+                        )}
+                        {!isDone && !isSkip && !isReadOnly && (
+                            <button
+                                onClick={handleSkipStep}
+                                disabled={isSaving}
+                                className="text-sm text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                            >
+                                Überspringen
+                            </button>
+                        )}
+                        {(isDone || isSkip) && !isReadOnly && (
+                            <button
+                                onClick={handleRevertStep}
+                                disabled={isSaving}
+                                className="text-sm text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                            >
+                                Zurücksetzen
+                            </button>
+                        )}
+
+                        <div className="flex-1" />
+
+                        {!isReadOnly && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleToggleWarning}
+                                    title="Warnung"
+                                    className={cn(
+                                        "h-8 w-8 rounded-lg flex items-center justify-center transition-colors",
+                                        currentItem.warning
+                                            ? "text-red-400 bg-red-500/10"
+                                            : "text-muted-foreground/45 hover:text-red-400 hover:bg-red-500/5"
+                                    )}
+                                >
+                                    <AlertTriangle className="h-4 w-4" />
+                                </button>
+                                <button
+                                    onClick={handleDeleteClick}
+                                    title="Löschen"
+                                    className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/45 hover:text-red-400 hover:bg-red-500/5 transition-colors"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </motion.div>
             </AnimatePresence>
-        </div>
-    )
+        )
+    }
 
     return (
         <div className="flex flex-col h-[100dvh] bg-background">
-            {/* Ambient */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-transparent pointer-events-none -z-10" />
-
-            {/* ── Sticky Header ── */}
-            <header className="flex-none border-b border-border/40 bg-background/80 backdrop-blur-xl px-4 py-3">
-                <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+            {/* ── Header ── */}
+            <header className="flex-none px-4 lg:px-6 py-3.5">
+                <div className="max-w-lg lg:max-w-6xl mx-auto flex items-center gap-3">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-muted-foreground/60 hover:text-foreground transition-colors shrink-0"
                     >
-                        <ArrowLeft className="h-4 w-4" />
-                        <span className="text-sm">Zurück</span>
+                        <ArrowLeft className="h-5 w-5" />
                     </button>
 
-                    <div className="flex-1 text-center min-w-0">
-                        <p className="text-sm font-semibold truncate">
-                            {order?.bike_model || '—'}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                            {order?.customer_name} · {order?.order_number}
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[15px] font-semibold truncate">{order?.bike_model || '—'}</p>
+                        <p className="text-[12px] text-muted-foreground/50 truncate">
+                            {order?.customer_name} · #{order?.order_number}
                         </p>
                     </div>
 
-                    {/* Status pill */}
                     {currentStatus && (
                         <Select
                             value={order?.status}
@@ -855,7 +1101,7 @@ export default function ServiceModePage() {
                             disabled={isReadOnly || isSaving}
                         >
                             <SelectTrigger className={cn(
-                                "h-7 text-xs font-medium border rounded-full px-3 w-auto gap-1.5 shadow-none",
+                                "h-7 text-xs font-medium border rounded-full px-3 w-auto gap-1.5 shadow-none shrink-0",
                                 currentStatus.color
                             )}>
                                 <SelectValue />
@@ -864,7 +1110,7 @@ export default function ServiceModePage() {
                                 {STATUS_FLOW.map(s => (
                                     <SelectItem key={s.value} value={s.value}>
                                         <div className="flex items-center gap-2">
-                                            <s.icon className={cn("h-3.5 w-3.5", s.color.split(' ')[0])} />
+                                            <s.icon className="h-3.5 w-3.5" />
                                             {s.label}
                                         </div>
                                     </SelectItem>
@@ -875,64 +1121,63 @@ export default function ServiceModePage() {
                 </div>
             </header>
 
-            {/* ── Progress section ── */}
-            {!isFinished && (
-                <div className="flex-none px-4 pt-4 pb-2 w-full max-w-2xl mx-auto space-y-3">
-                    {/* Hairline progress */}
-                    <div className="space-y-1.5">
-                        <div className="flex justify-between items-center">
-                            <span className="text-[11px] text-muted-foreground/60">Fortschritt</span>
-                            <span className="text-[11px] font-medium text-muted-foreground">{progressPercent}% · {completedCount}/{items.length}</span>
-                        </div>
-                        <div className="h-0.5 w-full bg-border/60 rounded-full overflow-hidden">
-                            <motion.div
-                                className="h-full bg-primary rounded-full"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${progressPercent}%` }}
-                                transition={{ duration: 0.4 }}
-                            />
-                        </div>
-                    </div>
+            {/* ── Divider ── */}
+            <div className="h-px bg-border/30 max-w-lg lg:max-w-6xl mx-auto w-full" />
 
-                    {/* Step pills — horizontal scroll */}
-                    <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-1">
+            {/* ── Progress (mobile only — on desktop the list IS the progress) ── */}
+            {!isFinished && items.length > 1 && (
+                <div className="flex-none px-4 pt-3 pb-1 max-w-lg mx-auto w-full lg:hidden">
+                    <div className="flex gap-[2px]">
                         {items.map((item, idx) => (
                             <button
                                 key={idx}
-                                onClick={() => jumpToStep(idx)}
+                                onClick={() => { jumpToStep(idx); setIsFinished(false) }}
+                                title={item.text}
                                 className={cn(
-                                    "flex-none h-8 min-w-[32px] px-2 rounded-xl text-xs font-semibold border transition-all",
+                                    "flex-1 h-[3px] rounded-full transition-all duration-300",
                                     idx === currentStepIndex
-                                        ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30"
+                                        ? "bg-primary"
                                         : item.completed
-                                            ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                            ? "bg-green-500/70"
                                             : item.skipped
-                                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                                                : "bg-muted/40 text-muted-foreground border-border/40 hover:border-border"
+                                                ? "bg-amber-400/50"
+                                                : "bg-border/30"
                                 )}
-                            >
-                                {item.completed ? <Check className="h-3.5 w-3.5" /> :
-                                    item.skipped ? <SkipForward className="h-3 w-3" /> : idx + 1}
-                            </button>
+                            />
                         ))}
-                        {!isReadOnly && (
-                            <button
-                                onClick={() => setIsAddStepOpen(true)}
-                                className="flex-none h-8 w-8 rounded-xl border border-dashed border-primary/30 text-primary hover:bg-primary/5 transition-colors flex items-center justify-center"
-                            >
-                                <Plus className="h-3.5 w-3.5" />
-                            </button>
-                        )}
+                    </div>
+                    <div className="flex items-center justify-between mt-1.5">
+                        <span className="text-[11px] text-muted-foreground/60">
+                            {completedCount}/{items.length}
+                        </span>
                     </div>
                 </div>
             )}
 
             {/* ── Main content ── */}
-            <div className="flex-1 overflow-y-auto">
-                {isFinished ? renderCompletionScreen() : renderActiveStep()}
+            {/* Mobile: single column | Desktop: two-panel layout */}
+            <div className="flex-1 overflow-hidden flex flex-col lg:flex-row lg:max-w-6xl lg:mx-auto lg:w-full">
+                {/* Left panel: step list (scrollable) */}
+                <div className="flex-1 lg:flex-none lg:w-[400px] lg:border-r lg:border-border/20 overflow-y-auto">
+                    {isFinished && !allDone ? (
+                        <div className="lg:hidden">{renderCompletionContent()}</div>
+                    ) : isFinished ? (
+                        <>
+                            <div className="lg:hidden">{renderCompletionContent()}</div>
+                            <div className="hidden lg:block">{renderStepList()}</div>
+                        </>
+                    ) : (
+                        renderStepList()
+                    )}
+                </div>
+
+                {/* Right panel: detail (desktop only) */}
+                <div className="hidden lg:flex lg:flex-1 overflow-y-auto">
+                    {renderStepDetail()}
+                </div>
             </div>
 
-            {/* ── Dialogs (unchanged logic) ── */}
+            {/* ── Dialogs ── */}
 
             {/* Add Step */}
             <Dialog open={isAddStepOpen} onOpenChange={setIsAddStepOpen}>
