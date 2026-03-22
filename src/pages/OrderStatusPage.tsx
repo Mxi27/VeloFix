@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import {
-    CheckCircle2,
+    Check,
     Clock,
     Wrench,
     PackageCheck,
@@ -10,68 +10,60 @@ import {
     Phone,
     Mail,
     Bike,
-    AlertCircle,
+    AlertTriangle,
     Loader2,
     Star,
     MessageSquare,
-    CreditCard,
+    Package,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { OrderFeedback } from "@/components/OrderFeedback"
 import type { PublicOrderStatus } from "@/types/index"
 
+// ── Status Steps ─────────────────────────────────────────────────────────────
+
 const STATUS_STEPS = [
-    {
-        value: 'eingegangen',
-        label: 'Eingegangen',
-        sublabel: 'Wir haben Ihren Auftrag erhalten.',
-        icon: Clock,
-        colorClass: 'text-blue-500',
-        bgClass: 'bg-blue-500/10',
-        borderClass: 'border-blue-500/30',
-        dotColor: '#3b82f6',
-    },
-    {
-        value: 'warten_auf_teile',
-        label: 'Warten auf Teile',
-        sublabel: 'Wir bestellen die nötigen Ersatzteile.',
-        icon: AlertCircle,
-        colorClass: 'text-amber-500',
-        bgClass: 'bg-amber-500/10',
-        borderClass: 'border-amber-500/30',
-        dotColor: '#f59e0b',
-    },
-    {
-        value: 'in_bearbeitung',
-        label: 'In Bearbeitung',
-        sublabel: 'Unser Team arbeitet an Ihrem Rad.',
-        icon: Wrench,
-        colorClass: 'text-purple-500',
-        bgClass: 'bg-purple-500/10',
-        borderClass: 'border-purple-500/30',
-        dotColor: '#a855f7',
-    },
-    {
-        value: 'abholbereit',
-        label: 'Abholbereit',
-        sublabel: 'Ihr Fahrrad ist fertig – bereit zur Abholung!',
-        icon: PackageCheck,
-        colorClass: 'text-emerald-500',
-        bgClass: 'bg-emerald-500/10',
-        borderClass: 'border-emerald-500/30',
-        dotColor: '#22c55e',
-    },
-    {
-        value: 'abgeholt',
-        label: 'Abgeholt',
-        sublabel: 'Gute Fahrt! Wir freuen uns auf dein Feedback.',
-        icon: Star,
-        colorClass: 'text-primary',
-        bgClass: 'bg-primary/10',
-        borderClass: 'border-primary/30',
-        dotColor: 'var(--velofix-primary)',
-    },
+    { value: 'eingegangen', label: 'Eingegangen', icon: Clock },
+    { value: 'warten_auf_teile', label: 'Teile', icon: Package },
+    { value: 'in_bearbeitung', label: 'In Arbeit', icon: Wrench },
+    { value: 'abholbereit', label: 'Abholbereit', icon: PackageCheck },
+    { value: 'abgeholt', label: 'Abgeholt', icon: Star },
 ]
+
+const STATUS_MESSAGES: Record<string, { title: string; subtitle: string; icon: React.ElementType; gradient: string }> = {
+    eingegangen: {
+        title: 'Auftrag eingegangen',
+        subtitle: 'Wir haben Ihren Auftrag erhalten und kümmern uns darum.',
+        icon: Clock,
+        gradient: 'from-blue-500/20 to-blue-600/5 text-blue-400 ring-blue-500/20',
+    },
+    warten_auf_teile: {
+        title: 'Teile werden bestellt',
+        subtitle: 'Wir besorgen die benötigten Ersatzteile für Ihre Reparatur.',
+        icon: Package,
+        gradient: 'from-amber-500/20 to-amber-600/5 text-amber-400 ring-amber-500/20',
+    },
+    in_bearbeitung: {
+        title: 'Wird repariert',
+        subtitle: 'Unser Team arbeitet gerade an Ihrem Fahrrad.',
+        icon: Wrench,
+        gradient: 'from-purple-500/20 to-purple-600/5 text-purple-400 ring-purple-500/20',
+    },
+    abholbereit: {
+        title: 'Bereit zur Abholung!',
+        subtitle: 'Ihr Fahrrad ist fertig und wartet auf Sie.',
+        icon: PackageCheck,
+        gradient: 'from-emerald-500/20 to-emerald-600/5 text-emerald-400 ring-emerald-500/20',
+    },
+    abgeholt: {
+        title: 'Abgeholt',
+        subtitle: 'Gute Fahrt! Wir freuen uns über Ihr Feedback.',
+        icon: Bike,
+        gradient: 'from-primary/20 to-primary/5 text-primary ring-primary/20',
+    },
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function OrderStatusPage() {
     const { orderId } = useParams<{ orderId: string }>()
@@ -138,25 +130,20 @@ export default function OrderStatusPage() {
 
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
-                <div className="relative">
-                    <div className="w-14 h-14 rounded-full border-2 border-primary/20 flex items-center justify-center">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
-                </div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground/60">Lade Auftrag…</p>
+            <div className="flex items-center justify-center min-h-screen bg-background">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
         )
     }
 
     if (error || !order) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center bg-background">
-                <div className="w-16 h-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center mb-5">
-                    <AlertCircle className="h-8 w-8 text-destructive" />
-                </div>
-                <h1 className="text-2xl font-extrabold mb-2">Auftrag nicht gefunden</h1>
-                <p className="text-sm text-muted-foreground max-w-xs">{error || "Bitte überprüfen Sie den Link oder kontaktieren Sie uns."}</p>
+            <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center bg-background">
+                <div className="text-4xl mb-4">🔍</div>
+                <h1 className="text-xl font-bold mb-1">Auftrag nicht gefunden</h1>
+                <p className="text-sm text-muted-foreground max-w-xs">
+                    {error || "Bitte überprüfen Sie den Link oder kontaktieren Sie uns."}
+                </p>
             </div>
         )
     }
@@ -168,89 +155,166 @@ export default function OrderStatusPage() {
     }
 
     const effectiveStatus = getEffectiveStatus(order.status)
-    const currentStatusIndex = STATUS_STEPS.findIndex(s => s.value === effectiveStatus)
-    const activeIndex = currentStatusIndex === -1 ? 0 : currentStatusIndex
-    const activeStep = STATUS_STEPS[activeIndex]
-    const progressPct = activeIndex / (STATUS_STEPS.length - 1)
+    const activeIndex = Math.max(0, STATUS_STEPS.findIndex(s => s.value === effectiveStatus))
+    const statusMessage = STATUS_MESSAGES[effectiveStatus] || STATUS_MESSAGES.eingegangen
 
     const formatDate = (dateString: string) => {
-        if (!dateString) return "Datum unbekannt"
+        if (!dateString) return ""
         try {
             const date = new Date(dateString)
-            if (isNaN(date.getTime())) return "Datum ungültig"
-            return date.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' })
+            if (isNaN(date.getTime())) return ""
+            return date.toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' })
         } catch { return dateString }
     }
 
+    const bikeDisplay = [order.bike_brand, order.bike_model].filter(Boolean).join(' ') || 'Keine Angabe'
+    const dateDisplay = formatDate(order.created_at ?? order.created_date ?? '')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const warnings = order.checklist && Array.isArray(order.checklist) ? order.checklist.filter((item: any) => item.warning) : []
+
     return (
         <div className="min-h-screen bg-background">
-            {/* Premium top accent */}
-            <div className="h-1 w-full bg-gradient-to-r from-transparent via-primary to-transparent" />
+            <div className="max-w-md mx-auto px-5 py-8 sm:py-14">
 
-            <div className="max-w-lg mx-auto px-4 py-10 space-y-5">
+                {/* ── Workshop name ── */}
+                <p className="text-center text-sm font-medium text-muted-foreground/60 mb-10">
+                    {order.workshop?.name || "VeloFix"}
+                </p>
 
-                {/* ── Header ── */}
-                <div className="text-center space-y-1.5 pb-1">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground/60">
-                        Reparatur-Status
-                    </p>
-                    <h1 className="text-3xl font-extrabold tracking-tight">{order.workshop?.name || "VeloFix"}</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Auftrag #{order.order_number} · {formatDate(order.created_at ?? order.created_date ?? '')}
+                {/* ── Hero Status ── */}
+                <div className="text-center mb-10">
+                    <div className={cn(
+                        "h-16 w-16 rounded-2xl mx-auto mb-5 flex items-center justify-center",
+                        "bg-gradient-to-b ring-1 ring-inset",
+                        statusMessage.gradient,
+                    )}>
+                        <statusMessage.icon className="h-7 w-7" />
+                    </div>
+                    <h1 className="text-[1.65rem] font-bold tracking-tight leading-tight mb-2">
+                        {statusMessage.title}
+                    </h1>
+                    <p className="text-sm text-muted-foreground leading-relaxed max-w-[280px] mx-auto">
+                        {statusMessage.subtitle}
                     </p>
                 </div>
 
-                {/* ── Active State Hero ── */}
-                <div className={cn(
-                    "relative overflow-hidden rounded-3xl p-7 text-center space-y-4 border-2",
-                    activeStep.bgClass,
-                    activeStep.borderClass,
-                )}>
-                    {/* Subtle radial glow */}
-                    <div
-                        className="absolute inset-0 opacity-20 pointer-events-none"
-                        style={{ background: `radial-gradient(ellipse at 50% 0%, ${activeStep.dotColor}40 0%, transparent 70%)` }}
-                    />
+                {/* ── Horizontal Progress ── */}
+                <div className="mb-10 px-2">
+                    {/* Dots + Line */}
+                    <div className="relative flex items-center justify-between">
+                        {/* Background line */}
+                        <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] bg-border/30 rounded-full" />
+                        {/* Progress line */}
+                        <div
+                            className="absolute left-0 top-1/2 -translate-y-1/2 h-[2px] bg-primary rounded-full transition-all duration-700 ease-out"
+                            style={{ width: `${(activeIndex / (STATUS_STEPS.length - 1)) * 100}%` }}
+                        />
 
-                    <div className="relative flex justify-center">
-                        <div className={cn(
-                            "relative w-[76px] h-[76px] rounded-full flex items-center justify-center border-2",
-                            activeStep.bgClass,
-                            activeStep.borderClass,
-                        )}>
-                            <activeStep.icon className={cn("h-8 w-8", activeStep.colorClass)} />
-                            <span
-                                className="absolute inset-0 rounded-full animate-ping opacity-20"
-                                style={{ background: activeStep.dotColor + '33' }}
-                            />
-                        </div>
+                        {STATUS_STEPS.map((step, i) => {
+                            const isCompleted = i < activeIndex
+                            const isActive = i === activeIndex
+                            const isFuture = i > activeIndex
+
+                            return (
+                                <div key={step.value} className="relative z-10 flex flex-col items-center">
+                                    <div className={cn(
+                                        "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-500",
+                                        isCompleted && "bg-primary text-primary-foreground",
+                                        isActive && "bg-primary text-primary-foreground ring-[3px] ring-primary/20 ring-offset-2 ring-offset-background",
+                                        isFuture && "bg-muted/60 text-muted-foreground/30 border border-border/40",
+                                    )}>
+                                        {isCompleted ? (
+                                            <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                                        ) : (
+                                            <step.icon className="h-3.5 w-3.5" />
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        })}
                     </div>
 
-                    <div className="relative">
-                        <p className={cn("text-[10px] font-bold uppercase tracking-[0.22em] mb-1", activeStep.colorClass)}>
-                            Aktueller Status
-                        </p>
-                        <h2 className="text-2xl font-extrabold">{activeStep.label}</h2>
-                        <p className="text-sm text-muted-foreground mt-1.5">{activeStep.sublabel}</p>
+                    {/* Labels */}
+                    <div className="flex justify-between mt-2.5">
+                        {STATUS_STEPS.map((step, i) => (
+                            <span key={step.value} className={cn(
+                                "text-[10px] font-medium w-12 text-center leading-tight",
+                                i <= activeIndex ? "text-foreground/70" : "text-muted-foreground/30"
+                            )}>
+                                {step.label}
+                            </span>
+                        ))}
                     </div>
                 </div>
 
-                {/* ── Feedback Section ── */}
-                {effectiveStatus === 'abgeholt' && (
-                    <div className="space-y-4 pt-1">
-                        {/* Section header */}
-                        <div className="flex items-center gap-3 px-1">
-                            <div className="flex-1 h-px bg-gradient-to-r from-border/0 via-border to-border/0" />
-                            <div className="flex items-center gap-1.5 shrink-0">
-                                <Star className="h-3.5 w-3.5 fill-primary text-primary" />
-                                <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-primary/80">
-                                    Dein Feedback
-                                </p>
-                                <Star className="h-3.5 w-3.5 fill-primary text-primary" />
+                {/* ── Warnings ── */}
+                {warnings.length > 0 && (
+                    <div className="mb-6 space-y-2">
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                        {warnings.map((item: any, idx: number) => (
+                            <div key={idx} className="flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/15">
+                                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-sm font-medium">{item.text}</p>
+                                    {item.notes && <p className="text-xs text-muted-foreground mt-0.5">{item.notes}</p>}
+                                </div>
                             </div>
-                            <div className="flex-1 h-px bg-gradient-to-r from-border/0 via-border to-border/0" />
-                        </div>
+                        ))}
+                    </div>
+                )}
 
+                {/* ── Order Info ── */}
+                <div className="rounded-2xl bg-card border border-border/40 overflow-hidden mb-6">
+                    <div className="px-5 py-4 flex items-center justify-between border-b border-border/20">
+                        <span className="text-xs font-semibold text-muted-foreground/50 uppercase tracking-wider">Auftragsdetails</span>
+                        <span className="text-xs text-muted-foreground/40 font-mono">#{order.order_number}</span>
+                    </div>
+
+                    <div className="divide-y divide-border/15">
+                        {/* Bike */}
+                        <InfoRow
+                            icon={Bike}
+                            label="Fahrrad"
+                            value={bikeDisplay}
+                            sub={order.bike_color || undefined}
+                        />
+
+                        {/* Date */}
+                        {dateDisplay && (
+                            <InfoRow
+                                icon={Clock}
+                                label="Erstellt"
+                                value={dateDisplay}
+                            />
+                        )}
+
+                        {/* Customer note */}
+                        {order.customer_note && (
+                            <InfoRow
+                                icon={MessageSquare}
+                                label="Ihr Wunsch"
+                                value={`„${order.customer_note}"`}
+                                italic
+                            />
+                        )}
+
+                        {/* Price */}
+                        {order.estimated_price != null && (
+                            <InfoRow
+                                icon={({ className }: { className?: string }) => <span className={cn("text-xs font-bold", className)}>€</span>}
+                                label="Kostenvoranschlag"
+                                value={`${typeof order.estimated_price === 'number'
+                                    ? order.estimated_price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                    : order.estimated_price} €`}
+                                bold
+                            />
+                        )}
+                    </div>
+                </div>
+
+                {/* ── Feedback ── */}
+                {effectiveStatus === 'abgeholt' && (
+                    <div className="mb-6">
                         <OrderFeedback
                             orderId={order.id}
                             workshopId={order.workshop_id || order.workshop?.id || ''}
@@ -259,174 +323,93 @@ export default function OrderStatusPage() {
                     </div>
                 )}
 
-                {/* ── Warnings ── */}
-                {order.checklist && Array.isArray(order.checklist) && order.checklist.some((item: any) => item.warning) && (
-                    <div className="space-y-2">
-                        {order.checklist.filter((item: any) => item.warning).map((item: any, idx: number) => (
-                            <div key={idx} className="flex items-start gap-3 rounded-2xl p-4 bg-destructive/8 border border-destructive/25">
-                                <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-sm font-semibold text-destructive">Wichtige Information</p>
-                                    <p className="text-sm text-destructive/80 mt-0.5">{item.text}</p>
-                                    {item.notes && <p className="text-xs text-muted-foreground mt-1">{item.notes}</p>}
-                                </div>
+                {/* ── Contact ── */}
+                {order.workshop && (order.workshop.phone || order.workshop.email || order.workshop.address) && (
+                    <div className="rounded-2xl bg-card border border-border/40 overflow-hidden mb-8">
+                        <div className="px-5 py-4 border-b border-border/20">
+                            <span className="text-xs font-semibold text-muted-foreground/50 uppercase tracking-wider">Kontakt</span>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            {/* Workshop name + address */}
+                            <div>
+                                <p className="font-semibold text-sm">{order.workshop.name}</p>
+                                {(order.workshop.address || order.workshop.city) && (
+                                    <p className="text-sm text-muted-foreground/60 mt-0.5">
+                                        {[order.workshop.address, [order.workshop.postal_code, order.workshop.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+                                    </p>
+                                )}
                             </div>
-                        ))}
+
+                            {/* Action buttons */}
+                            <div className="flex gap-2">
+                                {order.workshop.phone && (
+                                    <a
+                                        href={`tel:${order.workshop.phone}`}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/8 hover:bg-primary/12 text-sm font-medium text-primary transition-colors"
+                                    >
+                                        <Phone className="h-4 w-4" />
+                                        Anrufen
+                                    </a>
+                                )}
+                                {order.workshop.email && (
+                                    <a
+                                        href={`mailto:${order.workshop.email}`}
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-muted/40 hover:bg-muted/60 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <Mail className="h-4 w-4" />
+                                        E-Mail
+                                    </a>
+                                )}
+                                {order.workshop.address && (
+                                    <a
+                                        href={`https://maps.google.com/?q=${encodeURIComponent([order.workshop.address, order.workshop.postal_code, order.workshop.city].filter(Boolean).join(' '))}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-muted/40 hover:bg-muted/60 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <MapPin className="h-4 w-4" />
+                                        Route
+                                    </a>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 )}
 
-                {/* ── Progress Track ── */}
-                <div className="rounded-3xl overflow-hidden bg-card border border-border/50 shadow-sm">
-                    {/* Progress bar */}
-                    <div className="h-1 bg-muted/30">
-                        <div
-                            className="h-full bg-gradient-to-r from-primary/60 to-primary transition-all duration-1000 ease-out"
-                            style={{ width: `${progressPct * 100}%` }}
-                        />
-                    </div>
-
-                    <div className="p-5 space-y-0">
-                        {STATUS_STEPS.map((step, index) => {
-                            const isActive = index === activeIndex
-                            const isCompleted = index < activeIndex
-                            const isFuture = index > activeIndex
-                            const Icon = step.icon
-
-                            return (
-                                <div key={step.value} className="flex items-start gap-4 group">
-                                    <div className="flex flex-col items-center">
-                                        <div className={cn(
-                                            "w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all duration-500 border-2",
-                                            isActive && cn(step.bgClass, step.borderClass, "scale-110 shadow-sm"),
-                                            isCompleted && cn(step.bgClass, step.borderClass),
-                                            isFuture && "bg-muted border-border",
-                                        )}>
-                                            {isCompleted ? (
-                                                <CheckCircle2 className={cn("h-4 w-4", step.colorClass)} />
-                                            ) : (
-                                                <Icon className={cn(
-                                                    "h-4 w-4",
-                                                    isActive ? step.colorClass : "text-muted-foreground/30",
-                                                    isActive && "animate-pulse"
-                                                )} />
-                                            )}
-                                        </div>
-                                        {index < STATUS_STEPS.length - 1 && (
-                                            <div className={cn(
-                                                "w-px flex-1 my-1 min-h-[20px]",
-                                                isCompleted ? "bg-border" : "bg-border/30"
-                                            )} />
-                                        )}
-                                    </div>
-
-                                    <div className={cn(
-                                        "pb-5 flex-1 mt-1.5 transition-all duration-500",
-                                        isFuture && "opacity-30"
-                                    )}>
-                                        <p className={cn(
-                                            "font-semibold text-sm leading-tight",
-                                            isActive ? step.colorClass : isCompleted ? "text-foreground/70" : "text-muted-foreground/30"
-                                        )}>
-                                            {step.label}
-                                        </p>
-                                        {isActive && (
-                                            <p className="text-xs text-muted-foreground mt-0.5 animate-in fade-in duration-700">
-                                                {step.sublabel}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-
-                {/* ── Details Cards ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                    {/* Bike card */}
-                    <div className="rounded-2xl p-5 space-y-3 bg-card border border-border/50 shadow-sm">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                            <Bike className="h-4 w-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Ihr Fahrrad</span>
-                        </div>
-                        <div>
-                            <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-0.5">Modell</p>
-                            <p className="text-sm font-semibold">
-                                {order.bike_brand && <span>{order.bike_brand} </span>}
-                                {order.bike_model || "Keine Angabe"}
-                                {order.bike_color && <span className="text-muted-foreground font-normal"> · {order.bike_color}</span>}
-                            </p>
-                        </div>
-                        {order.customer_note && (
-                            <div className="pt-3 border-t border-border/40">
-                                <div className="flex items-center gap-1.5 mb-1.5">
-                                    <MessageSquare className="h-3 w-3 text-muted-foreground/50" />
-                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Ihr Wunsch</p>
-                                </div>
-                                <p className="text-sm text-muted-foreground italic leading-relaxed">"{order.customer_note}"</p>
-                            </div>
-                        )}
-                        {order.estimated_price !== undefined && order.estimated_price !== null && (
-                            <div className="pt-3 border-t border-border/40 flex justify-between items-center">
-                                <div className="flex items-center gap-1.5">
-                                    <CreditCard className="h-3 w-3 text-muted-foreground/50" />
-                                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Geschätzt</p>
-                                </div>
-                                <p className="text-base font-extrabold">
-                                    {typeof order.estimated_price === 'number'
-                                        ? order.estimated_price.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                        : order.estimated_price} €
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Contact card */}
-                    <div className="rounded-2xl p-5 space-y-3 bg-card border border-border/50 shadow-sm">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                            <MapPin className="h-4 w-4" />
-                            <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Kontakt</span>
-                        </div>
-                        <div>
-                            <p className="text-sm font-semibold">{order.workshop?.name}</p>
-                            {(order.workshop?.address || order.workshop?.city) && (
-                                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                                    {order.workshop?.address && <>{order.workshop.address}<br /></>}
-                                    {order.workshop?.postal_code} {order.workshop?.city}
-                                </p>
-                            )}
-                        </div>
-                        <div className="space-y-2 pt-3 border-t border-border/40">
-                            {order.workshop?.phone && (
-                                <a
-                                    href={`tel:${order.workshop.phone}`}
-                                    className="flex items-center gap-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-                                >
-                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-muted/60 group-hover:bg-muted transition-colors">
-                                        <Phone className="h-3.5 w-3.5" />
-                                    </div>
-                                    {order.workshop.phone}
-                                </a>
-                            )}
-                            {order.workshop?.email && (
-                                <a
-                                    href={`mailto:${order.workshop.email}`}
-                                    className="flex items-center gap-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-                                >
-                                    <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-muted/60 group-hover:bg-muted transition-colors">
-                                        <Mail className="h-3.5 w-3.5" />
-                                    </div>
-                                    {order.workshop.email}
-                                </a>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
                 {/* ── Footer ── */}
-                <p className="text-center text-xs text-muted-foreground/30 pt-2">
+                <p className="text-center text-[11px] text-muted-foreground/20 pb-4">
                     © {new Date().getFullYear()} {order.workshop?.name || "VeloFix"}
+                </p>
+            </div>
+        </div>
+    )
+}
+
+// ── InfoRow Component ────────────────────────────────────────────────────────
+
+function InfoRow({ icon: Icon, label, value, sub, italic, bold }: {
+    icon: React.ElementType
+    label: string
+    value: string
+    sub?: string
+    italic?: boolean
+    bold?: boolean
+}) {
+    return (
+        <div className="px-5 py-3.5 flex items-start gap-3">
+            <div className="h-8 w-8 rounded-lg bg-muted/30 flex items-center justify-center shrink-0 mt-0.5">
+                <Icon className="h-4 w-4 text-muted-foreground/40" />
+            </div>
+            <div className="flex-1 min-w-0 pt-0.5">
+                <p className="text-[11px] text-muted-foreground/40 font-medium">{label}</p>
+                <p className={cn(
+                    "text-sm mt-0.5",
+                    italic && "italic text-muted-foreground",
+                    bold && "font-semibold",
+                    !italic && !bold && "font-medium",
+                )}>
+                    {value}
+                    {sub && <span className="text-muted-foreground/50 font-normal"> · {sub}</span>}
                 </p>
             </div>
         </div>
