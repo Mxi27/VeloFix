@@ -2,11 +2,12 @@ import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { PageTransition } from "@/components/PageTransition"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import {
     ShieldCheck, ListTodo, CheckCircle2,
-    ChevronRight, ChevronDown, Zap, UserCheck, FastForward,
-    Calendar, Clock, Pause, Play, PackageCheck, Check, Archive, Filter
+    ChevronRight, ChevronDown, Zap,
+    Clock, Pause, Play, PackageCheck, Check, Archive, Filter,
+    Plus, X, Circle
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -58,6 +59,42 @@ interface ShopTask {
     assigned_to?: string | null
 }
 
+interface QuickNote {
+    id: string
+    text: string
+    createdAt: number
+}
+
+const QUICK_NOTES_STORAGE_KEY = "velofix_quick_notes"
+
+function useQuickNotes() {
+    const [notes, setNotes] = useState<QuickNote[]>(() => {
+        try {
+            const stored = localStorage.getItem(QUICK_NOTES_STORAGE_KEY)
+            return stored ? JSON.parse(stored) : []
+        } catch {
+            return []
+        }
+    })
+
+    const save = useCallback((updated: QuickNote[]) => {
+        setNotes(updated)
+        localStorage.setItem(QUICK_NOTES_STORAGE_KEY, JSON.stringify(updated))
+    }, [])
+
+    const addNote = useCallback((text: string) => {
+        const trimmed = text.trim()
+        if (!trimmed) return
+        save([{ id: crypto.randomUUID(), text: trimmed, createdAt: Date.now() }, ...notes])
+    }, [notes, save])
+
+    const removeNote = useCallback((id: string) => {
+        save(notes.filter(n => n.id !== id))
+    }, [notes, save])
+
+    return { notes, addNote, removeNote }
+}
+
 export default function CockpitPage() {
     const { user, workshopId } = useAuth()
     const { activeEmployee, employees, selectEmployee, isAdmin, isSharedMode } = useEmployee()
@@ -68,8 +105,7 @@ export default function CockpitPage() {
     const [shopTasks, setShopTasks] = useState<ShopTask[]>([])
     const [orderFilter, setOrderFilter] = useState<'all' | 'repairs' | 'builds'>('all')
     const [qcFilter, setQcFilter] = useState<'all' | 'repairs' | 'builds'>('all')
-    
-    // Achievement stats for today
+
     const [achievements, setAchievements] = useState({
         bikesFinished: 0,
         qcFinished: 0,
@@ -78,11 +114,19 @@ export default function CockpitPage() {
         bikesRepaired: 0
     })
 
+    // Section collapse state
+    const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+    const toggleSection = (key: string) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
+
+    // Show-more state for long lists
+    const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+    const toggleExpand = (key: string) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }))
+    const INITIAL_SHOW = 8
+
     useEffect(() => {
         if (!workshopId) return
         const fetchData = async () => {
             try {
-                // Fetch active cockpit items
                 const [ordersRes, buildsRes, tasksRes] = await Promise.all([
                     supabase.from('orders').select('id,order_number,customer_name,bike_brand,bike_model,bike_color,status,due_date,created_at,mechanic_ids,qc_mechanic_id')
                         .eq('workshop_id', workshopId)
@@ -99,51 +143,31 @@ export default function CockpitPage() {
                 setBikeBuilds(buildsRes.data || [])
                 setShopTasks(tasksRes.data || [])
 
-                // Fetch achievements today
                 const startOfToday = new Date()
                 startOfToday.setHours(0, 0, 0, 0)
                 const startOfTodayISO = startOfToday.toISOString()
 
                 const [finishedOrdersRes, finishedTasksRes, finishedBuildsRes] = await Promise.all([
-                    supabase.from('orders')
-                        .select('id, status, updated_at, qc_mechanic_id')
-                        .eq('workshop_id', workshopId)
-                        .gte('updated_at', startOfTodayISO)
+                    supabase.from('orders').select('id, status, updated_at, qc_mechanic_id')
+                        .eq('workshop_id', workshopId).gte('updated_at', startOfTodayISO)
                         .in('status', ['kontrolle_offen', 'fertig', 'abgeschlossen', 'abgeholt']),
-                    supabase.from('shop_tasks')
-                        .select('id, status, updated_at')
-                        .eq('workshop_id', workshopId)
-                        .eq('status', 'done')
-                        .gte('updated_at', startOfTodayISO),
-                    supabase.from('bike_builds')
-                        .select('id, status, updated_at')
-                        .eq('workshop_id', workshopId)
-                        .eq('status', 'abgeschlossen')
-                        .gte('updated_at', startOfTodayISO)
+                    supabase.from('shop_tasks').select('id, status, updated_at')
+                        .eq('workshop_id', workshopId).eq('status', 'done').gte('updated_at', startOfTodayISO),
+                    supabase.from('bike_builds').select('id, status, updated_at')
+                        .eq('workshop_id', workshopId).eq('status', 'abgeschlossen').gte('updated_at', startOfTodayISO)
                 ])
 
                 const finishedOrders = finishedOrdersRes.data || []
-                const finishedTasks = finishedTasksRes.data || []
-                const finishedBuilds = finishedBuildsRes.data || []
-                
-                // Achievement logic:
-                // - bikesFinished: All orders that reached 'abgeschlossen' or 'abgeholt' today
-                // - qcFinished: Orders where the ACTIVE EMPLOYEE performed the control today
-                // - tasksFinished: Tasks completed today
-                // - buildsFinished: Builds completed today
-                
+
                 setAchievements({
                     bikesFinished: finishedOrders.filter(o => o.status === 'abgeschlossen' || o.status === 'abgeholt').length,
-                    qcFinished: finishedOrders.filter(o => 
-                        o.status === 'fertig' && 
-                        activeEmployee?.id && 
-                        o.qc_mechanic_id === activeEmployee.id
+                    qcFinished: finishedOrders.filter(o =>
+                        o.status === 'fertig' && activeEmployee?.id && o.qc_mechanic_id === activeEmployee.id
                     ).length,
-                    bikesRepaired: finishedOrders.length, // Keeping this if needed, but UI will change
-                    tasksFinished: finishedTasks.length,
-                    buildsFinished: finishedBuilds.length
+                    bikesRepaired: finishedOrders.length,
+                    tasksFinished: (finishedTasksRes.data || []).length,
+                    buildsFinished: (finishedBuildsRes.data || []).length
                 })
-
             } catch (error) { console.error('Fetch error:', error) }
         }
         fetchData()
@@ -162,24 +186,23 @@ export default function CockpitPage() {
     const cockpitReturnState = { state: { from: '/dashboard/cockpit' } }
 
     const cockpitData = useMemo(() => {
-        // 1. YOUR ASSIGNMENTS (Repairs + Builds + QCs)
         const myRepairs = orders.filter(o => {
             const isAssignedMechanic = myMatchIds.length > 0 && o.mechanic_ids?.some(id => myMatchIds.includes(id))
             const inRepairPhase = o.status !== 'kontrolle_offen' && o.status !== 'fertig'
             return isAssignedMechanic && inRepairPhase
         })
         const myBuildsInProgress = bikeBuilds.filter(b => {
-             const isAssignedBuilder = activeEmployee?.id && b.assigned_employee_id === activeEmployee.id
-             const inBuildPhase = b.status !== 'fertig' && b.status !== 'abgeschlossen'
-             return isAssignedBuilder && inBuildPhase
+            const isAssignedBuilder = activeEmployee?.id && b.assigned_employee_id === activeEmployee.id
+            const inBuildPhase = b.status !== 'fertig' && b.status !== 'abgeschlossen'
+            return isAssignedBuilder && inBuildPhase
         })
         const myQCRepairs = orders.filter(o => {
             const isAssignedController = activeEmployee?.id && o.qc_mechanic_id === activeEmployee.id
             return isAssignedController && o.status === 'kontrolle_offen'
         })
         const myQCBuilds = bikeBuilds.filter(b => {
-             const isAssignedController = activeEmployee?.id && b.qc_mechanic_id === activeEmployee.id
-             return isAssignedController && b.status === 'fertig'
+            const isAssignedController = activeEmployee?.id && b.qc_mechanic_id === activeEmployee.id
+            return isAssignedController && b.status === 'fertig'
         })
 
         const myAssignments = [
@@ -195,37 +218,24 @@ export default function CockpitPage() {
             return new Date(dateA).getTime() - new Date(dateB).getTime()
         })
 
-        // 2. OPEN QC (Unassigned team controls)
         const openQCRepairs = orders.filter(o => o.status === 'kontrolle_offen' && !o.qc_mechanic_id)
         const openQCBuilds = bikeBuilds.filter(b => b.status === 'fertig' && !b.qc_mechanic_id)
-        
         let openQCAssignments = [
             ...openQCRepairs.map(o => ({ type: 'order' as const, data: o })),
             ...openQCBuilds.map(b => ({ type: 'build' as const, data: b }))
         ]
+        if (qcFilter === 'repairs') openQCAssignments = openQCAssignments.filter(item => item.type === 'order')
+        else if (qcFilter === 'builds') openQCAssignments = openQCAssignments.filter(item => item.type === 'build')
 
-        if (qcFilter === 'repairs') {
-            openQCAssignments = openQCAssignments.filter(item => item.type === 'order')
-        } else if (qcFilter === 'builds') {
-            openQCAssignments = openQCAssignments.filter(item => item.type === 'build')
-        }
-
-        // 3. OPEN WORK (Unassigned team repairs/builds)
         const unassignedOrders = orders.filter(o => (!o.mechanic_ids || o.mechanic_ids.length === 0) && (o.status !== 'kontrolle_offen' && o.status !== 'fertig'))
         const unassignedBuilds = bikeBuilds.filter(b => !b.assigned_employee_id && (b.status !== 'fertig' && b.status !== 'abgeschlossen'))
-
         let openWorkAssignments = [
             ...unassignedOrders.map(o => ({ type: 'order' as const, data: o })),
             ...unassignedBuilds.map(b => ({ type: 'build' as const, data: b }))
         ]
+        if (orderFilter === 'repairs') openWorkAssignments = openWorkAssignments.filter(item => item.type === 'order')
+        else if (orderFilter === 'builds') openWorkAssignments = openWorkAssignments.filter(item => item.type === 'build')
 
-        if (orderFilter === 'repairs') {
-            openWorkAssignments = openWorkAssignments.filter(item => item.type === 'order')
-        } else if (orderFilter === 'builds') {
-            openWorkAssignments = openWorkAssignments.filter(item => item.type === 'build')
-        }
-
-        // 4. TASKS (Personal + Urgent)
         const threeDaysFromNow = addDays(new Date(), 3)
         const myTasks = shopTasks.filter(t => {
             const isAssigned = myMatchIds.length > 0 && myMatchIds.includes(t.assigned_to || '')
@@ -233,12 +243,7 @@ export default function CockpitPage() {
             return isAssigned || isDueSoon
         })
 
-        return { 
-            myAssignments,
-            openQCAssignments,
-            openWorkAssignments,
-            myTasks
-        }
+        return { myAssignments, openQCAssignments, openWorkAssignments, myTasks }
     }, [orders, bikeBuilds, shopTasks, myMatchIds, activeEmployee, orderFilter, qcFilter])
 
     const toggleTaskComplete = async (taskId: string, currentStatus: string) => {
@@ -256,255 +261,287 @@ export default function CockpitPage() {
 
     const displayName = activeEmployee?.name || user?.user_metadata?.full_name?.split(' ')[0] || 'Team'
     const nonSharedModeEmployees = employees.filter(e => !e.is_kiosk_mode)
+    const { notes, addNote, removeNote } = useQuickNotes()
+
+    const todayTotal = achievements.bikesFinished + achievements.buildsFinished + achievements.qcFinished + achievements.tasksFinished
+    const urgentCount = cockpitData.myAssignments.filter(item => {
+        if (item.type === 'order' || item.type === 'qc_order') {
+            const o = item.data as Order
+            return o.due_date && isPast(new Date(o.due_date)) && !isToday(new Date(o.due_date))
+        }
+        return false
+    }).length
 
     return (
         <PageTransition>
             <DashboardLayout fullWidth>
                 <div className="flex flex-col h-full overflow-hidden">
-                    {/* Header — compact, integrated */}
-                    <div className="flex-shrink-0 px-5 py-2.5 border-b border-border/50 bg-card/50 backdrop-blur-sm compact:py-1.5">
-                        <div className="flex items-center justify-between max-w-[1600px] mx-auto w-full gap-4">
 
-                            {/* Left: Identity */}
-                            {(isSharedMode || isAdmin) ? (
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button className="flex items-center gap-2.5 group outline-none shrink-0">
-                                            <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center text-primary font-bold text-sm shrink-0 group-hover:bg-primary/22 transition-colors">
+                    {/* ── Header ─────────────────────────────────────── */}
+                    <div className="flex-shrink-0 border-b border-border/40">
+                        <div className="max-w-5xl mx-auto w-full px-6 py-4">
+                            <div className="flex items-center justify-between gap-4">
+                                {/* Left: Identity */}
+                                <div className="flex items-center gap-3">
+                                    {(isSharedMode || isAdmin) ? (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <button className="flex items-center gap-3 group outline-none">
+                                                    <div className="h-9 w-9 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                                                        {displayName.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div className="text-left hidden sm:block">
+                                                        <p className="text-xs text-muted-foreground leading-none mb-0.5">{getGreeting()}</p>
+                                                        <div className="flex items-center gap-1">
+                                                            <p className="text-base font-bold text-foreground leading-none">{displayName}</p>
+                                                            <ChevronDown className="h-3 w-3 text-muted-foreground group-hover:translate-y-0.5 transition-transform" />
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start" className="w-60 rounded-lg border border-border bg-popover p-1.5">
+                                                {nonSharedModeEmployees.map(emp => (
+                                                    <DropdownMenuItem
+                                                        key={emp.id}
+                                                        onClick={() => selectEmployee(emp.id)}
+                                                        className={cn(
+                                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer",
+                                                            activeEmployee?.id === emp.id && "bg-primary/10 text-primary"
+                                                        )}
+                                                    >
+                                                        <div className={cn(
+                                                            "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
+                                                            activeEmployee?.id === emp.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                                                        )}>
+                                                            {emp.name.charAt(0).toUpperCase()}
+                                                        </div>
+                                                        <span className="flex-1 font-medium text-sm">{emp.name}</span>
+                                                        {activeEmployee?.id === emp.id && <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    ) : (
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-9 w-9 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center text-primary font-bold text-sm shrink-0">
                                                 {displayName.charAt(0).toUpperCase()}
                                             </div>
-                                            <div className="text-left hidden sm:block">
-                                                <p className="text-[10px] text-muted-foreground font-medium leading-none mb-0.5">{getGreeting()}</p>
-                                                <div className="flex items-center gap-1">
-                                                    <p className="text-sm font-bold text-foreground leading-none">{displayName}</p>
-                                                    <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0 group-hover:translate-y-0.5 transition-transform" />
-                                                </div>
+                                            <div className="hidden sm:block">
+                                                <p className="text-xs text-muted-foreground leading-none mb-0.5">{getGreeting()}</p>
+                                                <p className="text-base font-bold text-foreground leading-none">{displayName}</p>
                                             </div>
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent
-                                        align="start"
-                                        className="w-60 rounded-lg border border-border bg-popover p-1.5"
-                                    >
-                                        {nonSharedModeEmployees.map(emp => (
-                                            <DropdownMenuItem
-                                                key={emp.id}
-                                                onClick={() => selectEmployee(emp.id)}
-                                                className={cn(
-                                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer",
-                                                    activeEmployee?.id === emp.id && "bg-primary/10 text-primary"
-                                                )}
-                                            >
-                                                <div className={cn(
-                                                    "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                                                    activeEmployee?.id === emp.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                                                )}>
-                                                    {emp.name.charAt(0).toUpperCase()}
-                                                </div>
-                                                <span className="flex-1 font-medium text-sm">{emp.name}</span>
-                                                {activeEmployee?.id === emp.id && <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />}
-                                            </DropdownMenuItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            ) : (
-                                <div className="flex items-center gap-2.5 shrink-0">
-                                    <div className="h-8 w-8 rounded-lg bg-primary/15 border border-primary/25 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                                        {displayName.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div className="hidden sm:block">
-                                        <p className="text-[10px] text-muted-foreground font-medium leading-none mb-0.5">{getGreeting()}</p>
-                                        <p className="text-sm font-bold text-foreground leading-none">{displayName}</p>
-                                    </div>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
 
-                    {/* Right: Today's achievements — compact stat pills */}
-                    <div className="flex items-center gap-0.5 bg-card rounded-lg border border-border px-1.5 py-1 overflow-x-auto no-scrollbar shrink-0">
-                        <StatPill icon={ListTodo}    label="Reparaturen" value={achievements.bikesFinished}  color="blue"   />
-                        <div className="h-4 w-[1px] bg-border/50 mx-1 shrink-0" />
-                        <StatPill icon={Zap}         label="Neuräder"    value={achievements.buildsFinished} color="amber"  />
-                        <div className="h-4 w-[1px] bg-border/50 mx-1 shrink-0" />
-                        <StatPill icon={ShieldCheck} label="Kontrollen"  value={achievements.qcFinished}     color="purple" />
-                        <div className="h-4 w-[1px] bg-border/50 mx-1 shrink-0" />
-                        <StatPill icon={CheckCircle2} label="Aufgaben"   value={achievements.tasksFinished}  color="orange" />
-                    </div>
+                                {/* Right: Today summary */}
+                                <div className="flex items-center gap-4 text-sm">
+                                    {urgentCount > 0 && (
+                                        <div className="flex items-center gap-1.5 text-red-400 bg-red-500/10 px-2.5 py-1 rounded-full text-xs font-medium">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+                                            {urgentCount} überfällig
+                                        </div>
+                                    )}
+                                    {todayTotal > 0 && (
+                                        <div className="flex items-center gap-1.5 text-muted-foreground">
+                                            <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                            <span className="text-xs"><span className="font-semibold text-foreground">{todayTotal}</span> heute erledigt</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Panels */}
-                    <div className="flex-1 overflow-y-auto xl:overflow-hidden custom-scrollbar p-6 md:p-8 xl:p-10 lg:p-8 compact:p-1 xl:compact:p-2">
-                        <div className="max-w-[1600px] mx-auto grid gap-6 md:grid-cols-2 xl:grid-cols-4 compact:gap-2 min-h-full xl:h-full transition-all">
-                            <CockpitPanel
-                                title="Deine Zuweisungen"
-                                icon={UserCheck}
-                                accent="blue"
-                                count={cockpitData.myAssignments.length}
-                                empty={myMatchIds.length === 0 ? "Klicke deinen Namen an um dich auszuwählen" : "Keine Zuweisungen gefunden"}
-                                className="xl:order-1"
-                            >
-                                <div className="space-y-0">
-                                    {cockpitData.myAssignments.map((item, idx) => {
-                                        if (item.type === 'order') return (
-                                            <OrderRow 
-                                                key={`my-${item.data.id}-${idx}`} 
-                                                order={item.data} 
-                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}`, cockpitReturnState)} 
-                                            />
-                                        )
-                                        if (item.type === 'build') return (
-                                            <BuildRow 
-                                                key={`my-${item.data.id}-${idx}`} 
-                                                build={item.data} 
-                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)} 
-                                            />
-                                        )
-                                        if (item.type === 'qc_order') return (
-                                            <OrderRow
-                                                key={`qc-${item.data.id}-${idx}`}
-                                                order={item.data}
-                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}/control`, cockpitReturnState)}
-                                            />
-                                        )
-                                        if (item.type === 'qc_build') return (
-                                            <BuildRow
-                                                key={`qc-${item.data.id}-${idx}`}
-                                                build={item.data}
-                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)}
-                                            />
-                                        )
-                                        return null
-                                    })}
-                                </div>
-                            </CockpitPanel>
+                    {/* ── Content ────────────────────────────────────── */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                        <div className="max-w-5xl mx-auto w-full px-6 py-6">
+                            <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
 
-                            <CockpitPanel
-                                title="Offene Kontrollen"
-                                icon={ShieldCheck}
-                                accent="purple"
-                                count={cockpitData.openQCAssignments.length}
-                                empty="Alles geprüft!"
-                                className="xl:order-3"
-                                action={
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <button className={cn(
-                                                "p-1.5 rounded-md transition-all outline-none",
-                                                qcFilter !== 'all' 
-                                                    ? "bg-purple-500/20 text-purple-500 shadow-sm" 
-                                                    : "text-purple-500/40 hover:text-purple-500 hover:bg-purple-500/10"
-                                            )}>
-                                                <Filter className={cn("h-3.5 w-3.5", qcFilter !== 'all' && "fill-current")} />
-                                            </button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-48">
-                                            <DropdownMenuItem onClick={() => setQcFilter('all')} className={cn(qcFilter === 'all' && "bg-primary/10 text-primary")}>
-                                                Alle anzeigen
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setQcFilter('repairs')} className={cn(qcFilter === 'repairs' && "bg-primary/10 text-primary")}>
-                                                Nur Reparaturen
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setQcFilter('builds')} className={cn(qcFilter === 'builds' && "bg-primary/10 text-primary")}>
-                                                Nur Neuräder
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                }
-                            >
-                                <div className="space-y-0">
-                                    {cockpitData.openQCAssignments.map((item, idx) => {
-                                        if (item.type === 'order') return (
-                                            <OrderRow
-                                                key={`open-qc-${item.data.id}-${idx}`}
-                                                order={item.data}
-                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}/control`, cockpitReturnState)}
-                                            />
-                                        )
-                                        if (item.type === 'build') return (
-                                            <BuildRow
-                                                key={`open-qc-${item.data.id}-${idx}`}
-                                                build={item.data}
-                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)}
-                                            />
-                                        )
-                                        return null
-                                    })}
-                                </div>
-                            </CockpitPanel>
+                                {/* ── Left column: My work ── */}
+                                <div className="space-y-1">
 
-                            <CockpitPanel
-                                title="Deine Aufgaben"
-                                icon={ListTodo}
-                                accent="orange"
-                                count={cockpitData.myTasks.length}
-                                empty="Keine Aufgaben fällig"
-                                className="xl:order-2"
-                            >
-                                <div className="space-y-0">
-                                    {cockpitData.myTasks.map(task => (
-                                        <TaskRow
-                                            key={task.id}
-                                            task={task}
-                                            onToggle={() => toggleTaskComplete(task.id, task.status)}
-                                            onClick={() => navigate('/dashboard/tasks', cockpitReturnState)}
-                                        />
-                                    ))}
-                                </div>
-                            </CockpitPanel>
+                                    {/* Section: Meine Zuweisungen */}
+                                    <SectionHeader
+                                        title="Meine Zuweisungen"
+                                        count={cockpitData.myAssignments.length}
+                                        color="text-blue-500"
+                                        collapsed={collapsed['assignments']}
+                                        onToggle={() => toggleSection('assignments')}
+                                    />
+                                    {!collapsed['assignments'] && (
+                                        <div className="mb-6">
+                                            {cockpitData.myAssignments.length === 0 ? (
+                                                <EmptyState text={myMatchIds.length === 0 ? "Wähle deinen Namen oben aus" : "Keine Zuweisungen — alles erledigt!"} />
+                                            ) : (
+                                                <div className="border border-border/40 rounded-lg overflow-hidden divide-y divide-border/30">
+                                                    {(expanded['assignments'] ? cockpitData.myAssignments : cockpitData.myAssignments.slice(0, INITIAL_SHOW)).map((item, idx) => {
+                                                        if (item.type === 'order') return (
+                                                            <OrderRow key={`my-${item.data.id}-${idx}`} order={item.data}
+                                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}`, cockpitReturnState)} />
+                                                        )
+                                                        if (item.type === 'build') return (
+                                                            <BuildRow key={`my-${item.data.id}-${idx}`} build={item.data}
+                                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)} />
+                                                        )
+                                                        if (item.type === 'qc_order') return (
+                                                            <OrderRow key={`qc-${item.data.id}-${idx}`} order={item.data} isQC
+                                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}/control`, cockpitReturnState)} />
+                                                        )
+                                                        if (item.type === 'qc_build') return (
+                                                            <BuildRow key={`qcb-${item.data.id}-${idx}`} build={item.data} isQC
+                                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)} />
+                                                        )
+                                                        return null
+                                                    })}
+                                                    <ShowMoreButton total={cockpitData.myAssignments.length} limit={INITIAL_SHOW} expanded={expanded['assignments']} onToggle={() => toggleExpand('assignments')} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
-                            <CockpitPanel
-                                title="Offene Aufträge"
-                                icon={FastForward}
-                                accent="emerald"
-                                count={cockpitData.openWorkAssignments.length}
-                                empty="Alles erledigt!"
-                                className="xl:order-4"
-                                action={
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <button className={cn(
-                                                "p-1.5 rounded-md transition-all outline-none",
-                                                orderFilter !== 'all' 
-                                                    ? "bg-emerald-500/20 text-emerald-500 shadow-sm" 
-                                                    : "text-emerald-500/40 hover:text-emerald-500 hover:bg-emerald-500/10"
-                                            )}>
-                                                <Filter className={cn("h-3.5 w-3.5", orderFilter !== 'all' && "fill-current")} />
-                                            </button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-48">
-                                            <DropdownMenuItem onClick={() => setOrderFilter('all')} className={cn(orderFilter === 'all' && "bg-primary/10 text-primary")}>
-                                                Alle anzeigen
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setOrderFilter('repairs')} className={cn(orderFilter === 'repairs' && "bg-primary/10 text-primary")}>
-                                                Nur Reparaturen
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setOrderFilter('builds')} className={cn(orderFilter === 'builds' && "bg-primary/10 text-primary")}>
-                                                Nur Neuräder
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                }
-                            >
-                                <div className="space-y-0">
-                                    {cockpitData.openWorkAssignments.map((item, idx) => {
-                                        if (item.type === 'order') return (
-                                            <OrderRow 
-                                                key={`open-work-${item.data.id}-${idx}`} 
-                                                order={item.data} 
-                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}`, cockpitReturnState)} 
+                                    {/* Section: Offene Kontrollen */}
+                                    <SectionHeader
+                                        title="Offene Kontrollen"
+                                        count={cockpitData.openQCAssignments.length}
+                                        color="text-purple-500"
+                                        collapsed={collapsed['qc']}
+                                        onToggle={() => toggleSection('qc')}
+                                        action={
+                                            <FilterDropdown
+                                                value={qcFilter}
+                                                onChange={setQcFilter}
                                             />
-                                        )
-                                        if (item.type === 'build') return (
-                                            <BuildRow 
-                                                key={`open-work-${item.data.id}-${idx}`} 
-                                                build={item.data} 
-                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)} 
+                                        }
+                                    />
+                                    {!collapsed['qc'] && (
+                                        <div className="mb-6">
+                                            {cockpitData.openQCAssignments.length === 0 ? (
+                                                <EmptyState text="Alles geprüft!" />
+                                            ) : (
+                                                <div className="border border-border/40 rounded-lg overflow-hidden divide-y divide-border/30">
+                                                    {(expanded['qc'] ? cockpitData.openQCAssignments : cockpitData.openQCAssignments.slice(0, INITIAL_SHOW)).map((item, idx) => {
+                                                        if (item.type === 'order') return (
+                                                            <OrderRow key={`oqc-${item.data.id}-${idx}`} order={item.data}
+                                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}/control`, cockpitReturnState)} />
+                                                        )
+                                                        if (item.type === 'build') return (
+                                                            <BuildRow key={`oqcb-${item.data.id}-${idx}`} build={item.data}
+                                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)} />
+                                                        )
+                                                        return null
+                                                    })}
+                                                    <ShowMoreButton total={cockpitData.openQCAssignments.length} limit={INITIAL_SHOW} expanded={expanded['qc']} onToggle={() => toggleExpand('qc')} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Section: Offene Aufträge */}
+                                    <SectionHeader
+                                        title="Offene Aufträge"
+                                        count={cockpitData.openWorkAssignments.length}
+                                        color="text-emerald-500"
+                                        collapsed={collapsed['open']}
+                                        onToggle={() => toggleSection('open')}
+                                        action={
+                                            <FilterDropdown
+                                                value={orderFilter}
+                                                onChange={setOrderFilter}
                                             />
-                                        )
-                                        return null
-                                    })}
+                                        }
+                                    />
+                                    {!collapsed['open'] && (
+                                        <div className="mb-6">
+                                            {cockpitData.openWorkAssignments.length === 0 ? (
+                                                <EmptyState text="Alles zugewiesen!" />
+                                            ) : (
+                                                <div className="border border-border/40 rounded-lg overflow-hidden divide-y divide-border/30">
+                                                    {(expanded['open'] ? cockpitData.openWorkAssignments : cockpitData.openWorkAssignments.slice(0, INITIAL_SHOW)).map((item, idx) => {
+                                                        if (item.type === 'order') return (
+                                                            <OrderRow key={`ow-${item.data.id}-${idx}`} order={item.data}
+                                                                onClick={() => navigate(`/dashboard/orders/${(item.data as Order).order_number}`, cockpitReturnState)} />
+                                                        )
+                                                        if (item.type === 'build') return (
+                                                            <BuildRow key={`owb-${item.data.id}-${idx}`} build={item.data}
+                                                                onClick={() => navigate(`/dashboard/bike-builds/${(item.data as BikeBuild).internal_number}`, cockpitReturnState)} />
+                                                        )
+                                                        return null
+                                                    })}
+                                                    <ShowMoreButton total={cockpitData.openWorkAssignments.length} limit={INITIAL_SHOW} expanded={expanded['open']} onToggle={() => toggleExpand('open')} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                            </CockpitPanel>
+
+                                {/* ── Right column: Tasks + Notes ── */}
+                                <div className="space-y-1">
+
+                                    {/* Section: Meine Aufgaben */}
+                                    <SectionHeader
+                                        title="Meine Aufgaben"
+                                        count={cockpitData.myTasks.length}
+                                        color="text-orange-500"
+                                        collapsed={collapsed['tasks']}
+                                        onToggle={() => toggleSection('tasks')}
+                                    />
+                                    {!collapsed['tasks'] && (
+                                        <div className="mb-6">
+                                            {cockpitData.myTasks.length === 0 ? (
+                                                <EmptyState text="Keine Aufgaben fällig" />
+                                            ) : (
+                                                <div className="border border-border/40 rounded-lg overflow-hidden divide-y divide-border/30">
+                                                    {cockpitData.myTasks.map(task => (
+                                                        <TaskRow key={task.id} task={task}
+                                                            onToggle={() => toggleTaskComplete(task.id, task.status)}
+                                                            onClick={() => navigate('/dashboard/tasks', cockpitReturnState)} />
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Section: Schnellnotizen */}
+                                    <SectionHeader
+                                        title="Schnellnotizen"
+                                        count={notes.length}
+                                        color="text-rose-500"
+                                        collapsed={collapsed['notes']}
+                                        onToggle={() => toggleSection('notes')}
+                                    />
+                                    {!collapsed['notes'] && (
+                                        <div className="mb-6">
+                                            <QuickNotesSection notes={notes} onAdd={addNote} onRemove={removeNote} />
+                                        </div>
+                                    )}
+
+                                    {/* Today's Stats */}
+                                    {todayTotal > 0 && (
+                                        <>
+                                            <SectionHeader
+                                                title="Heute erledigt"
+                                                count={todayTotal}
+                                                color="text-emerald-500"
+                                                collapsed={collapsed['stats']}
+                                                onToggle={() => toggleSection('stats')}
+                                            />
+                                            {!collapsed['stats'] && (
+                                                <div className="mb-6 border border-border/40 rounded-lg overflow-hidden">
+                                                    <div className="grid grid-cols-2 divide-x divide-border/30">
+                                                        <StatCell icon={ListTodo} label="Reparaturen" value={achievements.bikesFinished} color="text-blue-500" />
+                                                        <StatCell icon={Zap} label="Neuräder" value={achievements.buildsFinished} color="text-amber-500" />
+                                                    </div>
+                                                    <div className="grid grid-cols-2 divide-x divide-border/30 border-t border-border/30">
+                                                        <StatCell icon={ShieldCheck} label="Kontrollen" value={achievements.qcFinished} color="text-purple-500" />
+                                                        <StatCell icon={CheckCircle2} label="Aufgaben" value={achievements.tasksFinished} color="text-orange-500" />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -513,9 +550,165 @@ export default function CockpitPage() {
     )
 }
 
-// ── Components ──────────────────────────────────────────────────────────
+// ── Section Header (Todoist-style) ────────────────────────────────────────
 
-const STATUS_ICON_MAP: Record<string, any> = {
+function SectionHeader({ title, count, color, collapsed, onToggle, action }: {
+    title: string
+    count: number
+    color: string
+    collapsed?: boolean
+    onToggle: () => void
+    action?: React.ReactNode
+}) {
+    return (
+        <div className="flex items-center gap-2 py-2 group">
+            <button
+                onClick={onToggle}
+                className="flex items-center gap-2 flex-1 min-w-0 outline-none"
+            >
+                <ChevronRight className={cn(
+                    "h-3.5 w-3.5 text-muted-foreground/50 transition-transform duration-200 shrink-0",
+                    !collapsed && "rotate-90"
+                )} />
+                <span className={cn("text-sm font-bold", color)}>{title}</span>
+                <span className="text-xs text-muted-foreground/50 tabular-nums">{count}</span>
+            </button>
+            {action && <div className="shrink-0">{action}</div>}
+        </div>
+    )
+}
+
+// ── Empty State ───────────────────────────────────────────────────────────
+
+function EmptyState({ text }: { text: string }) {
+    return (
+        <div className="py-6 text-center">
+            <p className="text-xs text-muted-foreground/40">{text}</p>
+        </div>
+    )
+}
+
+// ── Show More Button ──────────────────────────────────────────────────────
+
+function ShowMoreButton({ total, limit, expanded, onToggle }: { total: number; limit: number; expanded?: boolean; onToggle: () => void }) {
+    if (total <= limit) return null
+    const remaining = total - limit
+    return (
+        <button
+            onClick={onToggle}
+            className="w-full py-2 text-xs text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/20 transition-colors text-center"
+        >
+            {expanded ? 'Weniger anzeigen' : `${remaining} weitere anzeigen...`}
+        </button>
+    )
+}
+
+// ── Stat Cell ─────────────────────────────────────────────────────────────
+
+function StatCell({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: number; color: string }) {
+    return (
+        <div className="px-4 py-3 flex items-center gap-3">
+            <Icon className={cn("h-4 w-4 shrink-0", color)} />
+            <div>
+                <p className="text-lg font-bold text-foreground tabular-nums leading-none">{value}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{label}</p>
+            </div>
+        </div>
+    )
+}
+
+// ── Filter Dropdown ───────────────────────────────────────────────────────
+
+function FilterDropdown({ value, onChange }: {
+    value: 'all' | 'repairs' | 'builds'
+    onChange: (v: 'all' | 'repairs' | 'builds') => void
+}) {
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <button className={cn(
+                    "p-1 rounded transition-all outline-none",
+                    value !== 'all' ? "text-primary bg-primary/10" : "text-muted-foreground/30 hover:text-muted-foreground"
+                )}>
+                    <Filter className={cn("h-3.5 w-3.5", value !== 'all' && "fill-current")} />
+                </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => onChange('all')} className={cn(value === 'all' && "bg-primary/10 text-primary")}>
+                    Alle anzeigen
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onChange('repairs')} className={cn(value === 'repairs' && "bg-primary/10 text-primary")}>
+                    Nur Reparaturen
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onChange('builds')} className={cn(value === 'builds' && "bg-primary/10 text-primary")}>
+                    Nur Neuräder
+                </DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    )
+}
+
+// ── Quick Notes Section ───────────────────────────────────────────────────
+
+function QuickNotesSection({ notes, onAdd, onRemove }: {
+    notes: QuickNote[]
+    onAdd: (text: string) => void
+    onRemove: (id: string) => void
+}) {
+    const [input, setInput] = useState("")
+    const inputRef = useRef<HTMLInputElement>(null)
+
+    const handleAdd = () => {
+        if (!input.trim()) return
+        onAdd(input)
+        setInput("")
+    }
+
+    return (
+        <div className="border border-border/40 rounded-lg overflow-hidden">
+            {notes.length > 0 && (
+                <div className="divide-y divide-border/30">
+                    {notes.map(note => (
+                        <div key={note.id} className="group flex items-start gap-3 px-3.5 py-2.5 hover:bg-muted/30 transition-colors">
+                            <span className="text-rose-400/40 mt-0.5 shrink-0 text-sm leading-none">—</span>
+                            <p className="flex-1 text-sm text-foreground/80 leading-snug break-words min-w-0">{note.text}</p>
+                            <button
+                                onClick={() => onRemove(note.id)}
+                                className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground/30 hover:text-red-400"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {/* Input */}
+            <div className={cn("flex items-center gap-2 px-3.5 py-2.5", notes.length > 0 && "border-t border-border/30")}>
+                <Plus className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
+                <input
+                    ref={inputRef}
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                    placeholder="Notiz hinzufügen..."
+                    className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/30 outline-none min-w-0"
+                />
+                {input.trim() && (
+                    <button
+                        onClick={handleAdd}
+                        className="shrink-0 text-xs text-rose-500 font-medium hover:text-rose-400 transition-colors"
+                    >
+                        Hinzufügen
+                    </button>
+                )}
+            </div>
+        </div>
+    )
+}
+
+// ── Row Components ────────────────────────────────────────────────────────
+
+const STATUS_ICON_MAP: Record<string, React.ElementType> = {
     'eingegangen': Clock,
     'in_bearbeitung': Play,
     'warten_auf_teile': Pause,
@@ -526,156 +719,103 @@ const STATUS_ICON_MAP: Record<string, any> = {
     'abgeholt': Check,
 }
 
-const STAT_COLOR_MAP = {
-    blue:   { icon: 'text-blue-400',   bg: 'bg-blue-500/15',   border: 'border-blue-500/25'   },
-    amber:  { icon: 'text-amber-400',  bg: 'bg-amber-500/15',  border: 'border-amber-500/25'  },
-    purple: { icon: 'text-purple-400', bg: 'bg-purple-500/15', border: 'border-purple-500/25' },
-    orange: { icon: 'text-orange-400', bg: 'bg-orange-500/15', border: 'border-orange-500/25' },
-} as const
-
-function StatPill({ icon: Icon, label, value, color }: { icon: any, label: string, value: number, color: keyof typeof STAT_COLOR_MAP }) {
-    const { icon: iconColor } = STAT_COLOR_MAP[color]
-    return (
-        <div className="flex items-center gap-2 whitespace-nowrap px-2 py-1">
-            <Icon className={cn("h-3.5 w-3.5 shrink-0", iconColor)} />
-            <div className="flex items-baseline gap-1.5">
-                <span className="text-sm font-bold tabular-nums text-foreground">{value}</span>
-                <span className="text-[11px] text-muted-foreground hidden lg:block">{label}</span>
-            </div>
-        </div>
-    )
-}
-
-const ACCENT_MAP = {
-    blue:    { icon: 'text-blue-400',    bg: 'bg-blue-500/15',    border: 'border-t-blue-400',    headerBg: 'from-blue-500/10',    ringColor: 'ring-blue-500/10'    },
-    purple:  { icon: 'text-purple-400',  bg: 'bg-purple-500/15',  border: 'border-t-purple-400',  headerBg: 'from-purple-500/10',  ringColor: 'ring-purple-500/10'  },
-    orange:  { icon: 'text-orange-400',  bg: 'bg-orange-500/15',  border: 'border-t-orange-400',  headerBg: 'from-orange-500/10',  ringColor: 'ring-orange-500/10'  },
-    emerald: { icon: 'text-emerald-400', bg: 'bg-emerald-500/15', border: 'border-t-emerald-400', headerBg: 'from-emerald-500/10', ringColor: 'ring-emerald-500/10' },
-} as const
-
-function CockpitPanel({ title, icon: Icon, accent, count, empty, children, className, action }: any) {
-    const { icon: iconColor, bg } = ACCENT_MAP[accent as keyof typeof ACCENT_MAP]
-    const isEmpty = count === 0
-
-    return (
-        <div className={cn(
-            "flex flex-col border border-border bg-card overflow-hidden min-w-0 h-full min-h-[300px] lg:min-h-[360px] max-h-[40vh] xl:max-h-none",
-            "rounded-sm",
-            className
-        )}>
-            {/* Panel header — flat, Notion database header style */}
-            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/60">
-                <div className="flex items-center gap-2.5">
-                    <div className={cn("p-1.5 rounded-sm shrink-0", bg)}>
-                        <Icon className={cn("h-3.5 w-3.5", iconColor)} />
-                    </div>
-                    <div>
-                        <h3 className="font-semibold text-foreground text-sm leading-tight">{title}</h3>
-                        <p className="text-[10px] text-muted-foreground/60 tabular-nums">
-                            {count > 0 ? `${count} Einträge` : 'Leer'}
-                        </p>
-                    </div>
-                </div>
-                {action}
-            </div>
-
-            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
-                {isEmpty ? (
-                    <div className="flex flex-col items-center justify-center gap-2 h-full py-10 lg:py-20">
-                        <div className={cn("p-3 rounded-sm opacity-20", bg)}>
-                            <Icon className={cn("h-6 w-6", iconColor)} />
-                        </div>
-                        <p className="text-sm text-center px-8 text-muted-foreground/40">{empty}</p>
-                    </div>
-                ) : (
-                    <div className="divide-y divide-border/40">
-                        {children}
-                    </div>
-                )}
-            </div>
-        </div>
-    )
-}
-
-function OrderRow({ order, onClick, selfCheckWarning }: any) {
+function OrderRow({ order, onClick, isQC }: { order: Order; onClick: () => void; isQC?: boolean }) {
     const urgency = getUrgencyInfo(order.due_date)
-    const StatusIcon = STATUS_ICON_MAP[order.status] || ListTodo
+    const StatusIcon = STATUS_ICON_MAP[order.status] || Circle
+
+    const statusColor = cn(
+        order.status === 'warten_auf_teile' ? "text-orange-400" :
+        order.status === 'in_bearbeitung'   ? "text-violet-400" :
+        order.status === 'eingegangen'      ? "text-blue-400" :
+        order.status === 'kontrolle_offen'  ? "text-amber-400" :
+        order.status === 'abholbereit'      ? "text-emerald-400" :
+        "text-muted-foreground/40"
+    )
 
     return (
         <button
             onClick={onClick}
-            className="group w-full flex items-center gap-3 px-4 py-2.5 compact:px-3 compact:py-1.5 hover:bg-muted/60 transition-colors text-left"
+            className="group w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-muted/30 transition-colors text-left"
         >
-            <div className={cn("shrink-0 transition-colors",
-                order.status === 'warten_auf_teile' ? "text-rose-400" :
-                order.status === 'in_bearbeitung'   ? "text-indigo-400" :
-                order.status === 'eingegangen'      ? "text-blue-400" :
-                order.status === 'kontrolle_offen'  ? "text-amber-400" :
-                urgency.isOverdue ? "text-red-400" : "text-muted-foreground/40 group-hover:text-primary")}>
-                <StatusIcon className="h-3.5 w-3.5" />
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col items-start">
-                <div className="flex items-center gap-2 w-full">
-                    <span className="font-medium text-sm truncate text-foreground">{order.bike_brand} {order.bike_model}</span>
-                    {selfCheckWarning && <ShieldCheck className="h-3 w-3 text-amber-400 shrink-0" />}
+            {/* Status icon */}
+            <StatusIcon className={cn("h-4 w-4 shrink-0", statusColor)} />
+
+            {/* Content */}
+            <div className="flex-1 min-w-0 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-foreground font-medium truncate">
+                            {[order.bike_brand, order.bike_model].filter(Boolean).join(' ') || 'Fahrrad'}
+                        </span>
+                        {isQC && (
+                            <span className="text-[9px] font-semibold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded shrink-0">QC</span>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="text-[10px] text-muted-foreground/40 font-mono">{order.order_number}</span>
+                        <span className="text-muted-foreground/20">·</span>
+                        <span className="text-[10px] text-muted-foreground/40 truncate">{order.customer_name}</span>
+                    </div>
                 </div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px] text-muted-foreground/60 font-mono tracking-wide">{order.order_number}</span>
-                    {order.bike_color && <span className="text-[10px] text-muted-foreground/35 truncate">· {order.bike_color}</span>}
-                </div>
             </div>
-            <div className="shrink-0 flex items-center gap-1.5">
-                {order.due_date ? (
-                    <span className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded-[3px] uppercase tracking-wider",
-                        urgency.isOverdue ? "bg-red-500/10 text-red-400" : "text-muted-foreground/50")}>
+
+            {/* Right: due date + arrow */}
+            <div className="shrink-0 flex items-center gap-2">
+                {order.due_date && (
+                    <span className={cn(
+                        "text-[10px] font-medium tabular-nums",
+                        urgency.isOverdue ? "text-red-400" :
+                        urgency.isDueToday ? "text-amber-400" :
+                        "text-muted-foreground/30"
+                    )}>
                         {urgency.shortLabel}
                     </span>
-                ) : (
-                    <Calendar className="h-3 w-3 text-muted-foreground/25" />
                 )}
-                <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/15 group-hover:text-foreground/40 transition-colors shrink-0" />
             </div>
         </button>
     )
 }
 
-function BuildRow({ build, onClick }: any) {
+function BuildRow({ build, onClick, isQC }: { build: BikeBuild; onClick: () => void; isQC?: boolean }) {
     return (
-        <button onClick={onClick} className="group w-full flex items-center gap-3 px-4 py-2.5 compact:px-3 compact:py-1.5 hover:bg-muted/60 transition-colors text-left">
-            <div className="shrink-0 text-amber-400 transition-all">
-                <Zap className="h-3.5 w-3.5" />
+        <button onClick={onClick} className="group w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-muted/30 transition-colors text-left">
+            <Zap className="h-4 w-4 shrink-0 text-amber-400" />
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-foreground font-medium truncate">{build.brand} {build.model}</span>
+                    {isQC && (
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded shrink-0">QC</span>
+                    )}
+                </div>
+                <span className="text-[10px] text-muted-foreground/40 font-mono mt-0.5 block">{build.internal_number}</span>
             </div>
-            <div className="flex-1 min-w-0 flex flex-col items-start">
-                <span className="font-medium text-sm truncate text-foreground">{build.brand} {build.model}</span>
-                <span className="text-[10px] text-muted-foreground/60 font-mono tracking-wide mt-0.5">{build.internal_number}</span>
-            </div>
-            <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/15 group-hover:text-foreground/40 transition-colors shrink-0" />
         </button>
     )
 }
 
-function TaskRow({ task, onToggle, onClick }: any) {
+function TaskRow({ task, onToggle, onClick }: { task: ShopTask; onToggle: () => void; onClick: () => void }) {
     const isOverdue = task.due_date && isPast(new Date(task.due_date)) && !isToday(new Date(task.due_date))
     return (
-        <div className="group flex items-start gap-3 px-4 py-2.5 compact:py-1.5 hover:bg-muted/60 transition-colors cursor-pointer border-0" onClick={onClick}>
+        <div className="group flex items-start gap-3 px-3.5 py-2.5 hover:bg-muted/30 transition-colors cursor-pointer" onClick={onClick}>
             <div className="pt-0.5 shrink-0" onClick={e => { e.stopPropagation(); onToggle() }}>
                 <Checkbox checked={task.status === 'done'} className="h-4 w-4 rounded-sm" />
             </div>
             <div className="flex-1 min-w-0">
-                <p className={cn("text-sm leading-snug", task.status === 'done' ? "line-through text-muted-foreground/40" : "text-foreground")}>{task.title}</p>
+                <p className={cn("text-sm leading-snug", task.status === 'done' ? "line-through text-muted-foreground/30" : "text-foreground")}>
+                    {task.title}
+                </p>
                 {task.due_date && task.status !== 'done' && (
-                    <div className="flex items-center gap-1 mt-0.5">
-                        <Calendar className={cn("h-3 w-3", isOverdue ? "text-red-400" : "text-muted-foreground/50")} />
-                        <span className={cn("text-[10px]", isOverdue ? "text-red-400" : "text-muted-foreground/50")}>
-                            {format(new Date(task.due_date), "d. MMM", { locale: de })}
-                        </span>
-                    </div>
+                    <span className={cn("text-[10px] mt-0.5 inline-block", isOverdue ? "text-red-400" : "text-muted-foreground/30")}>
+                        {format(new Date(task.due_date), "d. MMM", { locale: de })}
+                    </span>
                 )}
             </div>
-            <div className={cn("mt-1.5 h-1.5 w-1.5 rounded-full shrink-0",
+            <div className={cn("mt-2 h-1.5 w-1.5 rounded-full shrink-0",
                 task.priority === 'high'   ? "bg-red-500" :
                 task.priority === 'medium' ? "bg-amber-400" :
-                "bg-muted-foreground/20"
+                "bg-muted-foreground/15"
             )} />
         </div>
     )
