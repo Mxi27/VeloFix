@@ -1,26 +1,30 @@
 import { useEffect, useState, useMemo } from "react"
-import { useNavigate, type NavigateFunction } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { useEmployee } from "@/contexts/EmployeeContext"
 import { supabase } from "@/lib/supabase"
-import { Card, CardContent } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Star, MessageSquare, Wrench, Bike, Calendar, Loader2, Users, Check, ChevronsUpDown, TrendingUp, TrendingDown, Search } from "lucide-react"
+import {
+    Star,
+    MessageSquare,
+    Wrench,
+    Bike,
+    Loader2,
+    Users,
+    Check,
+    ChevronsUpDown,
+    TrendingUp,
+    TrendingDown,
+    Search,
+    ChevronDown,
+    Filter,
+} from "lucide-react"
 import { DashboardLayout } from "@/layouts/DashboardLayout"
 import { format, subDays } from "date-fns"
 import { de } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-
 import {
     Command,
     CommandEmpty,
@@ -37,67 +41,42 @@ import {
 } from "@/components/ui/popover"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-// Animated Rating Ring Component
-function RatingRing({ rating, size = 140 }: { rating: number; size?: number }) {
-    const percentage = (rating / 5) * 100
-    const strokeWidth = 8
-    const radius = (size - strokeWidth) / 2
-    const circumference = 2 * Math.PI * radius
-    const offset = circumference - (percentage / 100) * circumference
+// ── Types ────────────────────────────────────────────────────────────────────
 
-    const getColor = () => {
-        if (rating >= 4.5) return "rgb(34, 197, 94)" // green
-        if (rating >= 4) return "rgb(132, 204, 22)" // lime
-        if (rating >= 3) return "rgb(234, 179, 8)" // yellow
-        return "rgb(239, 68, 68)" // red
-    }
-
-    return (
-        <div className="relative" style={{ width: size, height: size }}>
-            <svg width={size} height={size} className="transform -rotate-90">
-                {/* Background circle */}
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={strokeWidth}
-                    className="text-muted/20"
-                />
-                {/* Progress circle */}
-                <circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={radius}
-                    fill="none"
-                    stroke={getColor()}
-                    strokeWidth={strokeWidth}
-                    strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={offset}
-                    className="transition-all duration-1000 ease-out"
-                />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-bold tracking-tight">{rating.toFixed(1)}</span>
-                <div className="flex items-center gap-0.5 mt-1">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                        <Star
-                            key={star}
-                            className={cn(
-                                "h-3 w-3",
-                                star <= Math.round(rating)
-                                    ? "fill-yellow-400 text-yellow-400"
-                                    : "text-muted-foreground/30"
-                            )}
-                        />
-                    ))}
-                </div>
-            </div>
-        </div>
-    )
+interface FeedbackItem {
+    id: string
+    title: string
+    subtitle: string
+    date: string
+    rating: number
+    feedback?: string
+    type: 'repair' | 'build'
+    mechanic_ids?: string[]
+    last_actor_name?: string
+    inspector?: string
 }
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+type TimeFilter = '7d' | '30d' | '90d' | 'all'
+type SortOrder = 'date-desc' | 'date-asc' | 'rating-desc' | 'rating-asc'
+type TypeFilter = 'all' | 'repair' | 'build'
+
+const TIME_OPTIONS: { value: TimeFilter; label: string }[] = [
+    { value: '7d', label: '7 Tage' },
+    { value: '30d', label: '30 Tage' },
+    { value: '90d', label: '90 Tage' },
+    { value: 'all', label: 'Alle' },
+]
+
+const SORT_OPTIONS: { value: SortOrder; label: string }[] = [
+    { value: 'date-desc', label: 'Neueste' },
+    { value: 'date-asc', label: 'Älteste' },
+    { value: 'rating-desc', label: 'Beste zuerst' },
+    { value: 'rating-asc', label: 'Schlechteste zuerst' },
+]
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export default function FeedbackPage() {
     const { workshopId } = useAuth()
@@ -106,53 +85,46 @@ export default function FeedbackPage() {
 
     const [viewEmployeeId, setViewEmployeeId] = useState<string | 'all'>(activeEmployee?.id || 'all')
     const [openCombobox, setOpenCombobox] = useState(false)
-
     const [loading, setLoading] = useState(false)
-    const [repairFeedback, setRepairFeedback] = useState<any[]>([])
-    const [buildFeedback, setBuildFeedback] = useState<any[]>([])
+    const [repairFeedback, setRepairFeedback] = useState<FeedbackItem[]>([])
+    const [buildFeedback, setBuildFeedback] = useState<FeedbackItem[]>([])
+    const [searchTerm, setSearchTerm] = useState("")
+    const [timeFilter, setTimeFilter] = useState<TimeFilter>("30d")
+    const [sortOrder, setSortOrder] = useState<SortOrder>("date-desc")
+    const [typeFilter, setTypeFilter] = useState<TypeFilter>("all")
+    const [showFilters, setShowFilters] = useState(false)
 
     useEffect(() => {
-        if (activeEmployee) {
-            setViewEmployeeId(activeEmployee.id)
-        }
+        if (activeEmployee) setViewEmployeeId(activeEmployee.id)
     }, [activeEmployee])
 
     const currentViewEmployee = employees.find(e => e.id === viewEmployeeId)
 
-    const [searchTerm, setSearchTerm] = useState("")
-    const [timeFilter, setTimeFilter] = useState("30d")
-    const [sortOrder, setSortOrder] = useState("date-desc")
+    // ── Data fetching ────────────────────────────────────────────────────────
 
     useEffect(() => {
         const fetchData = async () => {
             if (!workshopId) return
-
             setLoading(true)
             try {
-                const ordersQuery = supabase
+                const { data: orders, error: ordersError } = await supabase
                     .from('orders')
                     .select('*')
                     .eq('workshop_id', workshopId)
                     .not('end_control', 'is', null)
                     .order('created_at', { ascending: false })
-
-                // Filter is applied client-side to check both order.mechanic_ids AND end_control.mechanic_ids
-                // if (viewEmployeeId !== 'all') {
-                //    ordersQuery = ordersQuery.contains('mechanic_ids', [viewEmployeeId])
-                // }
-
-                const { data: orders, error: ordersError } = await ordersQuery
                 if (ordersError) throw ordersError
 
-                const validRepairs = orders.filter((o: any) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const validRepairs: FeedbackItem[] = orders.filter((o: any) => {
                     const hasRating = o.end_control?.rating && o.end_control?.completed
                     if (!hasRating) return false
-
                     if (viewEmployeeId !== 'all') {
                         const credited = o.end_control?.mechanic_ids || o.mechanic_ids || []
                         return credited.includes(viewEmployeeId)
                     }
                     return true
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 }).map((o: any) => ({
                     id: o.id,
                     title: o.order_number,
@@ -160,8 +132,8 @@ export default function FeedbackPage() {
                     date: o.end_control.last_updated || o.updated_at,
                     rating: o.end_control.rating,
                     feedback: o.end_control.feedback,
-                    type: 'repair',
-                    mechanic_ids: o.end_control?.mechanic_ids || o.mechanic_ids || []
+                    type: 'repair' as const,
+                    mechanic_ids: o.end_control?.mechanic_ids || o.mechanic_ids || [],
                 }))
                 setRepairFeedback(validRepairs)
 
@@ -171,14 +143,15 @@ export default function FeedbackPage() {
                     .eq('workshop_id', workshopId)
                     .not('control_data', 'is', null)
                     .order('created_at', { ascending: false })
-
                 if (buildsError) throw buildsError
 
-                const validBuilds = builds.filter((b: any) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const validBuilds: FeedbackItem[] = builds.filter((b: any) => {
                     const hasRating = b.control_data?.rating && b.control_data?.completed
                     if (viewEmployeeId === 'all') return hasRating
                     const isBuilder = b.assembly_progress?.last_actor?.id === viewEmployeeId
                     return isBuilder && hasRating
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 }).map((b: any) => ({
                     id: b.id,
                     title: `${b.brand} ${b.model}`,
@@ -186,18 +159,15 @@ export default function FeedbackPage() {
                     date: b.control_data.last_updated || b.updated_at,
                     rating: b.control_data.rating,
                     feedback: b.control_data.feedback,
-                    inspector: b.control_data.inspector?.name,
-                    type: 'build',
-                    last_actor_name: b.assembly_progress?.last_actor?.name
+                    type: 'build' as const,
+                    last_actor_name: b.assembly_progress?.last_actor?.name,
                 }))
                 setBuildFeedback(validBuilds)
-
             } catch (err: unknown) {
                 const pgCode = typeof err === 'object' && err !== null && 'code' in err
-                    ? (err as { code: string }).code
-                    : null
+                    ? (err as { code: string }).code : null
                 if (pgCode === '42P01') {
-                    console.warn("Feedback table not yet created. Dashboard will show empty state.")
+                    console.warn("Feedback table not yet created.")
                 } else {
                     console.error("Error fetching feedback:", err)
                 }
@@ -205,13 +175,16 @@ export default function FeedbackPage() {
                 setLoading(false)
             }
         }
-
         fetchData()
     }, [workshopId, viewEmployeeId])
+
+    // ── Filtering & sorting ──────────────────────────────────────────────────
 
     const allFeedback = useMemo(() => {
         return [...repairFeedback, ...buildFeedback]
             .filter(item => {
+                if (typeFilter !== 'all' && item.type !== typeFilter) return false
+
                 const matchesSearch = searchTerm === "" ||
                     item.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     item.subtitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -220,14 +193,11 @@ export default function FeedbackPage() {
                 if (timeFilter !== 'all') {
                     const date = new Date(item.date)
                     const now = new Date()
-                    const diffTime = Math.abs(now.getTime() - date.getTime())
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
+                    const diffDays = Math.ceil(Math.abs(now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
                     if (timeFilter === '7d' && diffDays > 7) return false
                     if (timeFilter === '30d' && diffDays > 30) return false
                     if (timeFilter === '90d' && diffDays > 90) return false
                 }
-
                 return matchesSearch
             })
             .sort((a, b) => {
@@ -237,332 +207,390 @@ export default function FeedbackPage() {
                 if (sortOrder === 'rating-asc') return a.rating - b.rating
                 return 0
             })
-    }, [repairFeedback, buildFeedback, searchTerm, timeFilter, sortOrder])
+    }, [repairFeedback, buildFeedback, searchTerm, timeFilter, sortOrder, typeFilter])
 
-    // Calculate metrics
+    // ── Metrics ──────────────────────────────────────────────────────────────
+
     const avgRating = useMemo(() =>
         allFeedback.length > 0
             ? allFeedback.reduce((acc, curr) => acc + curr.rating, 0) / allFeedback.length
             : 0
     , [allFeedback])
 
-    // Calculate trend (compare last 30 days to previous 30 days)
     const trend = useMemo(() => {
         const now = new Date()
         const thirtyDaysAgo = subDays(now, 30)
         const sixtyDaysAgo = subDays(now, 60)
-
         const allItems = [...repairFeedback, ...buildFeedback]
         const recent = allItems.filter(item => new Date(item.date) >= thirtyDaysAgo)
         const previous = allItems.filter(item => {
             const d = new Date(item.date)
             return d >= sixtyDaysAgo && d < thirtyDaysAgo
         })
-
         const recentAvg = recent.length > 0 ? recent.reduce((a, c) => a + c.rating, 0) / recent.length : 0
         const previousAvg = previous.length > 0 ? previous.reduce((a, c) => a + c.rating, 0) / previous.length : 0
-
         if (previous.length === 0) return { diff: 0, direction: 'neutral' as const }
         const diff = recentAvg - previousAvg
         return {
             diff: Math.abs(diff),
-            direction: diff > 0.1 ? 'up' as const : diff < -0.1 ? 'down' as const : 'neutral' as const
+            direction: diff > 0.1 ? 'up' as const : diff < -0.1 ? 'down' as const : 'neutral' as const,
         }
     }, [repairFeedback, buildFeedback])
 
-    const filteredRepairs = allFeedback.filter(f => f.type === 'repair')
-    const filteredBuilds = allFeedback.filter(f => f.type === 'build')
+    const ratingDistribution = useMemo(() => {
+        const dist = [0, 0, 0, 0, 0]
+        allFeedback.forEach(f => { if (f.rating >= 1 && f.rating <= 5) dist[f.rating - 1]++ })
+        return dist
+    }, [allFeedback])
+
+    const totalRepairs = allFeedback.filter(f => f.type === 'repair').length
+    const totalBuilds = allFeedback.filter(f => f.type === 'build').length
 
     return (
         <DashboardLayout>
-            <div className="max-w-5xl mx-auto space-y-6 pb-10">
+            <div className="max-w-3xl mx-auto pb-10">
 
-                {/* Hero Section */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-purple-500/5 border p-6 sm:p-8">
-                    <div className="absolute inset-0 bg-grid-white/5 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]" />
+                {/* ── Header ── */}
+                <div className="flex items-start justify-between gap-4 mb-6">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Feedback</h1>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                            Qualitätsbewertungen aus Endkontrollen
+                        </p>
+                    </div>
 
-                    <div className="relative flex flex-col sm:flex-row items-center gap-6 sm:gap-10">
-                        {/* Rating Ring */}
-                        <div className="shrink-0">
-                            <RatingRing rating={avgRating} />
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 text-center sm:text-left">
-                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-1">Feedback Center</h1>
-                            <p className="text-muted-foreground mb-4">
-                                {allFeedback.length} Bewertungen insgesamt
-                            </p>
-
-                            {/* Trend Indicator */}
-                            {trend.direction !== 'neutral' && (
-                                <div className={cn(
-                                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium",
-                                    trend.direction === 'up'
-                                        ? "bg-green-500/10 text-green-600"
-                                        : "bg-red-500/10 text-red-600"
-                                )}>
-                                    {trend.direction === 'up' ? (
-                                        <TrendingUp className="h-4 w-4" />
-                                    ) : (
-                                        <TrendingDown className="h-4 w-4" />
-                                    )}
-                                    <span>
-                                        {trend.direction === 'up' ? '+' : '-'}{trend.diff.toFixed(1)} vs. Vormonat
-                                    </span>
-                                </div>
-                            )}
-
-                            {/* Quick Stats */}
-                            <div className="flex justify-center sm:justify-start gap-6 mt-4">
-                                <div>
-                                    <div className="text-2xl font-bold">{repairFeedback.length}</div>
-                                    <div className="text-xs text-muted-foreground">Reparaturen</div>
-                                </div>
-                                <div className="w-px bg-border" />
-                                <div>
-                                    <div className="text-2xl font-bold">{buildFeedback.length}</div>
-                                    <div className="text-xs text-muted-foreground">Neuräder</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Employee Selector */}
-                        <div className="shrink-0">
-                            <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        role="combobox"
-                                        aria-expanded={openCombobox}
-                                        className="w-[200px] justify-between h-10 shadow-sm"
-                                    >
-                                        {viewEmployeeId === 'all' ? (
-                                            <span className="flex items-center gap-2">
-                                                <Users className="h-4 w-4 text-primary" />
-                                                <span>Alle</span>
-                                            </span>
-                                        ) : (
-                                            <span className="flex items-center gap-2">
-                                                <Avatar className="h-5 w-5 border">
-                                                    <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-                                                        {currentViewEmployee?.initials || currentViewEmployee?.name.substring(0, 2).toUpperCase()}
+                    {/* Employee selector */}
+                    <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                role="combobox"
+                                className="h-9 gap-2 text-sm font-normal shrink-0"
+                            >
+                                {viewEmployeeId === 'all' ? (
+                                    <>
+                                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                                        <span>Alle</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Avatar className="h-5 w-5 border">
+                                            <AvatarFallback className="text-[9px] bg-primary/10 text-primary">
+                                                {currentViewEmployee?.initials || currentViewEmployee?.name.substring(0, 2).toUpperCase()}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <span className="max-w-[100px] truncate">{currentViewEmployee?.name}</span>
+                                    </>
+                                )}
+                                <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0" align="end">
+                            <Command>
+                                <CommandInput placeholder="Suchen..." />
+                                <CommandList>
+                                    <CommandEmpty>Kein Mitarbeiter gefunden.</CommandEmpty>
+                                    <CommandGroup>
+                                        <CommandItem
+                                            value="all"
+                                            onSelect={() => { setViewEmployeeId('all'); setOpenCombobox(false) }}
+                                            className="cursor-pointer"
+                                        >
+                                            <Users className="mr-2 h-4 w-4 text-primary" />
+                                            Alle Mitarbeiter
+                                            {viewEmployeeId === 'all' && <Check className="ml-auto h-4 w-4 text-primary" />}
+                                        </CommandItem>
+                                    </CommandGroup>
+                                    <CommandSeparator />
+                                    <CommandGroup heading="Mitarbeiter">
+                                        {employees.map((emp) => (
+                                            <CommandItem
+                                                key={emp.id}
+                                                value={emp.name}
+                                                onSelect={() => { setViewEmployeeId(emp.id); setOpenCombobox(false) }}
+                                                className="cursor-pointer"
+                                            >
+                                                <Avatar className="mr-2 h-5 w-5 border">
+                                                    <AvatarFallback
+                                                        className="text-[10px]"
+                                                        style={{ backgroundColor: `${emp.color}20`, color: emp.color }}
+                                                    >
+                                                        {emp.initials || emp.name.substring(0, 2).toUpperCase()}
                                                     </AvatarFallback>
                                                 </Avatar>
-                                                <span className="truncate">{currentViewEmployee?.name}</span>
-                                            </span>
-                                        )}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[200px] p-0" align="end">
-                                    <Command>
-                                        <CommandInput placeholder="Suchen..." />
-                                        <CommandList>
-                                            <CommandEmpty>Kein Mitarbeiter gefunden.</CommandEmpty>
-                                            <CommandGroup>
-                                                <CommandItem
-                                                    value="all"
-                                                    onSelect={() => {
-                                                        setViewEmployeeId('all')
-                                                        setOpenCombobox(false)
-                                                    }}
-                                                    className="cursor-pointer"
-                                                >
-                                                    <Users className="mr-2 h-4 w-4 text-primary" />
-                                                    <span>Alle Mitarbeiter</span>
-                                                    {viewEmployeeId === 'all' && <Check className="ml-auto h-4 w-4 text-primary" />}
-                                                </CommandItem>
-                                            </CommandGroup>
-                                            <CommandSeparator />
-                                            <CommandGroup heading="Mitarbeiter">
-                                                {employees.map((employee) => (
-                                                    <CommandItem
-                                                        key={employee.id}
-                                                        value={employee.name}
-                                                        onSelect={() => {
-                                                            setViewEmployeeId(employee.id)
-                                                            setOpenCombobox(false)
-                                                        }}
-                                                        className="cursor-pointer"
-                                                    >
-                                                        <Avatar className="mr-2 h-5 w-5 border">
-                                                            <AvatarFallback
-                                                                className="text-[10px]"
-                                                                style={{ backgroundColor: `${employee.color}20`, color: employee.color }}
-                                                            >
-                                                                {employee.initials || employee.name.substring(0, 2).toUpperCase()}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <span>{employee.name}</span>
-                                                        {viewEmployeeId === employee.id && <Check className="ml-auto h-4 w-4 text-primary" />}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
+                                                {emp.name}
+                                                {viewEmployeeId === emp.id && <Check className="ml-auto h-4 w-4 text-primary" />}
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
+                </div>
+
+                {/* ── Stats Row ── */}
+                <div className="flex items-center gap-6 mb-6 pb-5 border-b border-border/40">
+                    {/* Average */}
+                    <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map(s => (
+                                <Star key={s} className={cn(
+                                    "h-4 w-4",
+                                    s <= Math.round(avgRating)
+                                        ? "fill-amber-400 text-amber-400"
+                                        : "text-muted-foreground/20"
+                                )} />
+                            ))}
                         </div>
+                        <span className="text-xl font-bold tabular-nums">{avgRating.toFixed(1)}</span>
+                        {trend.direction !== 'neutral' && (
+                            <span className={cn(
+                                "text-xs font-medium flex items-center gap-0.5",
+                                trend.direction === 'up' ? "text-green-500" : "text-red-500"
+                            )}>
+                                {trend.direction === 'up' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                                {trend.direction === 'up' ? '+' : '-'}{trend.diff.toFixed(1)}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="h-6 w-px bg-border/40" />
+
+                    {/* Count */}
+                    <span className="text-sm text-muted-foreground">
+                        <span className="font-semibold text-foreground">{allFeedback.length}</span> Bewertungen
+                    </span>
+
+                    <div className="h-6 w-px bg-border/40" />
+
+                    {/* Distribution mini bar */}
+                    <div className="flex items-center gap-1.5">
+                        {ratingDistribution.map((count, i) => {
+                            const max = Math.max(...ratingDistribution, 1)
+                            const height = Math.max(4, (count / max) * 20)
+                            return (
+                                <div key={i} className="flex flex-col items-center gap-0.5" title={`${i + 1} Sterne: ${count}`}>
+                                    <div
+                                        className={cn(
+                                            "w-2 rounded-full transition-all",
+                                            i >= 3 ? "bg-green-500/60" : i === 2 ? "bg-amber-500/60" : "bg-red-500/60"
+                                        )}
+                                        style={{ height: `${height}px` }}
+                                    />
+                                    <span className="text-[9px] text-muted-foreground/50 tabular-nums">{i + 1}</span>
+                                </div>
+                            )
+                        })}
                     </div>
                 </div>
 
-                {/* Compact Filter Bar */}
-                <div className="flex flex-wrap items-center gap-3">
-                    <div className="relative flex-1 min-w-[200px]">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                {/* ── Search & Filter Bar ── */}
+                <div className="flex items-center gap-2 mb-1">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
                         <Input
                             placeholder="Suchen..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-9 bg-background h-9"
+                            className="pl-9 h-9 bg-transparent border-border/40 text-sm"
                         />
                     </div>
-                    <Select value={timeFilter} onValueChange={setTimeFilter}>
-                        <SelectTrigger className="w-[140px] h-9 bg-background">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">Alle Zeit</SelectItem>
-                            <SelectItem value="7d">7 Tage</SelectItem>
-                            <SelectItem value="30d">30 Tage</SelectItem>
-                            <SelectItem value="90d">90 Tage</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Select value={sortOrder} onValueChange={setSortOrder}>
-                        <SelectTrigger className="w-[140px] h-9 bg-background">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="date-desc">Neueste</SelectItem>
-                            <SelectItem value="date-asc">Älteste</SelectItem>
-                            <SelectItem value="rating-desc">Beste</SelectItem>
-                            <SelectItem value="rating-asc">Schlechteste</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn("h-9 gap-1.5 text-xs", showFilters && "bg-muted")}
+                        onClick={() => setShowFilters(!showFilters)}
+                    >
+                        <Filter className="h-3.5 w-3.5" />
+                        Filter
+                        {(timeFilter !== '30d' || sortOrder !== 'date-desc' || typeFilter !== 'all') && (
+                            <span className="ml-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
+                                !
+                            </span>
+                        )}
+                    </Button>
                 </div>
 
-                {/* Feedback List */}
+                {/* ── Filter Expandable ── */}
+                {showFilters && (
+                    <div className="flex flex-wrap items-center gap-2 py-3 mb-1">
+                        {/* Type tabs */}
+                        <div className="flex items-center bg-muted/30 rounded-lg p-0.5 gap-0.5">
+                            {([
+                                { value: 'all' as TypeFilter, label: 'Alle', count: allFeedback.length },
+                                { value: 'repair' as TypeFilter, label: 'Reparaturen', count: totalRepairs },
+                                { value: 'build' as TypeFilter, label: 'Neurad', count: totalBuilds },
+                            ]).map(opt => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => setTypeFilter(opt.value)}
+                                    className={cn(
+                                        "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                                        typeFilter === opt.value
+                                            ? "bg-background text-foreground shadow-sm"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    {opt.label}
+                                    <span className="ml-1 text-muted-foreground/50">{opt.count}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="h-5 w-px bg-border/30" />
+
+                        {/* Time filter */}
+                        <div className="flex items-center gap-1">
+                            {TIME_OPTIONS.map(opt => (
+                                <button
+                                    key={opt.value}
+                                    onClick={() => setTimeFilter(opt.value)}
+                                    className={cn(
+                                        "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                                        timeFilter === opt.value
+                                            ? "bg-primary/10 text-primary"
+                                            : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                                    )}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="h-5 w-px bg-border/30" />
+
+                        {/* Sort */}
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <button className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors">
+                                    {SORT_OPTIONS.find(s => s.value === sortOrder)?.label}
+                                    <ChevronDown className="h-3 w-3" />
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[180px] p-1" align="start">
+                                {SORT_OPTIONS.map(opt => (
+                                    <button
+                                        key={opt.value}
+                                        onClick={() => setSortOrder(opt.value)}
+                                        className={cn(
+                                            "w-full text-left px-3 py-2 rounded-md text-xs font-medium transition-colors",
+                                            sortOrder === opt.value
+                                                ? "bg-primary/10 text-primary"
+                                                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                                        )}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                )}
+
+                {/* ── Feedback List ── */}
                 {loading ? (
-                    <div className="flex justify-center py-16">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <div className="flex justify-center py-20">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                ) : allFeedback.length === 0 ? (
+                    <div className="text-center py-20">
+                        <MessageSquare className="h-8 w-8 text-muted-foreground/20 mx-auto mb-3" />
+                        <p className="text-sm font-medium text-muted-foreground">Kein Feedback gefunden</p>
+                        <p className="text-xs text-muted-foreground/60 mt-1">Für diesen Zeitraum liegen keine Bewertungen vor.</p>
                     </div>
                 ) : (
-                    <Tabs defaultValue="all" className="w-full">
-                        <TabsList className="bg-muted/50 p-1 h-auto">
-                            <TabsTrigger value="all" className="py-1.5 px-4">Alle ({allFeedback.length})</TabsTrigger>
-                            <TabsTrigger value="repairs" className="py-1.5 px-4">Reparaturen ({filteredRepairs.length})</TabsTrigger>
-                            <TabsTrigger value="builds" className="py-1.5 px-4">Neurad ({filteredBuilds.length})</TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="all" className="mt-4 space-y-3">
-                            {allFeedback.length === 0 ? <EmptyFeedbackState /> : allFeedback.map((item) => <FeedbackCard key={`${item.type}-${item.id}`} item={item} navigate={navigate} />)}
-                        </TabsContent>
-
-                        <TabsContent value="repairs" className="mt-4 space-y-3">
-                            {filteredRepairs.length === 0 ? <EmptyFeedbackState /> : filteredRepairs.map((item) => <FeedbackCard key={`repair-${item.id}`} item={item} navigate={navigate} />)}
-                        </TabsContent>
-
-                        <TabsContent value="builds" className="mt-4 space-y-3">
-                            {filteredBuilds.length === 0 ? <EmptyFeedbackState /> : filteredBuilds.map((item) => <FeedbackCard key={`build-${item.id}`} item={item} navigate={navigate} />)}
-                        </TabsContent>
-                    </Tabs>
+                    <div className="divide-y divide-border/30">
+                        {allFeedback.map((item) => (
+                            <FeedbackRow
+                                key={`${item.type}-${item.id}`}
+                                item={item}
+                                onClick={() => navigate(
+                                    item.type === 'repair'
+                                        ? `/dashboard/orders/${item.id}`
+                                        : `/dashboard/bike-builds/${item.id}`
+                                )}
+                            />
+                        ))}
+                    </div>
                 )}
             </div>
         </DashboardLayout>
     )
 }
 
-function FeedbackCard({ item, navigate }: { item: any, navigate: NavigateFunction }) {
+// ── Feedback Row ─────────────────────────────────────────────────────────────
+
+function FeedbackRow({ item, onClick }: { item: FeedbackItem; onClick: () => void }) {
     const { employees } = useEmployee()
 
-    const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name
-
     const mechanicNames = item.mechanic_ids && item.mechanic_ids.length > 0
-        ? item.mechanic_ids.map(getEmployeeName).filter(Boolean)
-        : item.last_actor_name
-            ? [item.last_actor_name]
-            : []
-
-    const handleClick = () => {
-        if (item.type === 'repair') {
-            navigate(`/dashboard/orders/${item.id}`)
-        } else {
-            navigate(`/dashboard/bike-builds/${item.id}`)
-        }
-    }
-
-    const getRatingColor = (rating: number) => {
-        if (rating >= 4) return "bg-green-500"
-        if (rating >= 3) return "bg-yellow-500"
-        return "bg-red-500"
-    }
+        ? item.mechanic_ids.map(id => employees.find(e => e.id === id)?.name).filter(Boolean)
+        : item.last_actor_name ? [item.last_actor_name] : []
 
     return (
-        <Card
-            className="overflow-hidden transition-all hover:shadow-md cursor-pointer group"
-            onClick={handleClick}
+        <button
+            onClick={onClick}
+            className="w-full text-left py-3.5 px-1 flex items-start gap-3 group hover:bg-muted/20 rounded-lg transition-colors -mx-1"
         >
-            <div className="flex">
-                {/* Rating indicator bar */}
-                <div className={cn("w-1 shrink-0", getRatingColor(item.rating))} />
-
-                <CardContent className="flex-1 p-4 sm:p-5">
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                                <Badge variant="outline" className={cn(
-                                    "text-[10px] px-1.5 py-0 h-5",
-                                    item.type === 'repair' ? "bg-blue-500/10 text-blue-600 border-blue-200" : "bg-purple-500/10 text-purple-600 border-purple-200"
-                                )}>
-                                    {item.type === 'repair' ? <Wrench className="w-3 h-3 mr-1" /> : <Bike className="w-3 h-3 mr-1" />}
-                                    {item.type === 'repair' ? 'Reparatur' : 'Neurad'}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    {item.date ? format(new Date(item.date), "d. MMM", { locale: de }) : '—'}
-                                </span>
-                                {mechanicNames.map((name: string, i: number) => (
-                                    <Badge key={i} variant="secondary" className="text-[10px] font-normal">
-                                        {name}
-                                    </Badge>
-                                ))}
-                            </div>
-                            <h3 className="font-medium text-sm group-hover:text-primary transition-colors truncate">
-                                {item.title}
-                            </h3>
-                            <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>
-
-                            {item.feedback && (
-                                <div className="mt-2 flex items-start gap-2 bg-muted/30 p-2 rounded-md">
-                                    <MessageSquare className="w-3 h-3 text-muted-foreground mt-0.5 shrink-0" />
-                                    <p className="text-xs text-muted-foreground italic line-clamp-2">"{item.feedback}"</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Rating Badge */}
-                        <div className="flex items-center gap-1 bg-muted/50 px-2.5 py-1 rounded-full shrink-0">
-                            <span className="font-bold text-sm">{item.rating}</span>
-                            <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                        </div>
-                    </div>
-                </CardContent>
+            {/* Rating circle */}
+            <div className={cn(
+                "h-9 w-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-sm font-bold border-2",
+                item.rating >= 4
+                    ? "border-green-500/30 text-green-500 bg-green-500/5"
+                    : item.rating === 3
+                        ? "border-amber-500/30 text-amber-500 bg-amber-500/5"
+                        : "border-red-500/30 text-red-500 bg-red-500/5"
+            )}>
+                {item.rating}
             </div>
-        </Card>
-    )
-}
 
-function EmptyFeedbackState() {
-    return (
-        <div className="text-center py-16 bg-muted/5 rounded-xl border-2 border-dashed border-muted-foreground/10">
-            <div className="bg-muted/20 p-3 rounded-full w-fit mx-auto mb-3">
-                <MessageSquare className="h-6 w-6 text-muted-foreground/40" />
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm group-hover:text-primary transition-colors truncate">
+                        {item.title}
+                    </span>
+                    <span className="text-xs text-muted-foreground/40">·</span>
+                    <span className="text-xs text-muted-foreground truncate">{item.subtitle}</span>
+                </div>
+
+                <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className={cn(
+                        "text-[10px] px-1.5 py-0 h-[18px] font-normal border-0",
+                        item.type === 'repair'
+                            ? "bg-blue-500/8 text-blue-400"
+                            : "bg-purple-500/8 text-purple-400"
+                    )}>
+                        {item.type === 'repair' ? <Wrench className="w-2.5 h-2.5 mr-1" /> : <Bike className="w-2.5 h-2.5 mr-1" />}
+                        {item.type === 'repair' ? 'Reparatur' : 'Neurad'}
+                    </Badge>
+                    <span className="text-[11px] text-muted-foreground/50">
+                        {item.date ? format(new Date(item.date), "d. MMM yy", { locale: de }) : '—'}
+                    </span>
+                    {mechanicNames.slice(0, 2).map((name, i) => (
+                        <span key={i} className="text-[11px] text-muted-foreground/40">{name}</span>
+                    ))}
+                </div>
+
+                {item.feedback && (
+                    <p className="text-xs text-muted-foreground/50 mt-1.5 line-clamp-1 italic">
+                        „{item.feedback}"
+                    </p>
+                )}
             </div>
-            <h3 className="font-semibold">Kein Feedback gefunden</h3>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-1">
-                Für diesen Zeitraum liegen keine Bewertungen vor.
-            </p>
-        </div>
+
+            {/* Stars */}
+            <div className="flex items-center gap-0.5 shrink-0 mt-1">
+                {[1, 2, 3, 4, 5].map(s => (
+                    <Star key={s} className={cn(
+                        "h-3 w-3",
+                        s <= item.rating
+                            ? "fill-amber-400/70 text-amber-400/70"
+                            : "text-muted-foreground/10"
+                    )} />
+                ))}
+            </div>
+        </button>
     )
 }
