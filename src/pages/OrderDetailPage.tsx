@@ -52,6 +52,8 @@ import {
     ChevronDown,
     History,
     StickyNote,
+    ListChecks,
+    CircleDot,
 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { LoadingScreen } from "@/components/LoadingScreen"
@@ -276,317 +278,436 @@ export default function OrderDetailPage() {
                 <div className="space-y-4 pb-8">
 
                     {/* ── Hero Header ─────────────────────────────────────────── */}
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-primary/3 border border-primary/10 p-5">
-                        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+                    {(() => {
+                        const checklist = order.checklist || []
+                        const totalItems = checklist.length
+                        const doneItems = checklist.filter((item: ChecklistItem) => item.completed).length
+                        const checklistPercent = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0
 
-                        <div className="relative">
-                            {/* ── Row 1: Navigation ── */}
-                            <Button
-                                variant="ghost"
-                                className="pl-0 gap-2 text-muted-foreground hover:text-foreground mb-3 h-8 text-sm"
-                                onClick={() => navigate(returnPath)}
-                            >
-                                <ArrowLeft className="h-3.5 w-3.5" />
-                                Zurück
-                            </Button>
+                        const isDueSoon = order.due_date && (() => {
+                            const due = new Date(order.due_date!)
+                            const now = new Date()
+                            const diffMs = due.getTime() - now.getTime()
+                            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+                            return { overdue: diffDays < 0, days: Math.abs(diffDays), diffDays }
+                        })()
+                        const isCompleted = order.status === 'abgeholt' || order.status === 'abgeschlossen'
 
-                            {/* ── Row 2: Identity + Actions ── */}
-                            <div className="flex items-start justify-between gap-2">
-                                {/* Left: order number + bike + type */}
-                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                                    <h1 className="text-lg font-bold tracking-tight text-foreground whitespace-nowrap">
-                                        {order.order_number}
-                                    </h1>
-                                    <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted/60 border border-border/50 text-muted-foreground">
-                                        {order.bike_model || order.bike_brand || 'Fahrrad'}
-                                    </span>
-                                </div>
+                        const createdDate = new Date(order.created_at)
+                        const ageDays = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
 
-                                {/* Action Buttons */}
-                                {!isReadOnly && (
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        <Button
-                                            size="sm"
-                                            onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
-                                            className="bg-primary text-primary-foreground shadow-sm hover:shadow-primary/20 h-8 text-xs"
-                                        >
-                                            <Wrench className="mr-1 h-3.5 w-3.5" />
-                                            <span className="hidden sm:inline">{order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
-                                                ? "Weiterarbeiten"
-                                                : "Arbeitsmodus"}</span>
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
-                                            variant="outline"
-                                            className="border-green-500/30 text-green-600 hover:bg-green-500/10 h-8 text-xs"
-                                        >
-                                            <ShieldCheck className="mr-1 h-3.5 w-3.5" />
-                                            <span className="hidden sm:inline">Kontrolle</span>
-                                        </Button>
+                        return (
+                            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-primary/3 border border-primary/10">
+                                <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none" />
+
+                                <div className="relative p-5 pb-0">
+                                    {/* ── Row 1: Back + Actions ── */}
+                                    <div className="flex items-center justify-between mb-3">
                                         <Button
                                             variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                            onClick={() => {
-                                                const url = `${window.location.origin}/status/${order.id}`
-                                                navigator.clipboard.writeText(url)
-                                                toastSuccess('Link kopiert', 'Der Status-Link wurde in die Zwischenablage kopiert.')
-                                            }}
-                                            title="Status-Link kopieren"
+                                            className="pl-0 gap-2 text-muted-foreground hover:text-foreground h-8 text-sm"
+                                            onClick={() => navigate(returnPath)}
                                         >
-                                            <Copy className="h-3.5 w-3.5" />
+                                            <ArrowLeft className="h-3.5 w-3.5" />
+                                            Zurück
                                         </Button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* ── Metadata line ── */}
-                            <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <button
-                                            disabled={isReadOnly}
-                                            className={cn(
-                                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-200 focus:outline-none",
-                                                isReadOnly ? "cursor-default" : "cursor-pointer hover:ring-1 hover:ring-border/50",
-                                                order.is_leasing
-                                                    ? "bg-primary/10 text-primary border-primary/20"
-                                                    : "bg-muted/50 text-muted-foreground border-border/40"
-                                            )}
-                                        >
-                                            {order.is_leasing ? "Leasing" : "Standard"}
-                                            {!isReadOnly && <span className="opacity-40 text-[9px]">▾</span>}
-                                        </button>
-                                    </PopoverTrigger>
-                                    {!isReadOnly && (
-                                        <PopoverContent className="w-64 p-2" align="start" sideOffset={6}>
-                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2 pb-2">Auftragstyp</p>
-                                            <button
+                                        <div className="flex items-center gap-1.5">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
                                                 onClick={() => {
-                                                    if (!order.is_leasing) return
-                                                    setPendingOrderTypeUpdate(false)
-                                                    setShowOrderTypeConfirm(true)
+                                                    const url = `${window.location.origin}/status/${order.id}`
+                                                    navigator.clipboard.writeText(url)
+                                                    toastSuccess('Link kopiert', 'Der Status-Link wurde in die Zwischenablage kopiert.')
                                                 }}
-                                                className={cn(
-                                                    "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors mb-1",
-                                                    !order.is_leasing
-                                                        ? "bg-foreground/5 ring-1 ring-border cursor-default"
-                                                        : "hover:bg-muted/60 cursor-pointer"
-                                                )}
+                                                title="Status-Link kopieren"
                                             >
-                                                <div className={cn(
-                                                    "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                                                    !order.is_leasing ? "border-primary" : "border-border"
-                                                )}>
-                                                    {!order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium leading-tight">Standard</p>
-                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Normale Reparatur ohne Leasing</p>
-                                                </div>
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    if (order.is_leasing) return
-                                                    handleOrderTypeUpdate(true)
-                                                }}
-                                                className={cn(
-                                                    "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
-                                                    order.is_leasing
-                                                        ? "bg-foreground/5 ring-1 ring-border cursor-default"
-                                                        : "hover:bg-muted/60 cursor-pointer"
-                                                )}
-                                            >
-                                                <div className={cn(
-                                                    "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
-                                                    order.is_leasing ? "border-primary" : "border-border"
-                                                )}>
-                                                    {order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium leading-tight">Leasing</p>
-                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Auftrag über einen Leasing-Anbieter</p>
-                                                </div>
-                                            </button>
-                                        </PopoverContent>
-                                    )}
-                                </Popover>
-                                <Badge
-                                    variant="secondary"
-                                    className={cn("border text-xs font-normal", (() => {
-                                        const statusColors: Record<string, string> = {
-                                            eingegangen: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-                                            warten_auf_teile: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-                                            in_bearbeitung: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
-                                            kontrolle_offen: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-                                            abholbereit: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-                                            abgeholt: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
-                                            abgeschlossen: 'bg-neutral-400/10 text-neutral-500 border-neutral-400/20',
-                                        }
-                                        return statusColors[order.status] || 'bg-muted text-muted-foreground border-border/60'
-                                    })())}
-                                >
-                                    <div className={cn("h-1.5 w-1.5 rounded-full mr-1.5", STATUS_DOT_COLORS[order.status] || 'bg-muted-foreground')} />
-                                    {STATUS_FLOW.find(s => s.value === order.status)?.label
-                                        || (order.status === 'abgeholt' ? 'Abgeholt' : order.status === 'abgeschlossen' ? 'Abgeschlossen' : order.status)}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                                    <User className="h-3 w-3" />
-                                    {order.customer_name}
-                                </span>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <button
-                                            className={cn(
-                                                "text-xs text-muted-foreground flex items-center gap-1.5 hover:text-foreground transition-colors",
-                                                order.due_date && new Date(order.due_date) < new Date() && order.status !== 'abgeholt' && order.status !== 'abgeschlossen' && "text-red-500"
-                                            )}
-                                        >
-                                            <CalendarIcon className="h-3 w-3" />
-                                            {order.due_date ? format(new Date(order.due_date), "PPP", { locale: de }) : "Termin setzen"}
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                        <Calendar
-                                            mode="single"
-                                            selected={order.due_date ? new Date(order.due_date) : undefined}
-                                            onSelect={handleSaveDueDate}
-                                            initialFocus
-                                            locale={de}
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                                <span className="text-xs text-muted-foreground">
-                                    Erstellt am {new Date(order.created_at).toLocaleDateString('de-DE')}
-                                </span>
-
-                                {/* Tags inline */}
-                                {order.tags && order.tags.length > 0 && (
-                                    <div className="w-px h-3 bg-border/40 mx-0.5" />
-                                )}
-                                {order.tags && order.tags.map(tagId => {
-                                    const tagInfo = workshopTags.find(t => t.id === tagId)
-                                    if (!tagInfo) return null
-                                    return (
-                                        <Badge
-                                            key={tagId}
-                                            className="px-1.5 py-0 text-[10px] font-medium text-white border-0 flex items-center gap-0.5 h-5"
-                                            style={{ backgroundColor: tagInfo.color }}
-                                        >
-                                            {tagInfo.name}
-                                            {!isReadOnly && (
-                                                <button onClick={(e) => handleRemoveTag(tagId, e)} className="hover:bg-black/20 rounded-full p-0.5">
-                                                    <X className="w-2.5 h-2.5" />
-                                                </button>
-                                            )}
-                                        </Badge>
-                                    )
-                                })}
-                                {!isReadOnly && workshopTags.length > 0 && (
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button variant="outline" size="sm" className="h-5 gap-0.5 px-1.5 text-[10px] border-dashed text-muted-foreground hover:text-foreground">
-                                                <Plus className="w-2.5 h-2.5" /> Tag
+                                                <Copy className="h-3.5 w-3.5" />
                                             </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-56 p-2" align="start">
-                                            <form onSubmit={handleCreateAndAddTag} className="flex gap-2 mb-2 p-1">
-                                                <Input
-                                                    placeholder="Neuer Tag..."
-                                                    className="h-7 text-xs"
-                                                    value={tagInput}
-                                                    onChange={(e) => setTagInput(e.target.value)}
-                                                    autoFocus
-                                                />
-                                                <Button type="submit" size="sm" className="h-7 px-2">
-                                                    <Plus className="w-3.5 h-3.5" />
-                                                </Button>
-                                            </form>
-                                            <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                                                <p className="text-[10px] font-semibold text-muted-foreground px-2 pb-1 uppercase tracking-wider">Vorhandene Tags</p>
-                                                {workshopTags.length === 0 && (
-                                                    <p className="text-[10px] text-muted-foreground px-2 italic">Keine Tags vorhanden</p>
-                                                )}
-                                                {workshopTags.map(tag => {
-                                                    const isAssigned = order.tags?.includes(tag.id)
-                                                    return (
+                                        </div>
+                                    </div>
+
+                                    {/* ── Row 2: Identity row ── */}
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            {/* Order number + badges */}
+                                            <div className="flex items-center gap-2.5 flex-wrap">
+                                                <h1 className="text-xl font-bold tracking-tight text-foreground">
+                                                    {order.order_number}
+                                                </h1>
+                                                <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-muted/60 border border-border/50 text-muted-foreground">
+                                                    {[order.bike_brand, order.bike_model].filter(Boolean).join(' ') || 'Fahrrad'}
+                                                </span>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
                                                         <button
-                                                            key={tag.id}
-                                                            onClick={() => handleToggleTag(tag.id)}
+                                                            disabled={isReadOnly}
                                                             className={cn(
-                                                                "w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-md transition-colors",
-                                                                isAssigned ? "bg-primary/5 text-primary" : "hover:bg-muted/50"
+                                                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-all duration-200 focus:outline-none",
+                                                                isReadOnly ? "cursor-default" : "cursor-pointer hover:ring-1 hover:ring-border/50",
+                                                                order.is_leasing
+                                                                    ? "bg-primary/10 text-primary border-primary/20"
+                                                                    : "bg-muted/50 text-muted-foreground border-border/40"
                                                             )}
                                                         >
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tag.color }} />
-                                                                {tag.name}
-                                                            </div>
-                                                            {isAssigned && <Check className="w-3.5 h-3.5" />}
+                                                            {order.is_leasing ? "Leasing" : "Standard"}
+                                                            {!isReadOnly && <span className="opacity-40 text-[9px]">▾</span>}
                                                         </button>
+                                                    </PopoverTrigger>
+                                                    {!isReadOnly && (
+                                                        <PopoverContent className="w-64 p-2" align="start" sideOffset={6}>
+                                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2 pb-2">Auftragstyp</p>
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (!order.is_leasing) return
+                                                                    setPendingOrderTypeUpdate(false)
+                                                                    setShowOrderTypeConfirm(true)
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors mb-1",
+                                                                    !order.is_leasing
+                                                                        ? "bg-foreground/5 ring-1 ring-border cursor-default"
+                                                                        : "hover:bg-muted/60 cursor-pointer"
+                                                                )}
+                                                            >
+                                                                <div className={cn(
+                                                                    "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                                                                    !order.is_leasing ? "border-primary" : "border-border"
+                                                                )}>
+                                                                    {!order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm font-medium leading-tight">Standard</p>
+                                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Normale Reparatur ohne Leasing</p>
+                                                                </div>
+                                                            </button>
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (order.is_leasing) return
+                                                                    handleOrderTypeUpdate(true)
+                                                                }}
+                                                                className={cn(
+                                                                    "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left transition-colors",
+                                                                    order.is_leasing
+                                                                        ? "bg-foreground/5 ring-1 ring-border cursor-default"
+                                                                        : "hover:bg-muted/60 cursor-pointer"
+                                                                )}
+                                                            >
+                                                                <div className={cn(
+                                                                    "mt-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors",
+                                                                    order.is_leasing ? "border-primary" : "border-border"
+                                                                )}>
+                                                                    {order.is_leasing && <div className="h-2 w-2 rounded-full bg-primary" />}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-sm font-medium leading-tight">Leasing</p>
+                                                                    <p className="text-[11px] text-muted-foreground mt-0.5">Auftrag über einen Leasing-Anbieter</p>
+                                                                </div>
+                                                            </button>
+                                                        </PopoverContent>
+                                                    )}
+                                                </Popover>
+                                                {/* Tags inline */}
+                                                {order.tags && order.tags.map(tagId => {
+                                                    const tagInfo = workshopTags.find(t => t.id === tagId)
+                                                    if (!tagInfo) return null
+                                                    return (
+                                                        <Badge
+                                                            key={tagId}
+                                                            className="px-1.5 py-0 text-[10px] font-medium text-white border-0 flex items-center gap-0.5 h-5"
+                                                            style={{ backgroundColor: tagInfo.color }}
+                                                        >
+                                                            {tagInfo.name}
+                                                            {!isReadOnly && (
+                                                                <button onClick={(e) => handleRemoveTag(tagId, e)} className="hover:bg-black/20 rounded-full p-0.5">
+                                                                    <X className="w-2.5 h-2.5" />
+                                                                </button>
+                                                            )}
+                                                        </Badge>
                                                     )
                                                 })}
+                                                {!isReadOnly && workshopTags.length > 0 && (
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button variant="outline" size="sm" className="h-5 gap-0.5 px-1.5 text-[10px] border-dashed text-muted-foreground hover:text-foreground">
+                                                                <Plus className="w-2.5 h-2.5" /> Tag
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-56 p-2" align="start">
+                                                            <form onSubmit={handleCreateAndAddTag} className="flex gap-2 mb-2 p-1">
+                                                                <Input
+                                                                    placeholder="Neuer Tag..."
+                                                                    className="h-7 text-xs"
+                                                                    value={tagInput}
+                                                                    onChange={(e) => setTagInput(e.target.value)}
+                                                                    autoFocus
+                                                                />
+                                                                <Button type="submit" size="sm" className="h-7 px-2">
+                                                                    <Plus className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            </form>
+                                                            <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                                                                <p className="text-[10px] font-semibold text-muted-foreground px-2 pb-1 uppercase tracking-wider">Vorhandene Tags</p>
+                                                                {workshopTags.length === 0 && (
+                                                                    <p className="text-[10px] text-muted-foreground px-2 italic">Keine Tags vorhanden</p>
+                                                                )}
+                                                                {workshopTags.map(tag => {
+                                                                    const isAssigned = order.tags?.includes(tag.id)
+                                                                    return (
+                                                                        <button
+                                                                            key={tag.id}
+                                                                            onClick={() => handleToggleTag(tag.id)}
+                                                                            className={cn(
+                                                                                "w-full flex items-center justify-between px-2 py-1.5 text-xs rounded-md transition-colors",
+                                                                                isAssigned ? "bg-primary/5 text-primary" : "hover:bg-muted/50"
+                                                                            )}
+                                                                        >
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: tag.color }} />
+                                                                                {tag.name}
+                                                                            </div>
+                                                                            {isAssigned && <Check className="w-3.5 h-3.5" />}
+                                                                        </button>
+                                                                    )
+                                                                })}
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                )}
                                             </div>
-                                        </PopoverContent>
-                                    </Popover>
-                                )}
-                            </div>
+                                            {/* Sub-info: customer + dates */}
+                                            <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
+                                                <span className="flex items-center gap-1">
+                                                    <User className="h-3 w-3" />
+                                                    {order.customer_name}
+                                                </span>
+                                                <span className="text-border">·</span>
+                                                <span>Erstellt {new Date(order.created_at).toLocaleDateString('de-DE')}</span>
+                                                {ageDays > 0 && (
+                                                    <>
+                                                        <span className="text-border">·</span>
+                                                        <span className={cn(ageDays > 7 && !isCompleted && "text-orange-500")}>
+                                                            {ageDays === 1 ? 'seit 1 Tag' : `seit ${ageDays} Tagen`}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
 
-                            {/* ── Status Flow (Todoist-style stepper) ── */}
-                            {(() => {
-                                const stepIdx = STATUS_FLOW.findIndex(s => s.value === order.status)
-                                const allSteps = [
-                                    ...STATUS_FLOW.map(s => ({ ...s, type: 'main' as const })),
-                                    ...(order.is_leasing ? [{ ...LEASING_STATUS, type: 'extra' as const }] : []),
-                                    { ...COMPLETED_STATUS, type: 'extra' as const },
-                                ]
-                                return (
-                                    <div className="flex flex-wrap items-center gap-1 mt-3 pt-3 border-t border-primary/10">
-                                        {allSteps.map((step, idx) => {
-                                            const isMainStep = step.type === 'main'
-                                            const isDone = isMainStep ? idx < stepIdx : false
-                                            const isActive = step.value === order.status
-
-                                            return (
-                                                <div key={step.value} className="flex items-center">
-                                                    {/* Separator before extra steps */}
-                                                    {!isMainStep && idx > 0 && allSteps[idx - 1]?.type === 'main' && (
-                                                        <div className="w-px h-4 bg-border/30 mr-1" />
-                                                    )}
-                                                    <button
-                                                        onClick={() => !saving && !isReadOnly && handleStatusChange(step.value)}
-                                                        disabled={saving || isReadOnly || isActive}
-                                                        className={cn(
-                                                            "inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium transition-all duration-200 select-none whitespace-nowrap",
-                                                            isActive && "bg-foreground text-background shadow-sm",
-                                                            isDone && "bg-primary/10 text-primary",
-                                                            !isDone && !isActive && "text-muted-foreground/60 hover:bg-muted/50 hover:text-foreground"
-                                                        )}
-                                                    >
-                                                        {isDone ? (
-                                                            <div className="h-3.5 w-3.5 rounded-full bg-primary/20 flex items-center justify-center">
-                                                                <Check className="h-2.5 w-2.5 text-primary" />
-                                                            </div>
-                                                        ) : isActive ? (
-                                                            <div className="relative h-3.5 w-3.5 flex items-center justify-center">
-                                                                <div className={cn("h-2 w-2 rounded-full", STATUS_DOT_COLORS[step.value])} />
-                                                                <div className={cn("absolute inset-0 rounded-full animate-ping opacity-20", STATUS_DOT_COLORS[step.value])} />
-                                                            </div>
-                                                        ) : (
-                                                            <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/25" />
-                                                        )}
-                                                        {step.label}
-                                                    </button>
-                                                </div>
-                                            )
-                                        })}
+                                        {/* Right: Action buttons */}
+                                        {!isReadOnly && (
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
+                                                    variant="outline"
+                                                    className="border-green-500/30 text-green-600 hover:bg-green-500/10 h-9 text-xs gap-1.5"
+                                                >
+                                                    <ShieldCheck className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">Kontrolle</span>
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
+                                                    className="bg-primary text-primary-foreground shadow-sm hover:shadow-primary/20 h-9 text-xs gap-1.5"
+                                                >
+                                                    <Wrench className="h-4 w-4" />
+                                                    <span className="hidden sm:inline">{order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
+                                                        ? "Weiterarbeiten"
+                                                        : "Arbeitsmodus"}</span>
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
-                                )
-                            })()}
 
-                        </div>
-                    </div>
+                                    {/* ── Row 3: Quick-Info Cards ── */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+                                        {/* Status card */}
+                                        <div className={cn(
+                                            "rounded-xl px-3 py-2.5 border transition-colors",
+                                            (() => {
+                                                const c: Record<string, string> = {
+                                                    eingegangen: 'bg-blue-500/5 border-blue-500/15',
+                                                    warten_auf_teile: 'bg-orange-500/5 border-orange-500/15',
+                                                    in_bearbeitung: 'bg-violet-500/5 border-violet-500/15',
+                                                    kontrolle_offen: 'bg-amber-500/5 border-amber-500/15',
+                                                    abholbereit: 'bg-emerald-500/5 border-emerald-500/15',
+                                                    abgeholt: 'bg-teal-500/5 border-teal-500/15',
+                                                    abgeschlossen: 'bg-neutral-500/5 border-neutral-400/15',
+                                                }
+                                                return c[order.status] || 'bg-muted/30 border-border/40'
+                                            })()
+                                        )}>
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                <CircleDot className="h-3 w-3 text-muted-foreground" />
+                                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Status</span>
+                                            </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <div className={cn("h-2 w-2 rounded-full", STATUS_DOT_COLORS[order.status] || 'bg-muted-foreground')} />
+                                                <span className="text-sm font-semibold text-foreground">
+                                                    {STATUS_FLOW.find(s => s.value === order.status)?.label
+                                                        || (order.status === 'abgeholt' ? 'Abgeholt' : order.status === 'abgeschlossen' ? 'Abgeschlossen' : order.status)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Checklist progress card */}
+                                        <div className="rounded-xl px-3 py-2.5 border border-border/40 bg-card/30">
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                <ListChecks className="h-3 w-3 text-muted-foreground" />
+                                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Checkliste</span>
+                                            </div>
+                                            {totalItems > 0 ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className={cn(
+                                                        "text-sm font-semibold",
+                                                        checklistPercent === 100 ? "text-emerald-500" : "text-foreground"
+                                                    )}>
+                                                        {doneItems}/{totalItems}
+                                                    </span>
+                                                    <div className="flex-1 h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                                                        <div
+                                                            className={cn(
+                                                                "h-full rounded-full transition-all duration-500",
+                                                                checklistPercent === 100 ? "bg-emerald-500" : checklistPercent > 50 ? "bg-primary" : "bg-primary/70"
+                                                            )}
+                                                            style={{ width: `${checklistPercent}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-[10px] text-muted-foreground font-mono">{checklistPercent}%</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground/60">Keine Einträge</span>
+                                            )}
+                                        </div>
+
+                                        {/* Due date card */}
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <button className={cn(
+                                                    "rounded-xl px-3 py-2.5 border text-left transition-colors hover:bg-muted/30",
+                                                    isDueSoon && !isCompleted && isDueSoon.overdue
+                                                        ? "border-red-500/30 bg-red-500/5"
+                                                        : isDueSoon && !isCompleted && isDueSoon.diffDays <= 1
+                                                            ? "border-amber-500/30 bg-amber-500/5"
+                                                            : "border-border/40 bg-card/30"
+                                                )}>
+                                                    <div className="flex items-center gap-1.5 mb-1">
+                                                        <CalendarIcon className="h-3 w-3 text-muted-foreground" />
+                                                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Termin</span>
+                                                    </div>
+                                                    {order.due_date ? (
+                                                        <div>
+                                                            <span className={cn(
+                                                                "text-sm font-semibold",
+                                                                isDueSoon && !isCompleted && isDueSoon.overdue ? "text-red-500" :
+                                                                isDueSoon && !isCompleted && isDueSoon.diffDays <= 1 ? "text-amber-500" :
+                                                                "text-foreground"
+                                                            )}>
+                                                                {format(new Date(order.due_date), "dd. MMM", { locale: de })}
+                                                            </span>
+                                                            {isDueSoon && !isCompleted && isDueSoon.overdue && (
+                                                                <span className="text-[10px] text-red-500 ml-1.5 font-medium">
+                                                                    {isDueSoon.days}d überfällig
+                                                                </span>
+                                                            )}
+                                                            {isDueSoon && !isCompleted && !isDueSoon.overdue && isDueSoon.diffDays <= 2 && (
+                                                                <span className="text-[10px] text-amber-500 ml-1.5 font-medium">
+                                                                    {isDueSoon.diffDays === 0 ? 'heute' : isDueSoon.diffDays === 1 ? 'morgen' : `in ${isDueSoon.diffDays}d`}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-sm text-muted-foreground/60">Setzen...</span>
+                                                    )}
+                                                </button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar
+                                                    mode="single"
+                                                    selected={order.due_date ? new Date(order.due_date) : undefined}
+                                                    onSelect={handleSaveDueDate}
+                                                    initialFocus
+                                                    locale={de}
+                                                />
+                                            </PopoverContent>
+                                        </Popover>
+
+                                        {/* Price card */}
+                                        <div className="rounded-xl px-3 py-2.5 border border-border/40 bg-card/30">
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                <Euro className="h-3 w-3 text-muted-foreground" />
+                                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Preis</span>
+                                            </div>
+                                            {order.final_price ? (
+                                                <span className="text-sm font-semibold text-foreground">
+                                                    {order.final_price.toFixed(2)} €
+                                                </span>
+                                            ) : order.estimated_price ? (
+                                                <span className="text-sm text-muted-foreground">
+                                                    ~{order.estimated_price.toFixed(2)} €
+                                                </span>
+                                            ) : (
+                                                <span className="text-sm text-muted-foreground/60">Offen</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── Status Flow (bottom bar stepper) ── */}
+                                {(() => {
+                                    const stepIdx = STATUS_FLOW.findIndex(s => s.value === order.status)
+                                    const allSteps = [
+                                        ...STATUS_FLOW.map(s => ({ ...s, type: 'main' as const })),
+                                        ...(order.is_leasing ? [{ ...LEASING_STATUS, type: 'extra' as const }] : []),
+                                        { ...COMPLETED_STATUS, type: 'extra' as const },
+                                    ]
+                                    return (
+                                        <div className="flex flex-wrap items-center gap-1 mt-4 px-5 py-3 border-t border-primary/10 bg-muted/20">
+                                            {allSteps.map((step, idx) => {
+                                                const isMainStep = step.type === 'main'
+                                                const isDone = isMainStep ? idx < stepIdx : false
+                                                const isActive = step.value === order.status
+
+                                                return (
+                                                    <div key={step.value} className="flex items-center">
+                                                        {!isMainStep && idx > 0 && allSteps[idx - 1]?.type === 'main' && (
+                                                            <div className="w-px h-4 bg-border/30 mr-1" />
+                                                        )}
+                                                        <button
+                                                            onClick={() => !saving && !isReadOnly && handleStatusChange(step.value)}
+                                                            disabled={saving || isReadOnly || isActive}
+                                                            className={cn(
+                                                                "inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium transition-all duration-200 select-none whitespace-nowrap",
+                                                                isActive && "bg-foreground text-background shadow-sm",
+                                                                isDone && "bg-primary/10 text-primary",
+                                                                !isDone && !isActive && "text-muted-foreground/60 hover:bg-muted/50 hover:text-foreground"
+                                                            )}
+                                                        >
+                                                            {isDone ? (
+                                                                <div className="h-3.5 w-3.5 rounded-full bg-primary/20 flex items-center justify-center">
+                                                                    <Check className="h-2.5 w-2.5 text-primary" />
+                                                                </div>
+                                                            ) : isActive ? (
+                                                                <div className="relative h-3.5 w-3.5 flex items-center justify-center">
+                                                                    <div className={cn("h-2 w-2 rounded-full", STATUS_DOT_COLORS[step.value])} />
+                                                                    <div className={cn("absolute inset-0 rounded-full animate-ping opacity-20", STATUS_DOT_COLORS[step.value])} />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/25" />
+                                                            )}
+                                                            {step.label}
+                                                        </button>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )
+                                })()}
+                            </div>
+                        )
+                    })()}
 
 
                     {/* ── Briefing ────────────────────────────────────────── */}
