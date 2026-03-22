@@ -723,7 +723,7 @@ export default function ServiceModePage() {
 
     // ── Step list (left panel on desktop, full on mobile) ──
     const renderStepList = () => (
-        <div className="flex flex-col w-full px-4 pb-8">
+        <div className="flex flex-col w-full px-4 pt-4 pb-8">
             {/* All-done banner */}
             {allDone && !isFinished && (
                 <div className="flex items-center justify-between py-3 mb-1">
