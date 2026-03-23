@@ -369,7 +369,6 @@ export default function ControlModePage() {
 
     const currentItem = items[currentStepIndex]
     const completedCount = items.filter(i => i.control_completed).length
-    const progressPercent = items.length > 0 ? Math.round((completedCount / items.length) * 100) : 0
     const allControlled = items.length > 0 && items.every(i => i.control_completed)
 
     // ── Completion / Rating content ──

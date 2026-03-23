@@ -515,8 +515,6 @@ export default function ServiceModePage() {
     if (!order) return <div className="p-8 text-center">Auftrag nicht gefunden</div>
 
     const currentItem = items[currentStepIndex]
-    const progressPercent = Math.round((items.filter(i => i.completed || i.skipped).length / items.length) * 100)
-
     // PDF Generation
     const generatePDF = () => {
         if (!order) return
