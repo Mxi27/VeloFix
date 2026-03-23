@@ -23,6 +23,7 @@ export type FeatureKey =
     | 'intake_portal'
     | 'bike_builds'
     | 'leasing'
+    | 'appointments'
 
 export type FeaturesConfig = Partial<Record<FeatureKey, boolean>>
 
@@ -40,6 +41,7 @@ export const PLAN_FEATURES: Record<WorkshopPlan, FeaturesConfig> = {
         intake_portal: false,
         bike_builds: false,
         leasing: false,
+        appointments: false,
     },
     standard: {
         cockpit: true,
@@ -51,6 +53,7 @@ export const PLAN_FEATURES: Record<WorkshopPlan, FeaturesConfig> = {
         intake_portal: true,
         bike_builds: false,
         leasing: false,
+        appointments: true,
     },
     pro: {
         cockpit: true,
@@ -62,7 +65,98 @@ export const PLAN_FEATURES: Record<WorkshopPlan, FeaturesConfig> = {
         intake_portal: true,
         bike_builds: true,
         leasing: true,
+        appointments: true,
     },
+}
+
+// ─── Appointments / Booking ──────────────────────────────────────────────────
+
+export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'no_show' | 'cancelled'
+
+export type AppointmentServiceType = 'repair' | 'inspection' | 'pickup' | 'consultation' | 'other'
+
+export interface Appointment {
+    id: string
+    workshop_id: string
+    customer_name: string
+    customer_email: string | null
+    customer_phone: string | null
+    requested_date: string
+    requested_time: string
+    confirmed_date: string | null
+    confirmed_time: string | null
+    duration_minutes: number
+    service_type: AppointmentServiceType
+    bike_brand: string | null
+    bike_model: string | null
+    bike_type: string | null
+    bike_color: string | null
+    description: string | null
+    internal_note: string | null
+    status: AppointmentStatus
+    assigned_employee_id: string | null
+    reminder_sent: boolean
+    cancel_token: string
+    created_at: string
+    updated_at: string
+}
+
+export interface BusinessHoursDay {
+    open: string
+    close: string
+}
+
+export interface ServiceTypeDef {
+    id: string
+    label: string
+    duration: number
+}
+
+export interface AppointmentConfig {
+    enabled: boolean
+    slot_duration_minutes: number
+    max_per_day: number
+    max_per_slot: number
+    min_lead_days: number
+    max_lead_days: number
+    auto_confirm: boolean
+    cancellation_hours: number
+    business_hours: {
+        mon: BusinessHoursDay | null
+        tue: BusinessHoursDay | null
+        wed: BusinessHoursDay | null
+        thu: BusinessHoursDay | null
+        fri: BusinessHoursDay | null
+        sat: BusinessHoursDay | null
+        sun: BusinessHoursDay | null
+    }
+    service_types: ServiceTypeDef[]
+}
+
+export const DEFAULT_APPOINTMENT_CONFIG: AppointmentConfig = {
+    enabled: true,
+    slot_duration_minutes: 30,
+    max_per_day: 8,
+    max_per_slot: 1,
+    min_lead_days: 1,
+    max_lead_days: 30,
+    auto_confirm: false,
+    cancellation_hours: 24,
+    business_hours: {
+        mon: { open: '08:00', close: '17:00' },
+        tue: { open: '08:00', close: '17:00' },
+        wed: { open: '08:00', close: '17:00' },
+        thu: { open: '08:00', close: '17:00' },
+        fri: { open: '08:00', close: '16:00' },
+        sat: null,
+        sun: null,
+    },
+    service_types: [
+        { id: 'repair', label: 'Reparatur', duration: 30 },
+        { id: 'inspection', label: 'Inspektion', duration: 60 },
+        { id: 'pickup', label: 'Abholung', duration: 15 },
+        { id: 'consultation', label: 'Beratung', duration: 30 },
+    ],
 }
 
 // ─── Leasing ─────────────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ import {
     AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useAuth } from '@/contexts/AuthContext'
+import { useFeatures } from '@/contexts/FeaturesContext'
 import { supabase } from '@/lib/supabase'
 import { EmployeeManagement } from '@/components/EmployeeManagement'
 import { ChecklistTemplateManager } from '@/components/ChecklistTemplateManager'
@@ -29,25 +30,28 @@ import { WorkshopSettings } from '@/components/WorkshopSettings'
 import { TrashSettings } from '@/components/TrashSettings'
 import { FeedbackAnalysisSettings } from '@/components/FeedbackAnalysisSettings'
 import { FeatureSettings } from '@/components/FeatureSettings'
+import { AppointmentSettings } from '@/components/AppointmentSettings'
 import {
     User, Building2, Users, ListChecks, CreditCard,
     ClipboardList, Bell, Shield, Palette,
     FileSpreadsheet, Database as DatabaseIcon,
     Wrench, MessageSquare, Tag, X, ArrowLeft,
-    Trash2, BarChart3, Layers,
+    Trash2, BarChart3, Layers, CalendarClock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { FeatureKey } from '@/types'
 
 type SettingsSection =
     | 'profile' | 'workshop' | 'employees' | 'checklists' | 'neurad'
     | 'inquiries' | 'intake' | 'leasing' | 'notifications' | 'security'
-    | 'display' | 'data_archive' | 'export' | 'tags' | 'trash' | 'feedback_analysis' | 'features'
+    | 'display' | 'data_archive' | 'export' | 'tags' | 'trash' | 'feedback_analysis' | 'features' | 'appointments'
 
 interface NavItem {
     id: SettingsSection
     label: string
     icon: React.ElementType
     adminOnly?: boolean
+    featureKey?: FeatureKey
 }
 
 interface NavGroup {
@@ -72,10 +76,11 @@ const navGroups: NavGroup[] = [
             { id: 'employees', label: 'Mitarbeiter', icon: Users, adminOnly: true },
             { id: 'checklists', label: 'Checklisten', icon: ListChecks, adminOnly: true },
             { id: 'tags', label: 'Auftrags-Tags', icon: Tag, adminOnly: true },
-            { id: 'neurad', label: 'Neurad Konfig', icon: Wrench, adminOnly: true },
+            { id: 'neurad', label: 'Neurad Konfig', icon: Wrench, adminOnly: true, featureKey: 'bike_builds' },
             { id: 'inquiries', label: 'Kundenanfragen', icon: MessageSquare, adminOnly: true },
-            { id: 'intake', label: 'Annahme & QR', icon: ClipboardList, adminOnly: true },
-            { id: 'leasing', label: 'Leasing', icon: CreditCard, adminOnly: true },
+            { id: 'intake', label: 'Annahme & QR', icon: ClipboardList, adminOnly: true, featureKey: 'intake_portal' },
+            { id: 'appointments', label: 'Terminbuchung', icon: CalendarClock, adminOnly: true, featureKey: 'appointments' },
+            { id: 'leasing', label: 'Leasing', icon: CreditCard, adminOnly: true, featureKey: 'leasing' },
         ],
     },
     {
@@ -84,7 +89,7 @@ const navGroups: NavGroup[] = [
             { id: 'features', label: 'Features & Paket', icon: Layers, adminOnly: true },
             { id: 'data_archive', label: 'Daten & Archiv', icon: DatabaseIcon, adminOnly: true },
             { id: 'export', label: 'Datenexport', icon: FileSpreadsheet, adminOnly: true },
-            { id: 'feedback_analysis', label: 'Feedback Analyse', icon: BarChart3, adminOnly: true },
+            { id: 'feedback_analysis', label: 'Feedback Analyse', icon: BarChart3, adminOnly: true, featureKey: 'feedback' },
             { id: 'trash', label: 'Papierkorb', icon: Trash2, adminOnly: true },
         ],
     },
@@ -148,10 +153,27 @@ export function SettingsModal({ open, onOpenChange, defaultSection = 'profile' }
     const initials = user?.user_metadata?.full_name
         ?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || 'U'
 
+    const { isEnabled } = useFeatures()
     const isAdmin = userRole === 'admin' || userRole === 'owner'
     const filteredNavGroups = navGroups
-        .map(group => ({ ...group, items: group.items.filter(item => !item.adminOnly || isAdmin) }))
+        .map(group => ({
+            ...group,
+            items: group.items.filter(item => {
+                if (item.adminOnly && !isAdmin) return false
+                if (item.featureKey && !isEnabled(item.featureKey)) return false
+                return true
+            })
+        }))
         .filter(group => group.items.length > 0)
+
+    // Ensure activeSection is still visible
+    useEffect(() => {
+        const allVisibleItems = filteredNavGroups.flatMap(g => g.items)
+        const isVisible = allVisibleItems.some(i => i.id === activeSection)
+        if (!isVisible && allVisibleItems.length > 0) {
+            setActiveSection(allVisibleItems[0].id)
+        }
+    }, [filteredNavGroups, activeSection])
 
     const memberSince = user?.created_at
         ? new Date(user.created_at).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
@@ -264,6 +286,7 @@ export function SettingsModal({ open, onOpenChange, defaultSection = 'profile' }
             case 'trash': return <TrashSettings />
             case 'feedback_analysis': return <FeedbackAnalysisSettings />
             case 'features': return <FeatureSettings />
+            case 'appointments': return <AppointmentSettings />
             default: return null
         }
     }

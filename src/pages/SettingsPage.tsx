@@ -36,6 +36,7 @@ import { CustomerInquiriesSettings } from '@/components/CustomerInquiriesSetting
 import { TagsSettings } from '@/components/TagsSettings'
 import { WorkshopSettings } from '@/components/WorkshopSettings'
 import { FeatureSettings } from '@/components/FeatureSettings'
+import { AppointmentSettings } from '@/components/AppointmentSettings'
 import {
     User,
     Building2,
@@ -53,6 +54,7 @@ import {
     Tag,
     Settings,
     Layers,
+    CalendarClock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -74,6 +76,7 @@ type SettingsSection =
     | 'export'
     | 'tags'
     | 'features'
+    | 'appointments'
 
 interface NavItem {
     id: SettingsSection
@@ -107,6 +110,7 @@ const navGroups: NavGroup[] = [
             { id: 'neurad', label: 'Neurad Konfig', icon: Wrench, adminOnly: true },
             { id: 'inquiries', label: 'Kundenanfragen', icon: MessageSquare, adminOnly: true },
             { id: 'intake', label: 'Annahme & QR', icon: ClipboardList, adminOnly: true },
+            { id: 'appointments', label: 'Terminbuchung', icon: CalendarClock, adminOnly: true },
             { id: 'leasing', label: 'Leasing', icon: CreditCard, adminOnly: true },
         ],
     },
@@ -340,6 +344,9 @@ export default function SettingsPage() {
 
             case 'features':
                 return <FeatureSettings />
+
+            case 'appointments':
+                return <AppointmentSettings />
 
             case 'data_archive':
                 return <DataLifecycleManager />

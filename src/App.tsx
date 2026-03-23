@@ -32,6 +32,8 @@ const NotebookPage         = lazy(() => import("@/pages/NotebookPage"));
 const FeedbackPage         = lazy(() => import("@/pages/FeedbackPage"));
 const OrderStatusPage      = lazy(() => import("@/pages/OrderStatusPage"));
 const IntakePage           = lazy(() => import("@/pages/IntakePage"));
+const BookingPage          = lazy(() => import("@/pages/BookingPage"));
+const AppointmentsPage     = lazy(() => import("@/pages/AppointmentsPage"));
 
 /** Redirects to /dashboard if a feature is disabled */
 function FeatureRoute({ featureKey, children }: { featureKey: FeatureKey; children: React.ReactNode }) {
@@ -77,6 +79,7 @@ function AppRoutes() {
                 <Route path="/status/:orderId" element={<OrderStatusPage />} />
                 <Route path="/intake/:workshopId" element={<IntakePage />} />
                 <Route path="/feedback/:orderId" element={<FeedbackPage />} />
+                <Route path="/booking/:workshopId" element={<BookingPage />} />
 
                 {/* Onboarding */}
                 <Route
@@ -90,6 +93,7 @@ function AppRoutes() {
 
                 {/* Protected dashboard routes */}
                 <Route path="/dashboard" element={<ProtectedRoute>{dashboardRedirect ?? <DashboardPage />}</ProtectedRoute>} />
+                <Route path="/dashboard/appointments" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="appointments"><AppointmentsPage /></FeatureRoute>}</ProtectedRoute>} />
                 <Route path="/dashboard/cockpit" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="cockpit"><CockpitPage /></FeatureRoute>}</ProtectedRoute>} />
                 <Route path="/dashboard/tasks" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="tasks"><TasksPage /></FeatureRoute>}</ProtectedRoute>} />
                 <Route path="/dashboard/notebook" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="notebook"><NotebookPage /></FeatureRoute>}</ProtectedRoute>} />

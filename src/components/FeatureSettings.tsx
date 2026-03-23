@@ -21,6 +21,7 @@ import {
     CreditCard,
     Package,
     Check,
+    CalendarClock,
 } from 'lucide-react'
 
 interface FeatureDef {
@@ -79,6 +80,13 @@ const FEATURE_DEFS: FeatureDef[] = [
         label: 'Intake-Portal',
         description: 'Öffentliches Aufnahme-Formular per QR-Code für Kunden.',
         icon: ClipboardList,
+        category: 'standard',
+    },
+    {
+        key: 'appointments',
+        label: 'Terminbuchung',
+        description: 'Online-Terminbuchung für Kunden mit Anfrage-Inbox und Kalenderansicht.',
+        icon: CalendarClock,
         category: 'standard',
     },
     {

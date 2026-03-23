@@ -37,6 +37,7 @@ export interface Database {
                     trash_retention_days?: number | null
                     google_review_url?: string | null
                     features_config?: Json | null
+                    appointment_config?: Json | null
                 }
                 Insert: {
                     id?: string
@@ -93,6 +94,84 @@ export interface Database {
                     trash_retention_days?: number | null
                     google_review_url?: string | null
                     features_config?: Json | null
+                    appointment_config?: Json | null
+                }
+            }
+            appointments: {
+                Row: {
+                    id: string
+                    workshop_id: string
+                    customer_name: string
+                    customer_email: string | null
+                    customer_phone: string | null
+                    requested_date: string
+                    requested_time: string
+                    confirmed_date: string | null
+                    confirmed_time: string | null
+                    duration_minutes: number
+                    service_type: string
+                    bike_brand: string | null
+                    bike_model: string | null
+                    bike_type: string | null
+                    bike_color: string | null
+                    description: string | null
+                    internal_note: string | null
+                    status: string
+                    assigned_employee_id: string | null
+                    reminder_sent: boolean
+                    cancel_token: string
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    workshop_id: string
+                    customer_name: string
+                    customer_email?: string | null
+                    customer_phone?: string | null
+                    requested_date: string
+                    requested_time: string
+                    confirmed_date?: string | null
+                    confirmed_time?: string | null
+                    duration_minutes?: number
+                    service_type: string
+                    bike_brand?: string | null
+                    bike_model?: string | null
+                    bike_type?: string | null
+                    bike_color?: string | null
+                    description?: string | null
+                    internal_note?: string | null
+                    status?: string
+                    assigned_employee_id?: string | null
+                    reminder_sent?: boolean
+                    cancel_token?: string
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    workshop_id?: string
+                    customer_name?: string
+                    customer_email?: string | null
+                    customer_phone?: string | null
+                    requested_date?: string
+                    requested_time?: string
+                    confirmed_date?: string | null
+                    confirmed_time?: string | null
+                    duration_minutes?: number
+                    service_type?: string
+                    bike_brand?: string | null
+                    bike_model?: string | null
+                    bike_type?: string | null
+                    bike_color?: string | null
+                    description?: string | null
+                    internal_note?: string | null
+                    status?: string
+                    assigned_employee_id?: string | null
+                    reminder_sent?: boolean
+                    cancel_token?: string
+                    created_at?: string
+                    updated_at?: string
                 }
             }
             workshop_tags: {

@@ -13,6 +13,7 @@ import {
     HelpCircle,
     PanelLeft,
     Plus,
+    CalendarClock,
 } from "lucide-react"
 import {
     Sidebar,
@@ -136,6 +137,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
     const allMainItems: NavItem[] = [
         { title: "Reparaturen", icon: ListTodo, href: "/dashboard" },
         { title: "Mein Cockpit", icon: LayoutDashboard, href: "/dashboard/cockpit", featureKey: "cockpit" },
+        { title: "Termine", icon: CalendarClock, href: "/dashboard/appointments", featureKey: "appointments" },
         { title: "Aufgaben", icon: CheckSquare, href: "/dashboard/tasks", featureKey: "tasks" },
     ]
 

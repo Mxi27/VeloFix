@@ -39,6 +39,10 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
   toggleSidebar: () => void
+  width: number
+  setWidth: (width: number) => void
+  isResizing: boolean
+  setIsResizing: (isResizing: boolean) => void
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
@@ -72,6 +76,18 @@ function SidebarProvider({
   // We use openProp and setOpenProp for control from outside the component.
   const [_open, _setOpen] = React.useState(defaultOpen)
   const open = openProp ?? _open
+  
+  // Resizable width state
+  const [width, setWidth] = React.useState(() => {
+    if (typeof window !== "undefined") {
+      const savedWidth = localStorage.getItem("sidebar_width")
+      if (savedWidth) return parseInt(savedWidth, 10)
+    }
+    return parseInt(SIDEBAR_WIDTH, 10) || 280
+  })
+
+  const [isResizing, setIsResizing] = React.useState(false)
+
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === "function" ? value(open) : value
@@ -121,23 +137,29 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      width,
+      setWidth,
+      isResizing,
+      setIsResizing,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, width, setWidth, isResizing, setIsResizing]
   )
 
   return (
     <SidebarContext.Provider value={contextValue}>
       <div
         data-slot="sidebar-wrapper"
+        data-resizing={isResizing}
         style={
           {
-            "--sidebar-width": SIDEBAR_WIDTH,
+            "--sidebar-width": `${width}px`,
             "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
             ...style,
           } as React.CSSProperties
         }
         className={cn(
           "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+          "data-[resizing=true]:select-none data-[resizing=true]:*:transition-none!",
           className
         )}
         {...props}
@@ -167,7 +189,7 @@ function Sidebar({
       <div
         data-slot="sidebar"
         className={cn(
-          "bg-sidebar text-sidebar-foreground flex h-full w-(--sidebar-width) flex-col",
+          "bg-sidebar text-sidebar-foreground flex h-full w-[var(--sidebar-width)] flex-col",
           className
         )}
         {...props}
@@ -215,7 +237,7 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          "transition-[width] duration-200 ease-linear relative w-(--sidebar-width) bg-transparent",
+          "transition-[width] duration-200 ease-linear relative w-[var(--sidebar-width)] bg-transparent",
           "group-data-[collapsible=offExamples]:w-0",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
@@ -226,7 +248,7 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
+          "fixed inset-y-0 z-10 hidden h-svh w-[var(--sidebar-width)] transition-[left,right,width] duration-200 ease-linear md:flex",
           side === "left"
             ? "left-0 group-data-[collapsible=offExamples]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offExamples]:right-[calc(var(--sidebar-width)*-1)]",
@@ -278,23 +300,67 @@ function SidebarTrigger({
 }
 
 function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, setWidth, isResizing, setIsResizing } = useSidebar()
+
+  const startResizing = React.useCallback((event: React.MouseEvent) => {
+    event.preventDefault()
+    setIsResizing(true)
+  }, [setIsResizing])
+
+  const stopResizing = React.useCallback(() => {
+    setIsResizing(false)
+  }, [setIsResizing])
+
+  const resize = React.useCallback(
+    (event: MouseEvent) => {
+      if (isResizing) {
+        let newWidth = event.clientX
+        if (newWidth < 200) newWidth = 200
+        if (newWidth > 480) newWidth = 480
+        setWidth(newWidth)
+        localStorage.setItem("sidebar_width", newWidth.toString())
+      }
+    },
+    [isResizing, setWidth]
+  )
+
+  React.useEffect(() => {
+    if (isResizing) {
+      window.addEventListener("mousemove", resize)
+      window.addEventListener("mouseup", stopResizing)
+    } else {
+      window.removeEventListener("mousemove", resize)
+      window.removeEventListener("mouseup", stopResizing)
+    }
+
+    return () => {
+      window.removeEventListener("mousemove", resize)
+      window.removeEventListener("mouseup", stopResizing)
+    }
+  }, [isResizing, resize, stopResizing])
 
   return (
     <button
       data-sidebar="rail"
       data-slot="sidebar-rail"
-      aria-label="Toggle Sidebar"
+      aria-label="Resizable Sidebar Rail"
       tabIndex={-1}
-      onClick={toggleSidebar}
-      title="Toggle Sidebar"
+      onClick={(_e) => {
+        // Toggle if not resizing
+        if (!isResizing) {
+          toggleSidebar()
+        }
+      }}
+      onMouseDown={startResizing}
+      title="Ziehen zum Vergrößern/Verkleinern"
       className={cn(
         "hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex",
         "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
-        "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
+        "[[data-side=left][data-state=collapsed]_&]:hidden", // Hide rail when collapsed to avoid accidental resize
         "hover:group-data-[collapsible=offExamples]:bg-sidebar group-data-[collapsible=offExamples]:translate-x-0 group-data-[collapsible=offExamples]:after:left-full",
         "[[data-side=left][data-collapsible=offExamples]_&]:-right-2",
         "[[data-side=right][data-collapsible=offExamples]_&]:-left-2",
+        isResizing && "after:bg-primary after:w-[3px] after:opacity-100",
         className
       )}
       {...props}
