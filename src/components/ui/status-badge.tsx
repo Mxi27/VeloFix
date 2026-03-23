@@ -4,18 +4,21 @@ import {
     STATUS_LABELS,
     STATUS_DOT_COLORS_MAP,
     NEURAD_STATUS_MAP,
+    CUSTOMER_ORDER_STATUS_COLORS,
+    CUSTOMER_ORDER_STATUS_LABELS,
+    CUSTOMER_ORDER_STATUS_DOT_COLORS_MAP,
 } from "@/lib/constants"
 
 interface StatusBadgeProps {
     status: string
-    variant?: "order" | "neurad"
+    variant?: "order" | "neurad" | "customer_order"
     showDot?: boolean
     className?: string
 }
 
 /**
  * Unified status badge used across all tables and cards.
- * Single source of truth for rendering order/neurad status pills.
+ * Single source of truth for rendering order/neurad/customer_order status pills.
  */
 export function StatusBadge({ status, variant = "order", showDot = true, className }: StatusBadgeProps) {
     let label: string
@@ -27,6 +30,10 @@ export function StatusBadge({ status, variant = "order", showDot = true, classNa
         label = info.label
         color = info.color
         dotColor = info.dotColor
+    } else if (variant === "customer_order") {
+        label = CUSTOMER_ORDER_STATUS_LABELS[status] || status.replace(/_/g, " ")
+        color = CUSTOMER_ORDER_STATUS_COLORS[status] || "bg-neutral-500/10 text-neutral-500"
+        dotColor = CUSTOMER_ORDER_STATUS_DOT_COLORS_MAP[status] || "bg-neutral-400"
     } else {
         label = STATUS_LABELS[status] || status.replace(/_/g, " ")
         color = STATUS_COLORS[status] || "bg-neutral-500/10 text-neutral-500"

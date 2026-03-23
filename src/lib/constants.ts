@@ -40,6 +40,37 @@ export const STATUS_LABELS: Record<string, string> = {
     done:             "Erledigt",
 }
 
+/**
+ * Customer Order status tags - following the same subtle aesthetic.
+ */
+export const CUSTOMER_ORDER_STATUS_COLORS: Record<string, string> = {
+    open:             "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    ordered:          "bg-orange-500/10 text-orange-600 dark:text-orange-400",
+    received:         "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    notified:         "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+    completed:        "bg-teal-500/10 text-teal-600 dark:text-teal-400",
+    cancelled:        "bg-neutral-400/10 text-neutral-500 dark:text-neutral-400",
+}
+
+export const CUSTOMER_ORDER_STATUS_DOT_COLORS_MAP: Record<string, string> = {
+    open:             "bg-blue-500",
+    ordered:          "bg-orange-500",
+    received:         "bg-emerald-500",
+    notified:         "bg-violet-500",
+    completed:        "bg-teal-500",
+    cancelled:        "bg-neutral-400",
+}
+
+export const CUSTOMER_ORDER_STATUS_LABELS: Record<string, string> = {
+    open:             "Offen",
+    ordered:          "Bestellt",
+    received:         "Erhalten",
+    notified:         "Benachrichtigt",
+    ready:            "Abholbereit",
+    completed:        "Abgeschlossen",
+    cancelled:        "Storniert",
+}
+
 export const BUILD_STATUS_COLORS = STATUS_COLORS;
 
 export const NEURAD_STATUSES = [
@@ -97,6 +128,14 @@ export function getOrderStatusInfo(status: string) {
     const label = STATUS_LABELS[status] || status.replace(/_/g, ' ')
     const color = STATUS_COLORS[status] || "bg-neutral-500/10 text-neutral-500"
     const dotColor = STATUS_DOT_COLORS_MAP[status] || "bg-neutral-400"
+    return { label, color, dotColor }
+}
+
+/** Resolve Customer Order status info. */
+export function getCustomerOrderStatusInfo(status: string) {
+    const label = CUSTOMER_ORDER_STATUS_LABELS[status] || status.replace(/_/g, ' ')
+    const color = CUSTOMER_ORDER_STATUS_COLORS[status] || "bg-neutral-500/10 text-neutral-500"
+    const dotColor = CUSTOMER_ORDER_STATUS_DOT_COLORS_MAP[status] || "bg-neutral-400"
     return { label, color, dotColor }
 }
 

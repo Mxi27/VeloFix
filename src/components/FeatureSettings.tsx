@@ -90,6 +90,13 @@ const FEATURE_DEFS: FeatureDef[] = [
         category: 'standard',
     },
     {
+        key: 'customer_orders',
+        label: 'Kundenbestellungen',
+        description: 'Verwaltung von Ersatzteilen und Bestellungen für Kunden inkl. Benachrichtigung.',
+        icon: Package,
+        category: 'standard',
+    },
+    {
         key: 'bike_builds',
         label: 'Neuradaufbau',
         description: 'E-Bike Montage-Management mit Assembly-Tracking und Qualitätskontrolle.',

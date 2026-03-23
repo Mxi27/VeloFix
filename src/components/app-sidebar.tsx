@@ -14,6 +14,7 @@ import {
     PanelLeft,
     Plus,
     CalendarClock,
+    Package,
 } from "lucide-react"
 import {
     Sidebar,
@@ -138,6 +139,7 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
         { title: "Reparaturen", icon: ListTodo, href: "/dashboard" },
         { title: "Mein Cockpit", icon: LayoutDashboard, href: "/dashboard/cockpit", featureKey: "cockpit" },
         { title: "Termine", icon: CalendarClock, href: "/dashboard/appointments", featureKey: "appointments" },
+        { title: "Bestellungen", icon: Package, href: "/dashboard/customer-orders", featureKey: "customer_orders" },
         { title: "Aufgaben", icon: CheckSquare, href: "/dashboard/tasks", featureKey: "tasks" },
     ]
 

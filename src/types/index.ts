@@ -24,6 +24,7 @@ export type FeatureKey =
     | 'bike_builds'
     | 'leasing'
     | 'appointments'
+    | 'customer_orders'
 
 export type FeaturesConfig = Partial<Record<FeatureKey, boolean>>
 
@@ -42,6 +43,7 @@ export const PLAN_FEATURES: Record<WorkshopPlan, FeaturesConfig> = {
         bike_builds: false,
         leasing: false,
         appointments: false,
+        customer_orders: false,
     },
     standard: {
         cockpit: true,
@@ -54,6 +56,7 @@ export const PLAN_FEATURES: Record<WorkshopPlan, FeaturesConfig> = {
         bike_builds: false,
         leasing: false,
         appointments: true,
+        customer_orders: true,
     },
     pro: {
         cockpit: true,
@@ -66,6 +69,7 @@ export const PLAN_FEATURES: Record<WorkshopPlan, FeaturesConfig> = {
         bike_builds: true,
         leasing: true,
         appointments: true,
+        customer_orders: true,
     },
 }
 
@@ -157,6 +161,37 @@ export const DEFAULT_APPOINTMENT_CONFIG: AppointmentConfig = {
         { id: 'pickup', label: 'Abholung', duration: 15 },
         { id: 'consultation', label: 'Beratung', duration: 30 },
     ],
+}
+
+// ─── Customer Orders (Parts/Orders) ──────────────────────────────────────────
+
+export type CustomerOrderStatus = 
+    | 'open' 
+    | 'ordered' 
+    | 'received' 
+    | 'notified'
+    | 'ready'
+    | 'completed' 
+    | 'cancelled'
+
+export interface CustomerOrderItem {
+    name: string
+    quantity: number
+    status: 'pending' | 'ordered' | 'received' | 'notified'
+}
+
+export interface CustomerOrder {
+    id: string
+    workshop_id: string
+    customer_name: string
+    customer_email: string | null
+    customer_phone: string | null
+    items: CustomerOrderItem[]
+    notes: string | null
+    status: CustomerOrderStatus
+    status_token: string
+    created_at: string
+    updated_at: string
 }
 
 // ─── Leasing ─────────────────────────────────────────────────────────────────

@@ -473,6 +473,50 @@ export interface Database {
                     customer_postal_code?: string | null
                 }
             }
+            customer_orders: {
+                Row: {
+                    id: string
+                    workshop_id: string
+                    customer_name: string
+                    customer_email: string | null
+                    customer_phone: string | null
+                    items: Json
+                    description: string | null
+                    internal_note: string | null
+                    status: string
+                    status_token: string
+                    created_at: string
+                    updated_at: string
+                }
+                Insert: {
+                    id?: string
+                    workshop_id: string
+                    customer_name: string
+                    customer_email?: string | null
+                    customer_phone?: string | null
+                    items?: Json
+                    description?: string | null
+                    internal_note?: string | null
+                    status?: string
+                    status_token?: string
+                    created_at?: string
+                    updated_at?: string
+                }
+                Update: {
+                    id?: string
+                    workshop_id?: string
+                    customer_name?: string
+                    customer_email?: string | null
+                    customer_phone?: string | null
+                    items?: Json
+                    description?: string | null
+                    internal_note?: string | null
+                    status?: string
+                    status_token?: string
+                    created_at?: string
+                    updated_at?: string
+                }
+            }
         }
         bike_builds: {
             Row: {
