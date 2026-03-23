@@ -35,6 +35,7 @@ import { NeuradSettings } from '@/components/NeuradSettings'
 import { CustomerInquiriesSettings } from '@/components/CustomerInquiriesSettings'
 import { TagsSettings } from '@/components/TagsSettings'
 import { WorkshopSettings } from '@/components/WorkshopSettings'
+import { FeatureSettings } from '@/components/FeatureSettings'
 import {
     User,
     Building2,
@@ -51,6 +52,7 @@ import {
     MessageSquare,
     Tag,
     Settings,
+    Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -71,6 +73,7 @@ type SettingsSection =
     | 'data_archive'
     | 'export'
     | 'tags'
+    | 'features'
 
 interface NavItem {
     id: SettingsSection
@@ -110,6 +113,7 @@ const navGroups: NavGroup[] = [
     {
         label: 'System',
         items: [
+            { id: 'features', label: 'Features & Paket', icon: Layers, adminOnly: true },
             { id: 'data_archive', label: 'Daten & Archiv', icon: DatabaseIcon, adminOnly: true },
             { id: 'export', label: 'Datenexport', icon: FileSpreadsheet, adminOnly: true },
         ],
@@ -333,6 +337,9 @@ export default function SettingsPage() {
 
             case 'export':
                 return <DataExport />
+
+            case 'features':
+                return <FeatureSettings />
 
             case 'data_archive':
                 return <DataLifecycleManager />

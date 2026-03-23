@@ -10,6 +10,61 @@ import type { Database } from './supabase'
 
 export type WorkshopTag = Database['public']['Tables']['workshop_tags']['Row']
 
+// ─── Feature Flags ───────────────────────────────────────────────────────────
+
+/** All toggleable feature keys */
+export type FeatureKey =
+    | 'cockpit'
+    | 'tasks'
+    | 'notebook'
+    | 'service_mode'
+    | 'control_mode'
+    | 'feedback'
+    | 'intake_portal'
+    | 'bike_builds'
+    | 'leasing'
+
+export type FeaturesConfig = Partial<Record<FeatureKey, boolean>>
+
+export type WorkshopPlan = 'starter' | 'standard' | 'pro'
+
+/** Default feature sets per plan. Missing keys = enabled (backwards-compatible default). */
+export const PLAN_FEATURES: Record<WorkshopPlan, FeaturesConfig> = {
+    starter: {
+        cockpit: false,
+        tasks: false,
+        notebook: false,
+        service_mode: true,
+        control_mode: false,
+        feedback: false,
+        intake_portal: false,
+        bike_builds: false,
+        leasing: false,
+    },
+    standard: {
+        cockpit: true,
+        tasks: true,
+        notebook: true,
+        service_mode: true,
+        control_mode: true,
+        feedback: true,
+        intake_portal: true,
+        bike_builds: false,
+        leasing: false,
+    },
+    pro: {
+        cockpit: true,
+        tasks: true,
+        notebook: true,
+        service_mode: true,
+        control_mode: true,
+        feedback: true,
+        intake_portal: true,
+        bike_builds: true,
+        leasing: true,
+    },
+}
+
 // ─── Leasing ─────────────────────────────────────────────────────────────────
 
 export interface LeasingDetails {

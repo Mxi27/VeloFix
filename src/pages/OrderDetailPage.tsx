@@ -92,6 +92,7 @@ const STATUS_DOT_COLORS: Record<string, string> = {
 
 import { ChecklistTemplateSelector } from "@/components/ChecklistTemplateSelector"
 import type { ChecklistItem } from "@/types/checklist"
+import { useFeatures } from "@/contexts/FeaturesContext"
 
 
 export default function OrderDetailPage() {
@@ -226,6 +227,8 @@ export default function OrderDetailPage() {
         returnPath,
         navigate,
     } = useOrderDetail()
+
+    const { isEnabled } = useFeatures()
 
     if (loading) {
         return <LoadingScreen />
@@ -496,27 +499,31 @@ export default function OrderDetailPage() {
                                         </div>
 
                                         {/* Right: Action buttons */}
-                                        {!isReadOnly && (
+                                        {!isReadOnly && (isEnabled('control_mode') || isEnabled('service_mode')) && (
                                             <div className="flex items-center gap-2 shrink-0">
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
-                                                    variant="outline"
-                                                    className="border-green-500/30 text-green-600 hover:bg-green-500/10 h-9 text-xs gap-1.5"
-                                                >
-                                                    <ShieldCheck className="h-4 w-4" />
-                                                    <span className="hidden sm:inline">Kontrolle</span>
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
-                                                    className="bg-primary text-primary-foreground shadow-sm hover:shadow-primary/20 h-9 text-xs gap-1.5"
-                                                >
-                                                    <Wrench className="h-4 w-4" />
-                                                    <span className="hidden sm:inline">{order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
-                                                        ? "Weiterarbeiten"
-                                                        : "Arbeitsmodus"}</span>
-                                                </Button>
+                                                {isEnabled('control_mode') && (
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => navigate(`/dashboard/orders/${order.id}/control`)}
+                                                        variant="outline"
+                                                        className="border-green-500/30 text-green-600 hover:bg-green-500/10 h-9 text-xs gap-1.5"
+                                                    >
+                                                        <ShieldCheck className="h-4 w-4" />
+                                                        <span className="hidden sm:inline">Kontrolle</span>
+                                                    </Button>
+                                                )}
+                                                {isEnabled('service_mode') && (
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => navigate(`/dashboard/orders/${order.id}/work`)}
+                                                        className="bg-primary text-primary-foreground shadow-sm hover:shadow-primary/20 h-9 text-xs gap-1.5"
+                                                    >
+                                                        <Wrench className="h-4 w-4" />
+                                                        <span className="hidden sm:inline">{order.checklist && order.checklist.some((item: any) => item.completed || item.notes)
+                                                            ? "Weiterarbeiten"
+                                                            : "Arbeitsmodus"}</span>
+                                                    </Button>
+                                                )}
                                             </div>
                                         )}
                                     </div>

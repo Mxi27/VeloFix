@@ -33,7 +33,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuth } from "@/contexts/AuthContext"
+import { useFeatures } from "@/contexts/FeaturesContext"
 import { useNavigate, useLocation } from "react-router-dom"
+import type { FeatureKey } from "@/types"
 import { CreateOrderModal } from "@/components/CreateOrderModal"
 import { SettingsModal } from "@/components/SettingsModal"
 import { useState } from "react"
@@ -48,6 +50,7 @@ interface NavItem {
     icon: React.ComponentType<{ className?: string; strokeWidth?: number }>
     href: string
     badge?: number
+    featureKey?: FeatureKey
 }
 
 /* Todoist nav button */
@@ -102,6 +105,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
     const { user, signOut, userRole } = useAuth()
+    const { isEnabled } = useFeatures()
     const navigate = useNavigate()
     const location = useLocation()
     const { toggleSidebar } = useSidebar()
@@ -129,22 +133,29 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
         .join("")
         .toUpperCase() || "U"
 
-    const mainItems: NavItem[] = [
+    const allMainItems: NavItem[] = [
         { title: "Reparaturen", icon: ListTodo, href: "/dashboard" },
-        { title: "Mein Cockpit", icon: LayoutDashboard, href: "/dashboard/cockpit" },
-        { title: "Aufgaben", icon: CheckSquare, href: "/dashboard/tasks" },
+        { title: "Mein Cockpit", icon: LayoutDashboard, href: "/dashboard/cockpit", featureKey: "cockpit" },
+        { title: "Aufgaben", icon: CheckSquare, href: "/dashboard/tasks", featureKey: "tasks" },
     ]
 
-    const workshopItems: NavItem[] = [
-        { title: "Neuradaufbau", icon: Bike, href: "/dashboard/bike-builds" },
+    const allWorkshopItems: NavItem[] = [
+        { title: "Neuradaufbau", icon: Bike, href: "/dashboard/bike-builds", featureKey: "bike_builds" },
         { title: "Reparatur Archiv", icon: Archive, href: "/dashboard/archive" },
-        { title: "Leasing", icon: CreditCard, href: "/dashboard/leasing-billing" },
+        { title: "Leasing", icon: CreditCard, href: "/dashboard/leasing-billing", featureKey: "leasing" },
     ]
 
-    const commItems: NavItem[] = [
-        { title: "Notizbuch", icon: BookOpen, href: "/dashboard/notebook" },
-        { title: "Feedback", icon: Star, href: "/dashboard/feedback" },
+    const allCommItems: NavItem[] = [
+        { title: "Notizbuch", icon: BookOpen, href: "/dashboard/notebook", featureKey: "notebook" },
+        { title: "Feedback", icon: Star, href: "/dashboard/feedback", featureKey: "feedback" },
     ]
+
+    const filterItems = (items: NavItem[]) =>
+        items.filter(item => !item.featureKey || isEnabled(item.featureKey))
+
+    const mainItems = filterItems(allMainItems)
+    const workshopItems = filterItems(allWorkshopItems)
+    const commItems = filterItems(allCommItems)
 
     return (
         <>
@@ -236,31 +247,38 @@ export function AppSidebar({ onOrderCreated }: AppSidebarProps) {
 
 
                     {/* ── Werkstatt (Meine Projekte style) ── */}
-                    <SectionLabel>Werkstatt</SectionLabel>
-                    <SidebarMenu>
-                        {workshopItems.map((item) => (
-                            <NavBtn
-                                key={item.href}
-                                item={item}
-                                isActive={isActive(item.href)}
-                                onClick={() => navigate(item.href)}
-                            />
-                        ))}
-
-                    </SidebarMenu>
+                    {workshopItems.length > 0 && (
+                        <>
+                            <SectionLabel>Werkstatt</SectionLabel>
+                            <SidebarMenu>
+                                {workshopItems.map((item) => (
+                                    <NavBtn
+                                        key={item.href}
+                                        item={item}
+                                        isActive={isActive(item.href)}
+                                        onClick={() => navigate(item.href)}
+                                    />
+                                ))}
+                            </SidebarMenu>
+                        </>
+                    )}
 
                     {/* ── Kommunikation ── */}
-                    <SectionLabel>Kommunikation</SectionLabel>
-                    <SidebarMenu>
-                        {commItems.map((item) => (
-                            <NavBtn
-                                key={item.href}
-                                item={item}
-                                isActive={isActive(item.href)}
-                                onClick={() => navigate(item.href)}
-                            />
-                        ))}
-                    </SidebarMenu>
+                    {commItems.length > 0 && (
+                        <>
+                            <SectionLabel>Kommunikation</SectionLabel>
+                            <SidebarMenu>
+                                {commItems.map((item) => (
+                                    <NavBtn
+                                        key={item.href}
+                                        item={item}
+                                        isActive={isActive(item.href)}
+                                        onClick={() => navigate(item.href)}
+                                    />
+                                ))}
+                            </SidebarMenu>
+                        </>
+                    )}
                 </SidebarContent>
 
                 {/* ── Footer — Todoist "Hilfe & Ressourcen" style ── */}

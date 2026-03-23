@@ -28,19 +28,20 @@ import { TagsSettings } from '@/components/TagsSettings'
 import { WorkshopSettings } from '@/components/WorkshopSettings'
 import { TrashSettings } from '@/components/TrashSettings'
 import { FeedbackAnalysisSettings } from '@/components/FeedbackAnalysisSettings'
+import { FeatureSettings } from '@/components/FeatureSettings'
 import {
     User, Building2, Users, ListChecks, CreditCard,
     ClipboardList, Bell, Shield, Palette,
     FileSpreadsheet, Database as DatabaseIcon,
     Wrench, MessageSquare, Tag, X, ArrowLeft,
-    Trash2, BarChart3,
+    Trash2, BarChart3, Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type SettingsSection =
     | 'profile' | 'workshop' | 'employees' | 'checklists' | 'neurad'
     | 'inquiries' | 'intake' | 'leasing' | 'notifications' | 'security'
-    | 'display' | 'data_archive' | 'export' | 'tags' | 'trash' | 'feedback_analysis'
+    | 'display' | 'data_archive' | 'export' | 'tags' | 'trash' | 'feedback_analysis' | 'features'
 
 interface NavItem {
     id: SettingsSection
@@ -80,6 +81,7 @@ const navGroups: NavGroup[] = [
     {
         label: 'System',
         items: [
+            { id: 'features', label: 'Features & Paket', icon: Layers, adminOnly: true },
             { id: 'data_archive', label: 'Daten & Archiv', icon: DatabaseIcon, adminOnly: true },
             { id: 'export', label: 'Datenexport', icon: FileSpreadsheet, adminOnly: true },
             { id: 'feedback_analysis', label: 'Feedback Analyse', icon: BarChart3, adminOnly: true },
@@ -261,6 +263,7 @@ export function SettingsModal({ open, onOpenChange, defaultSection = 'profile' }
             case 'data_archive': return <DataLifecycleManager />
             case 'trash': return <TrashSettings />
             case 'feedback_analysis': return <FeedbackAnalysisSettings />
+            case 'features': return <FeatureSettings />
             default: return null
         }
     }

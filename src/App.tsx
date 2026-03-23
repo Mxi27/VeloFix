@@ -2,11 +2,13 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
 import { useAuth, AuthProvider } from "@/contexts/AuthContext";
 import { EmployeeProvider } from "@/contexts/EmployeeContext";
+import { FeaturesProvider, useFeatures } from "@/contexts/FeaturesContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 import { Toaster } from "sonner";
 import { loadThemeColor, loadTheme, loadCompactMode } from "@/lib/theme";
+import type { FeatureKey } from "@/types";
 
 // Pages needed on the very first render (auth flow) — keep as static imports
 import LoginPage from "@/pages/LoginPage";
@@ -30,6 +32,14 @@ const NotebookPage         = lazy(() => import("@/pages/NotebookPage"));
 const FeedbackPage         = lazy(() => import("@/pages/FeedbackPage"));
 const OrderStatusPage      = lazy(() => import("@/pages/OrderStatusPage"));
 const IntakePage           = lazy(() => import("@/pages/IntakePage"));
+
+/** Redirects to /dashboard if a feature is disabled */
+function FeatureRoute({ featureKey, children }: { featureKey: FeatureKey; children: React.ReactNode }) {
+    const { isEnabled, loading } = useFeatures()
+    if (loading) return <LoadingScreen />
+    if (!isEnabled(featureKey)) return <Navigate to="/dashboard" replace />
+    return <>{children}</>
+}
 
 function AppRoutes() {
     const { user, workshopId, loading } = useAuth();
@@ -80,17 +90,17 @@ function AppRoutes() {
 
                 {/* Protected dashboard routes */}
                 <Route path="/dashboard" element={<ProtectedRoute>{dashboardRedirect ?? <DashboardPage />}</ProtectedRoute>} />
-                <Route path="/dashboard/cockpit" element={<ProtectedRoute>{dashboardRedirect ?? <CockpitPage />}</ProtectedRoute>} />
-                <Route path="/dashboard/tasks" element={<ProtectedRoute>{dashboardRedirect ?? <TasksPage />}</ProtectedRoute>} />
-                <Route path="/dashboard/notebook" element={<ProtectedRoute>{dashboardRedirect ?? <NotebookPage />}</ProtectedRoute>} />
-                <Route path="/dashboard/bike-builds" element={<ProtectedRoute>{dashboardRedirect ?? <BikeBuildsPage />}</ProtectedRoute>} />
-                <Route path="/dashboard/bike-builds/:id" element={<ProtectedRoute>{dashboardRedirect ?? <BikeBuildDetailPage />}</ProtectedRoute>} />
-                <Route path="/dashboard/orders/:orderId/work" element={<ProtectedRoute>{dashboardRedirect ?? <ServiceModePage />}</ProtectedRoute>} />
-                <Route path="/dashboard/orders/:orderId/control" element={<ProtectedRoute>{dashboardRedirect ?? <ControlModePage />}</ProtectedRoute>} />
+                <Route path="/dashboard/cockpit" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="cockpit"><CockpitPage /></FeatureRoute>}</ProtectedRoute>} />
+                <Route path="/dashboard/tasks" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="tasks"><TasksPage /></FeatureRoute>}</ProtectedRoute>} />
+                <Route path="/dashboard/notebook" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="notebook"><NotebookPage /></FeatureRoute>}</ProtectedRoute>} />
+                <Route path="/dashboard/bike-builds" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="bike_builds"><BikeBuildsPage /></FeatureRoute>}</ProtectedRoute>} />
+                <Route path="/dashboard/bike-builds/:id" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="bike_builds"><BikeBuildDetailPage /></FeatureRoute>}</ProtectedRoute>} />
+                <Route path="/dashboard/orders/:orderId/work" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="service_mode"><ServiceModePage /></FeatureRoute>}</ProtectedRoute>} />
+                <Route path="/dashboard/orders/:orderId/control" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="control_mode"><ControlModePage /></FeatureRoute>}</ProtectedRoute>} />
                 <Route path="/dashboard/orders/:orderId" element={<ProtectedRoute>{dashboardRedirect ?? <OrderDetailPage />}</ProtectedRoute>} />
                 <Route path="/dashboard/archive" element={<ProtectedRoute>{dashboardRedirect ?? <ArchivePage />}</ProtectedRoute>} />
-                <Route path="/dashboard/leasing-billing" element={<ProtectedRoute>{dashboardRedirect ?? <LeasingBillingPage />}</ProtectedRoute>} />
-                <Route path="/dashboard/feedback" element={<ProtectedRoute>{dashboardRedirect ?? <FeedbackPage />}</ProtectedRoute>} />
+                <Route path="/dashboard/leasing-billing" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="leasing"><LeasingBillingPage /></FeatureRoute>}</ProtectedRoute>} />
+                <Route path="/dashboard/feedback" element={<ProtectedRoute>{dashboardRedirect ?? <FeatureRoute featureKey="feedback"><FeedbackPage /></FeatureRoute>}</ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute>{dashboardRedirect ?? <SettingsPage />}</ProtectedRoute>} />
 
                 <Route path="/" element={<Navigate to="/login" replace />} />
@@ -109,12 +119,14 @@ export function App() {
     return (
         <GlobalErrorBoundary>
             <AuthProvider>
-                <EmployeeProvider>
-                    <BrowserRouter>
-                        <AppRoutes />
-                    </BrowserRouter>
-                    <Toaster richColors position="top-right" />
-                </EmployeeProvider>
+                <FeaturesProvider>
+                    <EmployeeProvider>
+                        <BrowserRouter>
+                            <AppRoutes />
+                        </BrowserRouter>
+                        <Toaster richColors position="top-right" />
+                    </EmployeeProvider>
+                </FeaturesProvider>
             </AuthProvider>
         </GlobalErrorBoundary>
     );
